@@ -140,7 +140,7 @@ class _VideoGalleryState extends ConsumerState<VideoGallery> {
                   child: UniversalVideoPlayer(
                     videoUrl: widget.videoUrls[index],
                     showControls: true,
-                    autoPlay: false,
+                    autoPlay: index == _currentIndex,
                   ),
                 );
               },
