@@ -618,8 +618,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final styleController = TextEditingController();
-    final videoUrlController = TextEditingController();
-
     // Simplified: just one list for all selected images
     List<File> selectedImages = [];
     List<String> videoUrls = [];
@@ -900,81 +898,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ],
 
-                      const SizedBox(height: 20),
-
                       // Video URLs section
+                      const SizedBox(height: 20),
                       Row(
                         children: [
-                          const Icon(Icons.video_library, color: Colors.orange),
+                          const Icon(Icons.video_library, color: Colors.purple),
                           const SizedBox(width: 8),
                           Text(
                             "Video URLs (${videoUrls.length})",
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.orange,
+                              color: Colors.purple,
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Add YouTube, Vimeo, or other video URLs',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
                       ),
                       const SizedBox(height: 12),
 
-                      // Video URL input
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: videoUrlController,
-                              decoration: const InputDecoration(
-                                labelText: "Video URL",
-                                hintText: "https://youtube.com/watch?v=...",
-                                prefixIcon: Icon(Icons.video_library),
-                                border: OutlineInputBorder(),
-                              ),
-                              onSubmitted: (value) {
-                                final url = value.trim();
-                                if (url.isNotEmpty && !videoUrls.contains(url)) {
-                                  setState(() {
-                                    videoUrls.add(url);
-                                    videoUrlController.clear();
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: isProcessing
-                                ? null
-                                : () {
-                                    final url = videoUrlController.text.trim();
-                                    if (url.isNotEmpty && !videoUrls.contains(url)) {
-                                      setState(() {
-                                        videoUrls.add(url);
-                                        videoUrlController.clear();
-                                      });
-                                    }
-                                  },
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text("Add"),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 16,
-                              ),
-                            ),
-                          ),
-                        ],
+                      // Video URL input field
+                      TextField(
+                        decoration: const InputDecoration(
+                          labelText: "Add Video URL",
+                          hintText: "https://www.youtube.com/watch?v=...",
+                          prefixIcon: Icon(Icons.link),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.url,
+                        onSubmitted: (url) {
+                          if (url.trim().isNotEmpty && !videoUrls.contains(url.trim())) {
+                            setState(() {
+                              videoUrls.add(url.trim());
+                            });
+                          }
+                        },
                       ),
 
                       // Video URLs list
@@ -983,21 +940,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.1),
+                            color: Colors.purple.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Colors.orange.withValues(alpha: 0.3),
+                              color: Colors.purple.withValues(alpha: 0.3),
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${videoUrls.length} video(s) added',
+                                '${videoUrls.length} video URL(s) added',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
-                                  color: Colors.orange,
+                                  color: Colors.purple,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -1008,20 +965,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   margin: const EdgeInsets.only(bottom: 8),
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.grey[800]
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: Colors.orange.withValues(alpha: 0.3),
-                                    ),
+                                    border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
                                   ),
                                   child: Row(
                                     children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.orange,
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
+                                      CircleAvatar(
+                                        backgroundColor: Colors.purple,
+                                        radius: 12,
                                         child: Text(
                                           '${index + 1}',
                                           style: const TextStyle(
@@ -1035,33 +989,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       Expanded(
                                         child: Text(
                                           url,
-                                          style: const TextStyle(fontSize: 12),
-                                          maxLines: 2,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Theme.of(context).brightness == Brightness.dark
+                                                ? Colors.white
+                                                : Colors.black,
+                                          ),
+                                          maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       IconButton(
+                                        icon: const Icon(Icons.delete, size: 16, color: Colors.red),
                                         onPressed: () {
                                           setState(() {
                                             videoUrls.removeAt(index);
                                           });
                                         },
-                                        icon: const Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
-                                          size: 18,
-                                        ),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
                                       ),
                                     ],
                                   ),
                                 );
-                              }),
+                              }).toList(),
                             ],
                           ),
                         ),
                       ],
+
                     ],
                   ),
                 ),
@@ -1104,7 +1058,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             );
 
-                            // Use the kata provider to create the kata with video URLs
+                            // Use the kata provider to create the kata
                             await ref.read(kataNotifierProvider.notifier).addKata(
                               name: nameController.text.trim(),
                               description: descriptionController.text.trim(),

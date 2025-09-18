@@ -76,30 +76,37 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           showControls: widget.showControls,
           aspectRatio: widget.aspectRatio ?? _videoPlayerController.value.aspectRatio,
           placeholder: Container(
-            color: Colors.black,
-            child: const Center(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.surface
+                : Colors.black,
+            child: Center(
               child: CircularProgressIndicator(
-                color: Colors.white,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.white,
               ),
             ),
           ),
           errorBuilder: (context, errorMessage) {
+            final theme = Theme.of(context);
+            final isDark = theme.brightness == Brightness.dark;
+            
             return Container(
-              color: Colors.black,
+              color: isDark ? theme.colorScheme.surface : Colors.black,
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.error_outline,
-                      color: Colors.white,
+                      color: isDark ? theme.colorScheme.error : Colors.white,
                       size: 48,
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Video failed to load',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: isDark ? theme.colorScheme.onSurface : Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -107,8 +114,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                     const SizedBox(height: 8),
                     Text(
                       errorMessage,
-                      style: const TextStyle(
-                        color: Colors.white70,
+                      style: TextStyle(
+                        color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.white70,
                         fontSize: 12,
                       ),
                       textAlign: TextAlign.center,
@@ -121,8 +128,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                       icon: const Icon(Icons.refresh),
                       label: const Text('Retry'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
                       ),
                     ),
                   ],
@@ -131,10 +138,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
             );
           },
           materialProgressColors: ChewieProgressColors(
-            playedColor: Theme.of(context).primaryColor,
-            handleColor: Theme.of(context).primaryColor,
-            backgroundColor: Colors.grey,
-            bufferedColor: Colors.grey.shade300,
+            playedColor: Theme.of(context).colorScheme.primary,
+            handleColor: Theme.of(context).colorScheme.primary,
+            backgroundColor: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.outline
+                : Colors.grey,
+            bufferedColor: Theme.of(context).brightness == Brightness.dark
+                ? Theme.of(context).colorScheme.outlineVariant
+                : Colors.grey.shade300,
           ),
         );
 
@@ -221,24 +232,27 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     if (_hasError) {
       return Container(
         height: 200,
-        color: Colors.black,
+        color: isDark ? theme.colorScheme.surface : Colors.black,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline,
-                color: Colors.white,
+                color: isDark ? theme.colorScheme.error : Colors.white,
                 size: 48,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Video failed to load',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: isDark ? theme.colorScheme.onSurface : Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -246,8 +260,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               const SizedBox(height: 8),
               Text(
                 _errorMessage ?? 'Unknown error',
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.white70,
                   fontSize: 12,
                 ),
                 textAlign: TextAlign.center,
@@ -258,8 +272,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
+                  backgroundColor: theme.colorScheme.primary,
+                  foregroundColor: theme.colorScheme.onPrimary,
                 ),
               ),
             ],
@@ -271,19 +285,19 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     if (!_isInitialized || _chewieController == null) {
       return Container(
         height: 200,
-        color: Colors.black,
-        child: const Center(
+        color: isDark ? theme.colorScheme.surface : Colors.black,
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
-                color: Colors.white,
+                color: isDark ? theme.colorScheme.primary : Colors.white,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Loading video...',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: isDark ? theme.colorScheme.onSurface : Colors.white,
                   fontSize: 14,
                 ),
               ),
@@ -358,15 +372,20 @@ class _VideoThumbnailState extends State<VideoThumbnail> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
         width: widget.width,
         height: widget.height,
         decoration: BoxDecoration(
-          color: Colors.black,
+          color: isDark ? theme.colorScheme.surface : Colors.black,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade300),
+          border: Border.all(
+            color: isDark ? theme.colorScheme.outline : Colors.grey.shade300,
+          ),
         ),
         child: Stack(
           children: [
@@ -387,17 +406,17 @@ class _VideoThumbnailState extends State<VideoThumbnail> {
                 ),
               )
             else if (_hasError)
-              const Center(
+              Center(
                 child: Icon(
                   Icons.error_outline,
-                  color: Colors.white,
+                  color: isDark ? theme.colorScheme.error : Colors.white,
                   size: 24,
                 ),
               )
             else
-              const Center(
+              Center(
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: isDark ? theme.colorScheme.primary : Colors.white,
                   strokeWidth: 2,
                 ),
               ),

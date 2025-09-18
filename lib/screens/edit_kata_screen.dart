@@ -7,6 +7,7 @@ import '../providers/kata_provider.dart';
 import '../providers/image_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/image_gallery.dart';
+import '../widgets/video_url_input_widget.dart';
 
 class EditKataScreen extends ConsumerStatefulWidget {
   final Kata kata;
@@ -24,11 +25,10 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _styleController;
-  late TextEditingController _videoUrlController;
   
   List<String> _currentImageUrls = [];
   final List<File> _newSelectedImages = [];
-  List<String> _videoUrls = [];
+  final List<String> _videoUrls = [];
   bool _isLoading = false;
   bool _hasChanges = false;
 
@@ -38,11 +38,10 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     _nameController = TextEditingController(text: widget.kata.name);
     _descriptionController = TextEditingController(text: widget.kata.description);
     _styleController = TextEditingController(text: widget.kata.style);
-    _videoUrlController = TextEditingController();
     
-    // Load current images and video URLs
+    // Load current images and videos
     _loadCurrentImages();
-    _videoUrls = List<String>.from(widget.kata.videoUrls ?? []);
+    _loadCurrentVideos();
     
     // Add listeners to detect changes
     _nameController.addListener(_onTextChanged);
@@ -55,7 +54,6 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _styleController.dispose();
-    _videoUrlController.dispose();
     super.dispose();
   }
 
@@ -79,6 +77,15 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         _currentImageUrls = widget.kata.imageUrls ?? [];
       });
     }
+  }
+
+  void _loadCurrentVideos() {
+    setState(() {
+      _videoUrls.clear();
+      if (widget.kata.videoUrls != null) {
+        _videoUrls.addAll(widget.kata.videoUrls!);
+      }
+    });
   }
 
   Future<void> _pickImagesFromGallery() async {
@@ -205,35 +212,6 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     });
   }
 
-  void _addVideoUrl() {
-    final url = _videoUrlController.text.trim();
-    if (url.isNotEmpty && !_videoUrls.contains(url)) {
-      setState(() {
-        _videoUrls.add(url);
-        _videoUrlController.clear();
-        _hasChanges = true;
-      });
-    }
-  }
-
-  void _removeVideoUrl(int index) {
-    setState(() {
-      _videoUrls.removeAt(index);
-      _hasChanges = true;
-    });
-  }
-
-  void _reorderVideoUrls(int oldIndex, int newIndex) {
-    setState(() {
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
-      final item = _videoUrls.removeAt(oldIndex);
-      _videoUrls.insert(newIndex, item);
-      _hasChanges = true;
-    });
-  }
-
 
   Future<void> _saveChanges() async {
     if (!_hasChanges) {
@@ -246,7 +224,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     });
 
     try {
-      // Update text fields and video URLs in database
+      // Update text fields in database
       await ref.read(kataNotifierProvider.notifier).updateKata(
         kataId: widget.kata.id,
         name: _nameController.text,
@@ -854,146 +832,18 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
               const SizedBox(height: 16),
 
               // Video URLs Section
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Video URLs',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Add YouTube, Vimeo, or other video URLs to demonstrate this kata',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      
-                      // Add Video URL Input
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _videoUrlController,
-                              decoration: const InputDecoration(
-                                labelText: 'Video URL',
-                                hintText: 'https://youtube.com/watch?v=...',
-                                border: OutlineInputBorder(),
-                                prefixIcon: Icon(Icons.video_library),
-                              ),
-                              onSubmitted: (_) => _addVideoUrl(),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: _addVideoUrl,
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Add'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      
-                      // Current Video URLs List
-                      if (_videoUrls.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          'Current Videos (${_videoUrls.length})',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Long press and drag to reorder videos',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ReorderableListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _videoUrls.length,
-                          onReorder: _reorderVideoUrls,
-                          itemBuilder: (context, index) {
-                            final url = _videoUrls[index];
-                            return Container(
-                              key: ValueKey(url),
-                              margin: const EdgeInsets.only(bottom: 8),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.orange.shade300),
-                                borderRadius: BorderRadius.circular(8),
-                                color: Colors.orange.shade50,
-                              ),
-                              child: ListTile(
-                                leading: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.orange,
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        '${index + 1}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      Icons.video_library,
-                                      color: Colors.orange.shade700,
-                                    ),
-                                  ],
-                                ),
-                                title: Text(
-                                  url,
-                                  style: const TextStyle(fontSize: 14),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red),
-                                      onPressed: () => _removeVideoUrl(index),
-                                      tooltip: 'Remove video',
-                                    ),
-                                    const Icon(
-                                      Icons.drag_handle,
-                                      color: Colors.grey,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
+              VideoUrlInputWidget(
+                videoUrls: _videoUrls,
+                onVideoUrlsChanged: (urls) {
+                  setState(() {
+                    _videoUrls.clear();
+                    _videoUrls.addAll(urls);
+                    _hasChanges = true;
+                  });
+                },
+                title: 'Video URLs',
               ),
+              const SizedBox(height: 16),
 
               // Footer Section with helpful information
               const SizedBox(height: 32),
@@ -1040,6 +890,11 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       _buildTipItem(
                         icon: Icons.photo_library,
                         text: 'Add multiple images from gallery or camera',
+                      ),
+                      const SizedBox(height: 8),
+                      _buildTipItem(
+                        icon: Icons.video_library,
+                        text: 'Add or edit video URLs from various platforms',
                       ),
                     ],
                   ),

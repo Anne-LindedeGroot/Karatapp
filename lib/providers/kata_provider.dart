@@ -150,8 +150,8 @@ class KataNotifier extends StateNotifier<KataState> {
             "description": description,
             "style": style,
             "created_at": DateTime.now().toIso8601String(),
-            "video_urls": videoUrls,
             "order": nextOrder,
+            "video_urls": videoUrls,
           };
 
           // Insert kata into database
@@ -336,11 +336,8 @@ class KataNotifier extends StateNotifier<KataState> {
             'name': name,
             'description': description,
             'style': style,
+            'video_urls': videoUrls,
           };
-          
-          if (videoUrls != null) {
-            updateData['video_urls'] = videoUrls;
-          }
           
           await _supabase.from("katas").update(updateData).eq('id', kataId);
 
@@ -351,7 +348,7 @@ class KataNotifier extends StateNotifier<KataState> {
                 name: name,
                 description: description,
                 style: style,
-                videoUrls: videoUrls ?? kata.videoUrls,
+                videoUrls: videoUrls,
               );
             }
             return kata;
