@@ -174,43 +174,77 @@ class AvatarPreview extends StatelessWidget {
         height: size + 30, // Extra space for name
         child: Column(
           children: [
-            Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected 
-                      ? Theme.of(context).primaryColor 
-                      : Colors.grey.shade300,
-                  width: isSelected ? 3 : 1,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          spreadRadius: 2,
-                        ),
-                      ]
-                    : null,
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  avatar.assetPath,
+            Stack(
+              children: [
+                Container(
                   width: size,
                   height: size,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    color: Colors.grey.shade200,
-                    child: Icon(
-                      Icons.image,
-                      color: Colors.grey.shade400,
-                      size: size * 0.4,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected 
+                          ? Colors.green 
+                          : Colors.grey.shade300,
+                      width: isSelected ? 3 : 1,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Colors.green.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      avatar.assetPath,
+                      width: size,
+                      height: size,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        color: Colors.grey.shade200,
+                        child: Icon(
+                          Icons.image,
+                          color: Colors.grey.shade400,
+                          size: size * 0.4,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                // Green circle overlay for selected avatar
+                if (isSelected)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: size * 0.3,
+                      height: size * 0.3,
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: size * 0.15,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             Text(
@@ -219,7 +253,7 @@ class AvatarPreview extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected 
-                    ? Theme.of(context).primaryColor 
+                    ? Colors.green 
                     : Colors.grey.shade700,
               ),
               textAlign: TextAlign.center,

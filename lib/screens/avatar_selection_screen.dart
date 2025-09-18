@@ -55,7 +55,11 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
             child: Text(
               'Save',
               style: TextStyle(
-                color: isLoading ? Colors.grey : Theme.of(context).primaryColor,
+                color: isLoading 
+                    ? Colors.grey 
+                    : (Theme.of(context).brightness == Brightness.dark 
+                        ? Colors.white 
+                        : Theme.of(context).primaryColor),
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -101,42 +105,83 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
             ),
           ),
           const SizedBox(height: 20),
-          if (_selectedCustomImage != null)
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Theme.of(context).primaryColor,
-                  width: 3,
+          Stack(
+            children: [
+              // Avatar display (custom image or placeholder)
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _selectedCustomImage != null 
+                        ? Colors.green 
+                        : Colors.grey.shade300,
+                    width: _selectedCustomImage != null ? 3 : 2,
+                  ),
+                  color: _selectedCustomImage == null ? Colors.grey.shade100 : null,
+                  boxShadow: _selectedCustomImage != null
+                      ? [
+                          BoxShadow(
+                            color: Colors.green.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ]
+                      : null,
+                ),
+                child: _selectedCustomImage != null
+                    ? ClipOval(
+                        child: Image.file(
+                          _selectedCustomImage!,
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                    : Icon(
+                        Icons.add_a_photo,
+                        size: 40,
+                        color: Colors.grey.shade400,
+                      ),
+              ),
+              
+              // Top-right overlay button (Add or Check)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: GestureDetector(
+                  onTap: _selectedCustomImage == null && !_isUploading 
+                      ? () => _showAddAvatarOptions() 
+                      : null,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: _selectedCustomImage != null 
+                          ? Colors.green 
+                          : Theme.of(context).primaryColor,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 4,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      _selectedCustomImage != null ? Icons.check : Icons.add,
+                      color: Colors.white,
+                      size: _selectedCustomImage != null ? 18 : 20,
+                    ),
+                  ),
                 ),
               ),
-              child: ClipOval(
-                child: Image.file(
-                  _selectedCustomImage!,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            )
-          else
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.grey.shade300,
-                  width: 2,
-                ),
-                color: Colors.grey.shade100,
-              ),
-              child: Icon(
-                Icons.add_a_photo,
-                size: 40,
-                color: Colors.grey.shade400,
-              ),
-            ),
+            ],
+          ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -145,11 +190,19 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
                 onPressed: _isUploading ? null : () => _pickImage(ImageSource.camera),
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Camera'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                ),
               ),
               ElevatedButton.icon(
                 onPressed: _isUploading ? null : () => _pickImage(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library),
                 label: const Text('Gallery'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -218,6 +271,76 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAddAvatarOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Add Custom Avatar',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Icon(
+                Icons.camera_alt,
+                color: Theme.of(context).primaryColor,
+              ),
+              title: const Text(
+                'Take Photo',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Use camera to take a new photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.photo_library,
+                color: Theme.of(context).primaryColor,
+              ),
+              title: const Text(
+                'Choose from Gallery',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text('Select an existing photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
