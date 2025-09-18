@@ -101,7 +101,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create New Post'),
+        title: const Text('Nieuw Bericht Maken'),
         actions: [
           TextButton(
             onPressed: _isSubmitting ? null : _submitPost,
@@ -331,9 +331,9 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                           Text(
                             '• Be respectful and courteous to other members\n'
                             '• Stay on topic and choose the appropriate category\n'
-                            '• Use clear and descriptive titles\n'
-                            '• Search before posting to avoid duplicates\n'
-                            '• Follow proper karate etiquette and terminology',
+                            '• Gebruik duidelijke en beschrijvende titels\n'
+                            '• Zoek voordat je post om duplicaten te voorkomen\n'
+                            '• Volg de juiste karate etiquette en terminologie',
                             style: TextStyle(
                               color: Colors.blue[700],
                               fontSize: 12,
@@ -396,7 +396,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                             ],
                           )
                         : const Text(
-                            'Create Post',
+                            'Bericht Maken',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

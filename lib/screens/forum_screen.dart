@@ -5,6 +5,7 @@ import '../providers/forum_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/skeleton_forum_post.dart';
 import '../core/navigation/app_router.dart';
@@ -481,6 +482,20 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     }
   }
 
+  /// Get appropriate icon for font size
+  IconData _getFontSizeIcon(AccessibilityFontSize fontSize) {
+    switch (fontSize) {
+      case AccessibilityFontSize.small:
+        return Icons.text_decrease;
+      case AccessibilityFontSize.normal:
+        return Icons.text_fields;
+      case AccessibilityFontSize.large:
+        return Icons.text_increase;
+      case AccessibilityFontSize.extraLarge:
+        return Icons.format_size;
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -494,15 +509,146 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('Community Forum'),
+        title: const Text('Forum'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _refreshPosts,
+          // Accessibility quick actions in app bar
+          Consumer(
+            builder: (context, ref, child) {
+              final accessibilityState = ref.watch(accessibilityNotifierProvider);
+              final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+              
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Text-to-speech toggle
+                  IconButton(
+                    icon: Icon(accessibilityState.isTextToSpeechEnabled 
+                        ? Icons.headphones 
+                        : Icons.headphones_outlined),
+                    tooltip: accessibilityState.isTextToSpeechEnabled ? 'Spraak uit' : 'Spraak aan',
+                    onPressed: () async {
+                      await accessibilityNotifier.toggleTextToSpeech();
+                      // Test TTS when enabling
+                      if (!accessibilityState.isTextToSpeechEnabled) {
+                        // Wait a moment for the toggle to complete
+                        await Future.delayed(const Duration(milliseconds: 100));
+                        await accessibilityNotifier.speak('Spraak is nu ingeschakeld');
+                      }
+                    },
+                    color: accessibilityState.isTextToSpeechEnabled
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  
+                  // Combined accessibility settings popup
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.text_fields,
+                      color: (accessibilityState.fontSize != AccessibilityFontSize.normal || 
+                             accessibilityState.isDyslexiaFriendly)
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    tooltip: 'Tekst instellingen',
+                    itemBuilder: (context) => [
+                      // Font size section
+                      PopupMenuItem<String>(
+                        enabled: false,
+                        child: Text(
+                          'Lettergrootte',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                      ...AccessibilityFontSize.values.map((fontSize) {
+                        final isSelected = accessibilityState.fontSize == fontSize;
+                        return PopupMenuItem<String>(
+                          value: 'font_${fontSize.name}',
+                          child: Row(
+                            children: [
+                              Icon(
+                                _getFontSizeIcon(fontSize),
+                                size: 20,
+                                color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                fontSize == AccessibilityFontSize.small ? 'Klein' :
+                                fontSize == AccessibilityFontSize.normal ? 'Normaal' :
+                                fontSize == AccessibilityFontSize.large ? 'Groot' : 'Extra Groot',
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (isSelected)
+                                Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const PopupMenuDivider(),
+                      // Dyslexia toggle
+                      PopupMenuItem<String>(
+                        value: 'toggle_dyslexia',
+                        child: Row(
+                          children: [
+                            Icon(
+                              accessibilityState.isDyslexiaFriendly 
+                                  ? Icons.format_line_spacing 
+                                  : Icons.format_line_spacing_outlined,
+                              size: 20,
+                              color: accessibilityState.isDyslexiaFriendly
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
+                            const Text('Dyslexie vriendelijk'),
+                            const Spacer(),
+                            Switch(
+                              value: accessibilityState.isDyslexiaFriendly,
+                              onChanged: (value) {
+                                accessibilityNotifier.toggleDyslexiaFriendly();
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onSelected: (String value) {
+                      if (value.startsWith('font_')) {
+                        final fontSizeName = value.substring(5);
+                        final fontSize = AccessibilityFontSize.values.firstWhere(
+                          (size) => size.name == fontSizeName,
+                        );
+                        accessibilityNotifier.setFontSize(fontSize);
+                      } else if (value == 'toggle_dyslexia') {
+                        accessibilityNotifier.toggleDyslexiaFriendly();
+                      }
+                    },
+                  ),
+                  
+                  // Refresh button
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: _refreshPosts,
+                    tooltip: 'Refresh posts',
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -515,7 +661,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 controller: _searchController,
                 focusNode: _searchFocusNode,
                 decoration: const InputDecoration(
-                  hintText: 'Search posts...',
+                  hintText: 'Zoek berichten...',
                   prefixIcon: Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(25.0)),

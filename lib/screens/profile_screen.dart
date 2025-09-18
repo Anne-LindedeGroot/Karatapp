@@ -4,6 +4,8 @@ import '../providers/auth_provider.dart';
 import '../providers/role_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
+import '../widgets/accessible_text.dart';
+import '../widgets/accessibility_settings_widget.dart';
 import '../core/navigation/app_router.dart';
 import 'avatar_selection_screen.dart';
 
@@ -27,17 +29,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentUser = ref.read(authUserProvider);
       if (currentUser != null) {
-        _nameController.text = currentUser.userMetadata?['full_name']?.toString() ?? '';
+        _nameController.text =
+            currentUser.userMetadata?['full_name']?.toString() ?? '';
       }
     });
-    
+
     // Add focus listener to track when the name field is focused
     _nameFocusNode.addListener(() {
       setState(() {
         _isNameFieldFocused = _nameFocusNode.hasFocus;
       });
     });
-    
+
     // Add text controller listener to rebuild when text changes
     _nameController.addListener(() {
       setState(() {
@@ -57,7 +60,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter a name'),
+          content: Text('Voer een naam in'),
           backgroundColor: Colors.red,
         ),
       );
@@ -68,19 +71,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.read(authNotifierProvider.notifier).clearError();
 
     try {
-      await ref.read(authNotifierProvider.notifier).updateUserName(
-        _nameController.text.trim(),
-      );
+      await ref
+          .read(authNotifierProvider.notifier)
+          .updateUserName(_nameController.text.trim());
 
       setState(() {
-        _successMessage = 'Name updated successfully!';
+        _successMessage = 'Naam succesvol bijgewerkt!';
       });
 
       // Show success snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Name updated successfully!'),
+            content: Text('Naam succesvol bijgewerkt!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -99,7 +102,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating name: $e'),
+            content: Text('Fout bij bijwerken naam: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -107,17 +110,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider);
     final currentUser = authState.user;
     final isLoading = authState.isLoading;
     final errorMessage = authState.error;
-    
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const AccessibleText(
+          'Profiel',
+          enableTextToSpeech: true,
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
@@ -133,27 +138,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           padding: const EdgeInsets.all(16.0),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height - 
-                         MediaQuery.of(context).padding.top - 
-                         kToolbarHeight - 32, // 32 for padding
+              minHeight:
+                  MediaQuery.of(context).size.height -
+                  MediaQuery.of(context).padding.top -
+                  kToolbarHeight -
+                  32, // 32 for padding
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'User Profile',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const AccessibleText(
+                  'Gebruikersprofiel',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  enableTextToSpeech: true,
                 ),
                 const SizedBox(height: 30),
                 // Avatar Section
                 Center(
                   child: AvatarWidget(
-                    avatarId: currentUser?.userMetadata?['avatar_id']?.toString(),
-                    customAvatarUrl: currentUser?.userMetadata?['avatar_url']?.toString(),
-                    userName: currentUser?.userMetadata?['full_name']?.toString() ?? currentUser?.email,
+                    avatarId: currentUser?.userMetadata?['avatar_id']
+                        ?.toString(),
+                    customAvatarUrl: currentUser?.userMetadata?['avatar_url']
+                        ?.toString(),
+                    userName:
+                        currentUser?.userMetadata?['full_name']?.toString() ??
+                        currentUser?.email,
                     size: 120,
                     showEditIcon: true,
                     onTap: () {
@@ -193,35 +202,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       style: const TextStyle(color: Colors.green),
                     ),
                   ),
-                const Text(
-                  'Email',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const AccessibleText(
+                  'E-mail',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  enableTextToSpeech: true,
                 ),
-                Text(
-                  currentUser?.email ?? 'Unknown',
+                AccessibleText(
+                  currentUser?.email ?? 'Onbekend',
                   style: const TextStyle(fontSize: 16),
+                  enableTextToSpeech: true,
                 ),
                 const SizedBox(height: 20),
                 // Role Section
-                const Text(
-                  'Role',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const AccessibleText(
+                  'Rol',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  enableTextToSpeech: true,
                 ),
                 Consumer(
                   builder: (context, ref, child) {
                     final userRoleAsync = ref.watch(currentUserRoleProvider);
-                    
+
                     return userRoleAsync.when(
                       data: (role) {
                         Color roleColor;
                         IconData roleIcon;
-                        
+
                         switch (role) {
                           case UserRole.host:
                             roleColor = Colors.purple;
@@ -236,37 +242,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             roleIcon = Icons.person;
                             break;
                         }
-                        
+
                         return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: roleColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: roleColor.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: roleColor.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                roleIcon,
-                                color: roleColor,
-                                size: 18,
-                              ),
+                              Icon(roleIcon, color: roleColor, size: 18),
                               const SizedBox(width: 8),
-                              Text(
+                              AccessibleText(
                                 role.displayName,
                                 style: TextStyle(
                                   color: roleColor,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
                                 ),
+                                enableTextToSpeech: true,
                               ),
                             ],
                           ),
                         );
                       },
                       loading: () => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
@@ -280,16 +291,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                             SizedBox(width: 8),
-                            Text('Loading role...'),
+                            AccessibleText(
+                              'Rol laden...',
+                              enableTextToSpeech: true,
+                            ),
                           ],
                         ),
                       ),
                       error: (error, stack) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -300,12 +319,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               size: 18,
                             ),
                             const SizedBox(width: 8),
-                            Text(
-                              'Error loading role',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 14,
-                              ),
+                            const AccessibleText(
+                              'Fout bij laden rol',
+                              style: TextStyle(color: Colors.red, fontSize: 14),
+                              enableTextToSpeech: true,
                             ),
                           ],
                         ),
@@ -318,15 +335,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Consumer(
                   builder: (context, ref, child) {
                     final userRoleAsync = ref.watch(currentUserRoleProvider);
-                    
+
                     return userRoleAsync.when(
-                      data: (role) => Text(
+                      data: (role) => AccessibleText(
                         role.description,
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],
                           fontStyle: FontStyle.italic,
                         ),
+                        enableTextToSpeech: true,
                       ),
                       loading: () => const SizedBox.shrink(),
                       error: (error, stack) => const SizedBox.shrink(),
@@ -334,18 +352,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Full Name',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const AccessibleText(
+                  'Volledige naam',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  enableTextToSpeech: true,
                 ),
                 TextFormField(
                   controller: _nameController,
                   focusNode: _nameFocusNode,
                   decoration: InputDecoration(
-                    labelText: _isNameFieldFocused ? 'Enter your full name' : null,
+                    labelText: _isNameFieldFocused
+                        ? 'Voer uw volledige naam in'
+                        : null,
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -361,9 +379,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onPressed: isLoading ? null : _updateName,
                       child: isLoading
                           ? const CircularProgressIndicator()
-                          : Text(_nameController.text.trim().isEmpty ? 'Add Name' : 'Update Name'),
+                          : Text(
+                              _nameController.text.trim().isEmpty
+                                  ? 'Naam toevoegen'
+                                  : 'Naam bijwerken',
+                            ),
                     ),
                   ),
+
+                const SizedBox(height: 30),
+
+                // Accessibility Settings Section
+                const AccessibilitySettingsWidget(),
               ],
             ),
           ),

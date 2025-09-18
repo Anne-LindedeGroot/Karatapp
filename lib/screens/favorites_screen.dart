@@ -9,6 +9,8 @@ import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
+import '../widgets/accessible_text.dart';
+import '../widgets/accessibility_settings_widget.dart';
 import '../core/navigation/app_router.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
@@ -49,7 +51,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Favorites'),
+        title: const AccessibleText(
+          'Mijn Favorieten',
+          enableTextToSpeech: true,
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
@@ -64,10 +69,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                   final favoriteKatas = kataState.katas
                       .where((kata) => favoriteKataIds.contains(kata.id))
                       .toList();
-                  return 'Katas (${favoriteKatas.length})';
+                  return 'Kata\'s (${favoriteKatas.length})';
                 },
-                loading: () => 'Katas (...)',
-                error: (_, __) => 'Katas (0)',
+                loading: () => 'Kata\'s (...)',
+                error: (_, __) => 'Kata\'s (0)',
               ),
             ),
             Tab(
@@ -77,10 +82,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                   final favoriteForumPosts = forumState.posts
                       .where((post) => favoriteForumPostIds.contains(post.id))
                       .toList();
-                  return 'Forum Posts (${favoriteForumPosts.length})';
+                  return 'Forumberichten (${favoriteForumPosts.length})';
                 },
-                loading: () => 'Forum Posts (...)',
-                error: (_, __) => 'Forum Posts (0)',
+                loading: () => 'Forumberichten (...)',
+                error: (_, __) => 'Forumberichten (0)',
               ),
             ),
           ],
@@ -89,7 +94,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshFavorites,
-            tooltip: 'Refresh favorites',
+            tooltip: 'Favorieten vernieuwen',
           ),
         ],
       ),
@@ -98,6 +103,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           // Connection error widget
           const ConnectionErrorWidget(),
           
+          // Accessibility Settings (compact version)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: AccessibilitySettingsWidget(
+              showTitle: false,
+              isCompact: true,
+            ),
+          ),
+
           // Tab content
           Expanded(
             child: TabBarView(
@@ -118,24 +132,30 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                       children: [
                         const Icon(Icons.error, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
-                        Text('Error loading favorites: $error'),
+                        AccessibleText(
+                          'Fout bij laden favorieten: $error',
+                          enableTextToSpeech: true,
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _refreshFavorites,
-                          child: const Text('Retry'),
+                          child: const Text('Opnieuw proberen'),
                         ),
                       ],
                     ),
                   ),
                 ),
-                
+
                 // Favorite Forum Posts Tab
                 favoriteForumPostsAsync.when(
                   data: (favoriteForumPostIds) {
                     final favoriteForumPosts = forumState.posts
                         .where((post) => favoriteForumPostIds.contains(post.id))
                         .toList();
-                    return _buildFavoriteForumPostsTab(favoriteForumPosts, false);
+                    return _buildFavoriteForumPostsTab(
+                      favoriteForumPosts,
+                      false,
+                    );
                   },
                   loading: () => _buildFavoriteForumPostsTab([], true),
                   error: (error, _) => Center(
@@ -144,11 +164,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                       children: [
                         const Icon(Icons.error, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
-                        Text('Error loading favorites: $error'),
+                        AccessibleText(
+                          'Fout bij laden favorieten: $error',
+                          enableTextToSpeech: true,
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _refreshFavorites,
-                          child: const Text('Retry'),
+                          child: const Text('Opnieuw proberen'),
                         ),
                       ],
                     ),
@@ -176,27 +199,19 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
             Center(
               child: Column(
                 children: [
-                  Icon(
-                    Icons.favorite_border,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
+                  Icon(Icons.favorite_border, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text(
-                    'No favorite katas yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                    ),
+                  AccessibleText(
+                    'Nog geen favoriete kata\'s',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    enableTextToSpeech: true,
                   ),
                   SizedBox(height: 8),
-                  Text(
-                    'Tap the heart icon on any kata to add it to your favorites',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                  AccessibleText(
+                    'Tik op het hartje bij een kata om deze toe te voegen aan je favorieten',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                     textAlign: TextAlign.center,
+                    enableTextToSpeech: true,
                   ),
                 ],
               ),
@@ -222,7 +237,10 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     );
   }
 
-  Widget _buildFavoriteForumPostsTab(List<ForumPost> favoriteForumPosts, bool isLoading) {
+  Widget _buildFavoriteForumPostsTab(
+    List<ForumPost> favoriteForumPosts,
+    bool isLoading,
+  ) {
     if (isLoading) {
       return const SkeletonForumList(itemCount: 3);
     }
@@ -236,27 +254,19 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
             Center(
               child: Column(
                 children: [
-                  Icon(
-                    Icons.favorite_border,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
+                  Icon(Icons.favorite_border, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  Text(
-                    'No favorite forum posts yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                    ),
+                  AccessibleText(
+                    'Nog geen favoriete forumberichten',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    enableTextToSpeech: true,
                   ),
                   SizedBox(height: 8),
-                  Text(
-                    'Tap the heart icon on any forum post to add it to your favorites',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                  AccessibleText(
+                    'Tik op het hartje bij een forumbericht om deze toe te voegen aan je favorieten',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
                     textAlign: TextAlign.center,
+                    enableTextToSpeech: true,
                   ),
                 ],
               ),
@@ -281,7 +291,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
   Widget _buildForumPostCard(ForumPost post) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: InkWell(
         onTap: () {
           Navigator.pushNamed(
@@ -291,56 +301,54 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with category and pin status
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getCategoryColor(post.category),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      post.category.displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getCategoryColor(post.category),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        post.category.displayName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
                   if (post.isPinned) ...[
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.push_pin,
-                      size: 16,
-                      color: Colors.orange,
-                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.push_pin, size: 14, color: Colors.orange),
                   ],
                   if (post.isLocked) ...[
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.lock,
-                      size: 16,
-                      color: Colors.red,
-                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.lock, size: 14, color: Colors.red),
                   ],
                   const Spacer(),
-                  Text(
-                    _formatDate(post.createdAt),
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
+                  Flexible(
+                    child: Text(
+                      _formatDate(post.createdAt),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-              
+
               // Title
               Text(
                 post.title,
@@ -352,19 +360,16 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
-              
+
               // Content preview
               Text(
                 post.content,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[700], fontSize: 14),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 12),
-              
+
               // Footer with author and stats
               Row(
                 children: [
@@ -395,18 +400,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                     ),
                   ),
                   if (post.commentCount > 0) ...[
-                    Icon(
-                      Icons.comment,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
+                    Icon(Icons.comment, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
                       '${post.commentCount}',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
                 ],

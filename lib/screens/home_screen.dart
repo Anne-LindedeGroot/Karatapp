@@ -11,6 +11,7 @@ import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
 import '../providers/network_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../services/role_service.dart';
 import '../utils/image_utils.dart';
 
@@ -47,21 +48,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clean up orphaned images?'),
+        title: const Text('Verweesde afbeeldingen opruimen?'),
         content: const Text(
-          'This will scan for and delete images that don\'t belong to any existing kata. '
-          'This includes images in folders like "0" or "temp_" that may have been left behind. '
-          'This action cannot be undone.',
+          'Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen. '
+          'Dit omvat afbeeldingen in mappen zoals "0" of "temp_" die mogelijk zijn achtergebleven. '
+          'Deze actie kan niet ongedaan worden gemaakt.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Clean Up'),
+            child: const Text('Opruimen'),
           ),
         ],
       ),
@@ -77,7 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(width: 16),
-                  Text('Scanning for orphaned images...'),
+                  Text('Scannen naar verweesde afbeeldingen...'),
                 ],
               ),
               duration: Duration(seconds: 30),
@@ -97,7 +98,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Successfully cleaned up ${deletedPaths.length} orphaned images',
+                  '${deletedPaths.length} verweesde afbeeldingen succesvol opgeruimd',
                 ),
                 backgroundColor: Colors.green,
                 duration: const Duration(seconds: 5),
@@ -106,7 +107,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('No orphaned images found - storage is clean!'),
+                content: Text('Geen verweesde afbeeldingen gevonden - opslag is schoon!'),
                 backgroundColor: Colors.blue,
                 duration: Duration(seconds: 3),
               ),
@@ -118,7 +119,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error during cleanup: $e'),
+              content: Text('Fout tijdens opruimen: $e'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 5),
             ),
@@ -133,19 +134,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete $kataName?'),
+        title: Text('$kataName verwijderen?'),
         content: const Text(
-          'This will permanently delete the kata and all its images. This cannot be undone.',
+          'Dit zal de kata en alle afbeeldingen permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Verwijderen'),
           ),
         ],
       ),
@@ -161,7 +162,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(width: 16),
-                  Text('Deleting kata and images...'),
+                  Text('Kata en afbeeldingen verwijderen...'),
                 ],
               ),
               duration: Duration(seconds: 10),
@@ -176,7 +177,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('$kataName deleted successfully'),
+              content: Text('$kataName succesvol verwijderd'),
               backgroundColor: Colors.green,
             ),
           );
@@ -186,7 +187,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error deleting kata: $e'),
+              content: Text('Fout bij verwijderen kata: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -300,6 +301,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
            errorLower.contains('no internet');
   }
 
+  /// Get appropriate icon for font size
+  IconData _getFontSizeIcon(AccessibilityFontSize fontSize) {
+    switch (fontSize) {
+      case AccessibilityFontSize.small:
+        return Icons.text_decrease;
+      case AccessibilityFontSize.normal:
+        return Icons.text_fields;
+      case AccessibilityFontSize.large:
+        return Icons.text_increase;
+      case AccessibilityFontSize.extraLarge:
+        return Icons.format_size;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final kataState = ref.watch(kataNotifierProvider);
@@ -332,6 +347,135 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         appBar: AppBar(
           title: const Text("Karatapp"),
           actions: [
+            // Accessibility quick actions in app bar
+            Consumer(
+              builder: (context, ref, child) {
+                final accessibilityState = ref.watch(accessibilityNotifierProvider);
+                final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+                
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Text-to-speech toggle
+                    IconButton(
+                      icon: Icon(accessibilityState.isTextToSpeechEnabled 
+                          ? Icons.headphones 
+                          : Icons.headphones_outlined),
+                      tooltip: accessibilityState.isTextToSpeechEnabled ? 'Spraak uit' : 'Spraak aan',
+                      onPressed: () async {
+                        await accessibilityNotifier.toggleTextToSpeech();
+                        // Test TTS when enabling
+                        if (!accessibilityState.isTextToSpeechEnabled) {
+                          // Wait a moment for the toggle to complete
+                          await Future.delayed(const Duration(milliseconds: 100));
+                          await accessibilityNotifier.speak('Spraak is nu ingeschakeld');
+                        }
+                      },
+                      color: accessibilityState.isTextToSpeechEnabled
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    
+                    // Combined accessibility settings popup
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        Icons.text_fields,
+                        color: (accessibilityState.fontSize != AccessibilityFontSize.normal || 
+                               accessibilityState.isDyslexiaFriendly)
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      tooltip: 'Tekst instellingen',
+                      itemBuilder: (context) => [
+                        // Font size section
+                        PopupMenuItem<String>(
+                          enabled: false,
+                          child: Text(
+                            'Lettergrootte',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        ...AccessibilityFontSize.values.map((fontSize) {
+                          final isSelected = accessibilityState.fontSize == fontSize;
+                          return PopupMenuItem<String>(
+                            value: 'font_${fontSize.name}',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _getFontSizeIcon(fontSize),
+                                  size: 20,
+                                  color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                ),
+                                const SizedBox(width: 12),
+                                Text(
+                                  fontSize == AccessibilityFontSize.small ? 'Klein' :
+                                  fontSize == AccessibilityFontSize.normal ? 'Normaal' :
+                                  fontSize == AccessibilityFontSize.large ? 'Groot' : 'Extra Groot',
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (isSelected)
+                                  Icon(
+                                    Icons.check,
+                                    size: 16,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                              ],
+                            ),
+                          );
+                        }),
+                        const PopupMenuDivider(),
+                        // Dyslexia toggle
+                        PopupMenuItem<String>(
+                          value: 'toggle_dyslexia',
+                          child: Row(
+                            children: [
+                              Icon(
+                                accessibilityState.isDyslexiaFriendly 
+                                    ? Icons.format_line_spacing 
+                                    : Icons.format_line_spacing_outlined,
+                                size: 20,
+                                color: accessibilityState.isDyslexiaFriendly
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                              ),
+                              const SizedBox(width: 12),
+                              const Text('Dyslexie vriendelijk'),
+                              const Spacer(),
+                              Switch(
+                                value: accessibilityState.isDyslexiaFriendly,
+                                onChanged: (value) {
+                                  accessibilityNotifier.toggleDyslexiaFriendly();
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onSelected: (String value) {
+                        if (value.startsWith('font_')) {
+                          final fontSizeName = value.substring(5);
+                          final fontSize = AccessibilityFontSize.values.firstWhere(
+                            (size) => size.name == fontSizeName,
+                          );
+                          accessibilityNotifier.setFontSize(fontSize);
+                        } else if (value == 'toggle_dyslexia') {
+                          accessibilityNotifier.toggleDyslexiaFriendly();
+                        }
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
+            
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: isConnected ? _refreshKatas : null,
@@ -343,13 +487,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 context.go('/forum');
               },
               tooltip: 'Community Forum',
-            ),
-            IconButton(
-              icon: const Icon(Icons.favorite),
-              onPressed: () {
-                context.go('/favorites');
-              },
-              tooltip: 'My Favorites',
             ),
             PopupMenuButton(
               icon: const Icon(Icons.more_vert),
@@ -372,7 +509,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         Icon(Icons.person, size: 20),
                         SizedBox(width: 12),
-                        Text('Profile'),
+                        Text('Profiel'),
                       ],
                     ),
                     onTap: () {
@@ -384,6 +521,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       });
                     },
                   ),
+                  PopupMenuItem(
+                    child: const Row(
+                      children: [
+                        Icon(Icons.favorite, size: 20),
+                        SizedBox(width: 12),
+                        Text('Mijn Favorieten'),
+                      ],
+                    ),
+                    onTap: () {
+                      // Add a slight delay to ensure the popup menu closes first
+                      Future.microtask(() {
+                        if (context.mounted) {
+                          context.go('/favorites');
+                        }
+                      });
+                    },
+                  ),
                   // Only show admin options for hosts
                   if (isHost) ...[
                     PopupMenuItem(
@@ -391,7 +545,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         children: [
                           Icon(Icons.admin_panel_settings, size: 20),
                           SizedBox(width: 12),
-                          Text('User Management'),
+                          Text('Gebruikersbeheer'),
                         ],
                       ),
                       onTap: () {
@@ -408,7 +562,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         children: [
                           Icon(Icons.cleaning_services, size: 20),
                           SizedBox(width: 12),
-                          Text('Clean up images'),
+                          Text('Afbeeldingen opruimen'),
                         ],
                       ),
                       onTap: () {
@@ -510,7 +664,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         Icon(Icons.logout, size: 20, color: Colors.red),
                         SizedBox(width: 12),
-                        Text('Logout', style: TextStyle(color: Colors.red)),
+                        Text('Uitloggen', style: TextStyle(color: Colors.red)),
                       ],
                     ),
                     onTap: () {
@@ -533,7 +687,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     controller: _searchController,
                     focusNode: _searchFocusNode,
                     decoration: const InputDecoration(
-                      hintText: 'Search katas...',
+                      hintText: 'Zoek kata\'s...',
                       prefixIcon: Icon(Icons.search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.all(Radius.circular(25.0)),
@@ -591,7 +745,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: katas.isEmpty
                           ? const Center(
                               child: Text(
-                                'No katas found',
+                                'Geen kata\'s gevonden',
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: Colors.grey,
@@ -1120,7 +1274,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         )
-                      : const Text("Create Kata"),
+                      : const Text("Kata Maken"),
                 ),
               ],
             );

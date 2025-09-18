@@ -12,6 +12,7 @@ import '../../screens/favorites_screen.dart';
 import '../../screens/edit_kata_screen.dart';
 import '../../screens/avatar_selection_screen.dart';
 import '../../screens/user_management_screen.dart';
+import '../../screens/accessibility_demo_screen.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kata_provider.dart';
 import '../../widgets/global_error_widget.dart';
@@ -30,6 +31,7 @@ class AppRoutes {
   static const String editKata = '/kata/edit/:kataId';
   static const String avatarSelection = '/avatar-selection';
   static const String userManagement = '/user-management';
+  static const String accessibilityDemo = '/accessibility-demo';
 }
 
 /// Router provider for dependency injection
@@ -161,6 +163,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'userManagement',
         builder: (context, state) => const GlobalErrorBoundary(
           child: UserManagementScreen(),
+        ),
+      ),
+      
+      GoRoute(
+        path: AppRoutes.accessibilityDemo,
+        name: 'accessibilityDemo',
+        builder: (context, state) => const GlobalErrorBoundary(
+          child: AccessibilityDemoScreen(),
         ),
       ),
     ],

@@ -7,7 +7,6 @@ import '../models/interaction_models.dart';
 import '../providers/image_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/permission_provider.dart';
 import '../providers/role_provider.dart';
 import '../screens/edit_kata_screen.dart';
 import 'formatted_text.dart';
@@ -122,52 +121,51 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                     ],
                   ),
                 ),
-                // Action buttons with strict width control
-                SizedBox(
-                  width: 72, // Further reduced from 88 to 72
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      // Edit button - More compact
-                      SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.edit,
-                            color: Colors.blue,
-                            size: 16, // Further reduced
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => EditKataScreen(kata: kata),
-                              ),
-                            );
-                          },
-                          tooltip: 'Edit kata',
-                          padding: EdgeInsets.zero,
+                // Action buttons with flexible width to prevent overflow
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Edit button - Compact
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.blue,
+                          size: 14,
                         ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditKataScreen(kata: kata),
+                            ),
+                          );
+                        },
+                        tooltip: 'Bewerk kata',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                      const SizedBox(width: 4), // Reduced spacing
-                      // Delete button - More compact
-                      SizedBox(
-                        width: 32,
-                        height: 32,
-                        child: IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                            size: 16, // Further reduced
-                          ),
-                          onPressed: widget.onDelete,
-                          tooltip: 'Delete kata',
-                          padding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(width: 2),
+                    // Delete button - Compact
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.delete,
+                          color: Colors.red,
+                          size: 14,
                         ),
+                        onPressed: widget.onDelete,
+                        tooltip: 'Verwijder kata',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -265,7 +263,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   CircularProgressIndicator(),
                   SizedBox(height: 12),
                   Text(
-                    'Loading media...',
+                    'Media laden...',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ],
@@ -289,7 +287,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 Icon(Icons.error_outline, size: 50, color: Colors.red.shade400),
                 const SizedBox(height: 8),
                 Text(
-                  'Failed to load media',
+                  'Laden van media mislukt',
                   style: TextStyle(
                     color: Colors.red.shade600,
                     fontSize: 14,
@@ -309,7 +307,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                     ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
                   },
                   icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Try Again'),
+                  label: const Text('Probeer Opnieuw'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -336,7 +334,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   const Icon(Icons.photo_library, size: 50, color: Colors.grey),
                   const SizedBox(height: 8),
                   const Text(
-                    'No media available',
+                    'Geen media beschikbaar',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                   const SizedBox(height: 8),
@@ -345,7 +343,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
                     },
                     icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Retry'),
+                    label: const Text('Opnieuw'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
@@ -415,7 +413,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                         });
                       },
                       icon: const Icon(Icons.photo, size: 16),
-                      label: Text('View Images (${cachedImages.length})'),
+                      label: Text('Bekijk Afbeeldingen (${cachedImages.length})'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
@@ -444,7 +442,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                         );
                       },
                       icon: const Icon(Icons.videocam, size: 16),
-                      label: Text('View Videos (${videoUrls.length})'),
+                      label: Text('Bekijk Video\'s (${videoUrls.length})'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
@@ -517,7 +515,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                         const Icon(Icons.broken_image, size: 50, color: Colors.grey),
                         const SizedBox(height: 8),
                         const Text(
-                          'Image failed to load',
+                          'Afbeelding laden mislukt',
                           style: TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                         const SizedBox(height: 4),
@@ -879,7 +877,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                     _isCommentsExpanded ? Icons.comment : Icons.comment_outlined,
                     color: Colors.blue,
                   ),
-                  tooltip: _isCommentsExpanded ? 'Close comments' : 'Open comments',
+                  tooltip: _isCommentsExpanded ? 'Sluit reacties' : 'Open reacties',
                 ),
                 Text('$commentCount'),
                 
@@ -902,7 +900,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       _isCommentsExpanded = true;
                     });
                   },
-                  child: Text('View all ${comments.length} comments'),
+                  child: Text('Bekijk alle ${comments.length} reacties'),
                 ),
             ],
           ],
@@ -933,7 +931,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 const Icon(Icons.comment, size: 18, color: Colors.grey),
                 const SizedBox(width: 8),
                 Text(
-                  'Comments (${comments.length})',
+                    'Reacties (${comments.length})',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -966,7 +964,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
               padding: EdgeInsets.all(16.0),
               child: Center(
                 child: Text(
-                  'No comments yet. Be the first to comment!',
+                  'Nog geen reacties. Wees de eerste om te reageren!',
                   style: TextStyle(color: Colors.grey),
                 ),
               ),
@@ -1003,7 +1001,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 TextField(
                   controller: commentController,
                   decoration: const InputDecoration(
-                    hintText: 'Add a comment...',
+                    hintText: 'Voeg een reactie toe...',
                     border: OutlineInputBorder(),
                     isDense: true,
                     contentPadding: EdgeInsets.all(8),
@@ -1030,7 +1028,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                                 if (mounted && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('Comment added successfully!'),
+                                      content: Text('Reactie succesvol toegevoegd!'),
                                       backgroundColor: Colors.green,
                                     ),
                                   );
@@ -1039,7 +1037,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                                 if (mounted && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text('Error adding comment: $e'),
+                                      content: Text('Fout bij toevoegen reactie: $e'),
                                       backgroundColor: Colors.red,
                                     ),
                                   );
@@ -1053,7 +1051,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                                 height: 16,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Text('Post'),
+                            : const Text('Plaats'),
                         );
                       },
                     ),
@@ -1149,7 +1147,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                               children: [
                                 Icon(Icons.edit, color: Colors.blue, size: 14),
                                 SizedBox(width: 8),
-                                Text('Edit', style: TextStyle(fontSize: 12)),
+                                Text('Bewerk', style: TextStyle(fontSize: 12)),
                               ],
                             ),
                           ),
@@ -1165,7 +1163,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                               children: [
                                 Icon(Icons.delete, color: Colors.red, size: 14),
                                 SizedBox(width: 8),
-                                Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
+                                Text('Verwijder', style: TextStyle(color: Colors.red, fontSize: 12)),
                               ],
                             ),
                           ),
@@ -1179,7 +1177,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                             enabled: false,
                             value: 'none',
                             child: Text(
-                              'No actions available',
+                              'Geen acties beschikbaar',
                               style: TextStyle(color: Colors.grey, fontSize: 12),
                             ),
                           ),
@@ -1270,11 +1268,11 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Edit Comment'),
+          title: const Text('Bewerk Reactie'),
           content: TextField(
             controller: editController,
             decoration: const InputDecoration(
-              hintText: 'Edit your comment...',
+              hintText: 'Bewerk je reactie...',
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
@@ -1283,7 +1281,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: const Text('Annuleren'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -1291,7 +1289,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
             Consumer(
               builder: (context, ref, child) {
                 return ElevatedButton(
-                  child: const Text('Save'),
+                  child: const Text('Opslaan'),
                   onPressed: () async {
                     if (editController.text.trim().isNotEmpty) {
                       try {
@@ -1305,7 +1303,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                           Navigator.of(context).pop();
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Comment updated successfully!'),
+                              content: Text('Reactie succesvol bijgewerkt!'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -1314,7 +1312,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                         if (mounted && context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('Error updating comment: $e'),
+                              content: Text('Fout bij bijwerken reactie: $e'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -1336,11 +1334,11 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Comment'),
-          content: const Text('Are you sure you want to delete this comment? This action cannot be undone.'),
+          title: const Text('Verwijder Reactie'),
+          content: const Text('Weet je zeker dat je deze reactie wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: const Text('Annuleren'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -1352,7 +1350,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Delete'),
+                  child: const Text('Verwijder'),
                   onPressed: () async {
                     try {
                       await ref.read(kataInteractionProvider(widget.kata.id).notifier)
@@ -1362,7 +1360,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Comment deleted successfully!'),
+                            content: Text('Reactie succesvol verwijderd!'),
                             backgroundColor: Colors.green,
                           ),
                         );
@@ -1371,7 +1369,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       if (mounted && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Error deleting comment: $e'),
+                            content: Text('Fout bij verwijderen reactie: $e'),
                             backgroundColor: Colors.red,
                           ),
                         );

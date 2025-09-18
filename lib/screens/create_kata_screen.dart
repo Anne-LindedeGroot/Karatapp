@@ -17,7 +17,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _styleController;
-  
+
   final List<File> _selectedImages = [];
   final List<String> _videoUrls = [];
   bool _isLoading = false;
@@ -73,7 +73,6 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
     });
   }
 
-
   Future<void> _createKata() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -84,18 +83,20 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
     });
 
     try {
-      await ref.read(kataNotifierProvider.notifier).addKata(
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim(),
-        style: _styleController.text.trim(),
-        images: _selectedImages.isNotEmpty ? _selectedImages : null,
-        videoUrls: _videoUrls.isNotEmpty ? _videoUrls : null,
-      );
+      await ref
+          .read(kataNotifierProvider.notifier)
+          .addKata(
+            name: _nameController.text.trim(),
+            description: _descriptionController.text.trim(),
+            style: _styleController.text.trim(),
+            images: _selectedImages.isNotEmpty ? _selectedImages : null,
+            videoUrls: _videoUrls.isNotEmpty ? _videoUrls : null,
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Kata created successfully!'),
+            content: Text('Kata succesvol aangemaakt!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -105,7 +106,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating kata: $e'),
+            content: Text('Fout bij aanmaken kata: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -118,8 +119,10 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
   }
 
   Future<void> _openDescriptionDialog() async {
-    final TextEditingController dialogController = TextEditingController(text: _descriptionController.text);
-    
+    final TextEditingController dialogController = TextEditingController(
+      text: _descriptionController.text,
+    );
+
     final result = await showDialog<String>(
       context: context,
       builder: (context) => Dialog(
@@ -170,7 +173,8 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
-                    onPressed: () => Navigator.pop(context, dialogController.text),
+                    onPressed: () =>
+                        Navigator.pop(context, dialogController.text),
                     child: const Text('Save'),
                   ),
                 ],
@@ -192,10 +196,10 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create New Kata'),
+        title: const Text('Nieuwe Kata Maken'),
         actions: [
           IconButton(
-            icon: _isLoading 
+            icon: _isLoading
                 ? const SizedBox(
                     width: 20,
                     height: 20,
@@ -223,7 +227,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Kata Information',
+                        'Kata Informatie',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -238,7 +242,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a kata name';
+                            return 'Voer een kata naam in';
                           }
                           return null;
                         },
@@ -253,7 +257,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please enter a style';
+                            return 'Voer een stijl in';
                           }
                           return null;
                         },
@@ -264,7 +268,9 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                         child: Container(
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Theme.of(context).colorScheme.outline
                                   : Colors.grey,
                             ),
@@ -276,18 +282,23 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                               border: InputBorder.none,
                               prefixIcon: Icon(Icons.description),
                               suffixIcon: Icon(Icons.edit),
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                             ),
                             child: Container(
                               constraints: const BoxConstraints(minHeight: 120),
                               width: double.infinity,
                               child: Text(
-                                _descriptionController.text.isEmpty 
-                                    ? 'Tap to add description...' 
+                                _descriptionController.text.isEmpty
+                                    ? 'Tap to add description...'
                                     : _descriptionController.text,
                                 style: TextStyle(
-                                  color: _descriptionController.text.isEmpty 
-                                      ? Theme.of(context).colorScheme.onSurfaceVariant
+                                  color: _descriptionController.text.isEmpty
+                                      ? Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant
                                       : Theme.of(context).colorScheme.onSurface,
                                   fontSize: 16,
                                 ),
@@ -325,17 +336,20 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       children: [
                         Text(
                           'Selected Images (${_selectedImages.length})',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Long press and drag to reorder images',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -356,7 +370,12 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                                   children: [
                                     Container(
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
+                                        border: Border.all(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                          width: 2,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: ClipRRect(
@@ -376,13 +395,19 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                                       child: Container(
                                         padding: const EdgeInsets.all(4),
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context).colorScheme.primary,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           '${index + 1}',
                                           style: TextStyle(
-                                            color: Theme.of(context).colorScheme.onPrimary,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -398,12 +423,18 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                                         child: Container(
                                           padding: const EdgeInsets.all(2),
                                           decoration: BoxDecoration(
-                                            color: Theme.of(context).colorScheme.error,
-                                            borderRadius: BorderRadius.circular(10),
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.error,
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                           child: Icon(
                                             Icons.close,
-                                            color: Theme.of(context).colorScheme.onError,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onError,
                                             size: 14,
                                           ),
                                         ),
@@ -417,7 +448,9 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                                         padding: const EdgeInsets.all(2),
                                         decoration: BoxDecoration(
                                           color: Colors.black54,
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                         ),
                                         child: const Icon(
                                           Icons.drag_handle,
@@ -455,10 +488,11 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       const SizedBox(height: 16),
                       Text(
                         'Images',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -473,7 +507,10 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                  horizontal: 12,
+                                ),
                                 minimumSize: const Size(0, 56),
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
@@ -492,7 +529,10 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                  horizontal: 12,
+                                ),
                                 minimumSize: const Size(0, 56),
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
@@ -542,10 +582,11 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                           const SizedBox(width: 8),
                           Text(
                             'Creation Tips',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                           ),
                         ],
                       ),
@@ -557,7 +598,8 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.description,
-                        text: 'Tap the description field to open the full editor',
+                        text:
+                            'Tap the description field to open the full editor',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
@@ -567,7 +609,8 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.video_library,
-                        text: 'Add video URLs from YouTube, Vimeo, or direct links',
+                        text:
+                            'Add video URLs from YouTube, Vimeo, or direct links',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(

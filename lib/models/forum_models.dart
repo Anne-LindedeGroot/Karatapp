@@ -1,9 +1,9 @@
 
 enum ForumCategory {
-  general('General Discussion'),
-  kataRequests('Kata Requests'),
-  techniques('Techniques & Tips'),
-  events('Events & Announcements'),
+  general('Algemene Discussie'),
+  kataRequests('Kata Verzoeken'),
+  techniques('Technieken & Tips'),
+  events('Evenementen & Aankondigingen'),
   feedback('App Feedback');
 
   const ForumCategory(this.displayName);

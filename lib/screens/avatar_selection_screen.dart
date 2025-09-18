@@ -44,7 +44,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Choose Avatar'),
+        title: const Text('Kies Avatar'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -53,7 +53,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
           TextButton(
             onPressed: isLoading ? null : _saveAvatar,
             child: Text(
-              'Save',
+              'Opslaan',
               style: TextStyle(
                 color: isLoading 
                     ? Colors.grey 
@@ -69,11 +69,11 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
           controller: _tabController,
           isScrollable: true,
           tabs: const [
-            Tab(text: 'Custom'),
-            Tab(text: 'Animals'),
-            Tab(text: 'Karate Men'),
-            Tab(text: 'Karate Women'),
-            Tab(text: 'Martial Arts'),
+            Tab(text: 'Aangepast'),
+            Tab(text: 'Dieren'),
+            Tab(text: 'Karate Mannen'),
+            Tab(text: 'Karate Vrouwen'),
+            Tab(text: 'Vechtsporten'),
             Tab(text: 'Dojo & Items'),
           ],
         ),
@@ -98,7 +98,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
       child: Column(
         children: [
           const Text(
-            'Upload Your Own Photo',
+            'Upload Je Eigen Foto',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -198,7 +198,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
               ElevatedButton.icon(
                 onPressed: _isUploading ? null : () => _pickImage(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library),
-                label: const Text('Gallery'),
+                label: const Text('Galerij'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
@@ -216,7 +216,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
                 });
               },
               icon: const Icon(Icons.delete),
-              label: const Text('Remove Photo'),
+              label: const Text('Foto Verwijderen'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
@@ -296,7 +296,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
             ),
             const SizedBox(height: 20),
             Text(
-              'Add Custom Avatar',
+              'Aangepaste Avatar Toevoegen',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -308,10 +308,10 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
                 color: Theme.of(context).primaryColor,
               ),
               title: const Text(
-                'Take Photo',
+                'Foto Maken',
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
-              subtitle: const Text('Use camera to take a new photo'),
+              subtitle: const Text('Gebruik camera om een nieuwe foto te maken'),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
@@ -326,10 +326,10 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
                 color: Theme.of(context).primaryColor,
               ),
               title: const Text(
-                'Choose from Gallery',
+                'Kies uit Galerij',
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
-              subtitle: const Text('Select an existing photo'),
+              subtitle: const Text('Selecteer een bestaande foto'),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
@@ -377,7 +377,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
     if (_selectedAvatarId == null && _selectedCustomImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select an avatar'),
+          content: Text('Selecteer een avatar'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -419,8 +419,8 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Avatar updated successfully!'),
+        const SnackBar(
+          content: Text('Avatar succesvol bijgewerkt!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -430,7 +430,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating avatar: $e'),
+            content: Text('Fout bij bijwerken avatar: $e'),
             backgroundColor: Colors.red,
           ),
         );
