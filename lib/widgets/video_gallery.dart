@@ -147,90 +147,92 @@ class _VideoGalleryState extends ConsumerState<VideoGallery> {
             ),
           ),
           
-          // Video counter and navigation
-          Container(
-            padding: const EdgeInsets.all(16.0),
-            decoration: const BoxDecoration(
-              color: Colors.black87,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Previous video button
-                IconButton(
-                  onPressed: _currentIndex > 0 ? () {
-                    _pageController.previousPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  } : null,
-                  icon: const Icon(Icons.skip_previous, color: Colors.white),
-                  tooltip: 'Previous video',
-                ),
-                
-                // Video counter
-                Text(
-                  '${_currentIndex + 1} / ${widget.videoUrls.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+          // Video counter and navigation (only show if more than 1 video)
+          if (widget.videoUrls.length > 1)
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: const BoxDecoration(
+                color: Colors.black87,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Previous video button
+                  IconButton(
+                    onPressed: _currentIndex > 0 ? () {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    } : null,
+                    icon: const Icon(Icons.skip_previous, color: Colors.white),
+                    tooltip: 'Previous video',
                   ),
-                ),
-                
-                // Next video button
-                IconButton(
-                  onPressed: _currentIndex < widget.videoUrls.length - 1 ? () {
-                    _pageController.nextPage(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  } : null,
-                  icon: const Icon(Icons.skip_next, color: Colors.white),
-                  tooltip: 'Next video',
-                ),
-              ],
+                  
+                  // Video counter
+                  Text(
+                    '${_currentIndex + 1} / ${widget.videoUrls.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  
+                  // Next video button
+                  IconButton(
+                    onPressed: _currentIndex < widget.videoUrls.length - 1 ? () {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    } : null,
+                    icon: const Icon(Icons.skip_next, color: Colors.white),
+                    tooltip: 'Next video',
+                  ),
+                ],
+              ),
             ),
-          ),
           
-          // Video thumbnail gallery
-          Container(
-            height: 100,
-            color: Colors.black87,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              itemCount: widget.videoUrls.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () {
-                    _pageController.animateToPage(
-                      index,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: _currentIndex == index
-                            ? Colors.white
-                            : Colors.grey,
-                        width: 2.0,
+          // Video thumbnail gallery (only show if more than 1 video)
+          if (widget.videoUrls.length > 1)
+            Container(
+              height: 100,
+              color: Colors.black87,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                itemCount: widget.videoUrls.length,
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () {
+                      _pageController.animateToPage(
+                        index,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: _currentIndex == index
+                              ? Colors.white
+                              : Colors.grey,
+                          width: 2.0,
+                        ),
+                        borderRadius: BorderRadius.circular(4.0),
                       ),
-                      borderRadius: BorderRadius.circular(4.0),
+                      child: _buildVideoThumbnail(
+                        widget.videoUrls[index],
+                        80,
+                        84,
+                      ),
                     ),
-                    child: _buildVideoThumbnail(
-                      widget.videoUrls[index],
-                      80,
-                      84,
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
         ],
       ),
     );

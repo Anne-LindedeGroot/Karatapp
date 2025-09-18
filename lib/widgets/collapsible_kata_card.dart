@@ -604,69 +604,29 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         ),
       );
     } else if (hasVideos) {
-      // Only show video thumbnail if there are NO images
-      return Container(
-        height: 200,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8.0),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: VideoThumbnail(
-                videoUrl: videoUrls.first,
-                width: double.infinity,
-                height: double.infinity,
-              ),
+      // For videos, show inline player for single video or navigation for multiple videos
+      if (videoUrls.length == 1) {
+        // Single video - show directly without thumbnail
+        return Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8.0),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8.0),
+            child: VideoPlayerWidget(
+              videoUrl: videoUrls.first,
+              autoPlay: false,
+              showControls: true,
             ),
-            
-            // Media type indicators
-            Positioned(
-              top: 8,
-              left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.black54,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.videocam, color: Colors.white, size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${videoUrls.length}',
-                      style: const TextStyle(color: Colors.white, fontSize: 10),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            // Total count indicator (if multiple videos)
-            if (videoUrls.length > 1)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '+${videoUrls.length - 1}',
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
+          ),
+        );
+      } else {
+        // Multiple videos - show with navigation
+        return _buildVideoCarousel(videoUrls);
+      }
     } else {
       // No media at all
       return Container(
@@ -691,6 +651,144 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         ),
       );
     }
+  }
+
+  Widget _buildVideoCarousel(List<String> videoUrls) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        int currentVideoIndex = 0;
+        
+        return Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8.0),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Stack(
+            children: [
+              // Video player
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8.0),
+                child: VideoPlayerWidget(
+                  videoUrl: videoUrls[currentVideoIndex],
+                  autoPlay: false,
+                  showControls: true,
+                ),
+              ),
+              
+              // Navigation arrows (only show if more than 1 video)
+              if (videoUrls.length > 1) ...[
+                // Previous button
+                if (currentVideoIndex > 0)
+                  Positioned(
+                    left: 8,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              currentVideoIndex = currentVideoIndex - 1;
+                            });
+                          },
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                
+                // Next button
+                if (currentVideoIndex < videoUrls.length - 1)
+                  Positioned(
+                    right: 8,
+                    top: 0,
+                    bottom: 0,
+                    child: Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              currentVideoIndex = currentVideoIndex + 1;
+                            });
+                          },
+                          icon: const Icon(
+                            Icons.chevron_right,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+              
+              // Video counter and indicator
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.videocam, color: Colors.white, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${currentVideoIndex + 1}/${videoUrls.length}',
+                        style: const TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Dots indicator at bottom
+              if (videoUrls.length > 1)
+                Positioned(
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(
+                      videoUrls.length,
+                      (index) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: index == currentVideoIndex 
+                              ? Colors.white 
+                              : Colors.white54,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildInteractionSection(Kata kata) {
