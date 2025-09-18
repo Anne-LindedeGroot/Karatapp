@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -32,6 +33,8 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
   bool _hasError = false;
   String? _errorMessage;
   bool _isYouTubeVideo = false;
+  bool _showError = false; // New flag to control error visibility
+  Timer? _errorDelayTimer; // Timer for delayed error showing
 
   @override
   void initState() {
@@ -51,9 +54,17 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = _getReadableErrorMessage(e.toString());
+        _hasError = true;
+        _errorMessage = _getReadableErrorMessage(e.toString());
+        
+        // Only show error after a delay to prevent flashing errors
+        _errorDelayTimer?.cancel();
+        _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+          if (mounted && _hasError && !_isInitialized) {
+            setState(() {
+              _showError = true;
+            });
+          }
         });
       }
     }
@@ -79,9 +90,12 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       );
 
       if (mounted) {
+        // Cancel error timer since initialization succeeded
+        _errorDelayTimer?.cancel();
         setState(() {
           _isInitialized = true;
           _hasError = false;
+          _showError = false;
         });
       }
     } catch (e) {
@@ -108,13 +122,21 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
         Uri.parse(widget.videoUrl),
       );
 
-      // Set up error listener
+      // Set up error listener with delayed error showing
       _videoPlayerController!.addListener(() {
         if (_videoPlayerController!.value.hasError && mounted) {
           final error = _videoPlayerController!.value.errorDescription;
-          setState(() {
-            _hasError = true;
-            _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
+          _hasError = true;
+          _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
+          
+          // Only show error after a delay to prevent flashing errors
+          _errorDelayTimer?.cancel();
+          _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+            if (mounted && _hasError && !_isInitialized) {
+              setState(() {
+                _showError = true;
+              });
+            }
           });
         }
       });
@@ -147,12 +169,27 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
           ),
         );
 
+        // Cancel error timer since initialization succeeded
+        _errorDelayTimer?.cancel();
         setState(() {
           _isInitialized = true;
           _hasError = false;
+          _showError = false;
         });
       }
     } catch (e) {
+      _hasError = true;
+      _errorMessage = _getReadableErrorMessage(e.toString());
+      
+      // Only show error after a delay to prevent flashing errors
+      _errorDelayTimer?.cancel();
+      _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted && _hasError && !_isInitialized) {
+          setState(() {
+            _showError = true;
+          });
+        }
+      });
       throw Exception('Failed to load video: ${e.toString()}');
     }
   }
@@ -204,9 +241,11 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
   }
 
   Future<void> _retryInitialization() async {
+    _errorDelayTimer?.cancel();
     setState(() {
       _hasError = false;
       _isInitialized = false;
+      _showError = false;
     });
     
     await _disposeControllers();
@@ -262,6 +301,7 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
   }
 
   Future<void> _disposeControllers() async {
+    _errorDelayTimer?.cancel();
     _chewieController?.dispose();
     _videoPlayerController?.dispose();
     _youtubeController?.dispose();
@@ -278,7 +318,8 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    if (_hasError) {
+    // Only show error if the flag is set (after delay)
+    if (_hasError && _showError) {
       return SizedBox(
         height: 200,
         child: _buildErrorWidget(_errorMessage ?? 'Unknown error'),

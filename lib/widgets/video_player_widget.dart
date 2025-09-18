@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -29,6 +30,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   bool _isInitialized = false;
   bool _hasError = false;
   String? _errorMessage;
+  bool _showError = false; // New flag to control error visibility
+  Timer? _errorDelayTimer; // Timer for delayed error showing
 
   @override
   void initState() {
@@ -55,13 +58,21 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         Uri.parse(widget.videoUrl),
       );
 
-      // Set up error listener
+      // Set up error listener with delayed error showing
       _videoPlayerController.addListener(() {
         if (_videoPlayerController.value.hasError && mounted) {
           final error = _videoPlayerController.value.errorDescription;
-          setState(() {
-            _hasError = true;
-            _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
+          _hasError = true;
+          _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
+          
+          // Only show error after a delay to prevent flashing errors
+          _errorDelayTimer?.cancel();
+          _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+            if (mounted && _hasError && !_isInitialized) {
+              setState(() {
+                _showError = true;
+              });
+            }
           });
         }
       });
@@ -88,51 +99,16 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
             ),
           ),
           errorBuilder: (context, errorMessage) {
-            final theme = Theme.of(context);
-            final isDark = theme.brightness == Brightness.dark;
-            
+            // Don't show error immediately - let the delayed timer handle it
             return Container(
-              color: isDark ? theme.colorScheme.surface : Colors.black,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.surface
+                  : Colors.black,
               child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      color: isDark ? theme.colorScheme.error : Colors.white,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Video failed to load',
-                      style: TextStyle(
-                        color: isDark ? theme.colorScheme.onSurface : Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      errorMessage,
-                      style: TextStyle(
-                        color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.white70,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        _retryInitialization();
-                      },
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
-                      ),
-                    ),
-                  ],
+                child: CircularProgressIndicator(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.white,
                 ),
               ),
             );
@@ -149,25 +125,38 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           ),
         );
 
+        // Cancel error timer since initialization succeeded
+        _errorDelayTimer?.cancel();
         setState(() {
           _isInitialized = true;
           _hasError = false;
+          _showError = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _hasError = true;
-          _errorMessage = _getReadableErrorMessage(e.toString());
+        _hasError = true;
+        _errorMessage = _getReadableErrorMessage(e.toString());
+        
+        // Only show error after a delay to prevent flashing errors
+        _errorDelayTimer?.cancel();
+        _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+          if (mounted && _hasError && !_isInitialized) {
+            setState(() {
+              _showError = true;
+            });
+          }
         });
       }
     }
   }
 
   Future<void> _retryInitialization() async {
+    _errorDelayTimer?.cancel();
     setState(() {
       _hasError = false;
       _isInitialized = false;
+      _showError = false;
     });
     
     await _disposeControllers();
@@ -219,8 +208,11 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   }
 
   Future<void> _disposeControllers() async {
+    _errorDelayTimer?.cancel();
     _chewieController?.dispose();
-    await _videoPlayerController.dispose();
+    if (_videoPlayerController != null) {
+      await _videoPlayerController.dispose();
+    }
     _chewieController = null;
   }
 
@@ -235,7 +227,8 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
-    if (_hasError) {
+    // Only show error if the flag is set (after delay)
+    if (_hasError && _showError) {
       return Container(
         height: 200,
         color: isDark ? theme.colorScheme.surface : Colors.black,
