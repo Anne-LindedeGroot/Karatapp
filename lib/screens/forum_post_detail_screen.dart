@@ -154,13 +154,13 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
   Widget _buildPostHeader(ForumPost post) {
     final currentUser = ref.watch(authUserProvider);
-    final isHostAsync = ref.watch(isHostProvider);
-    final isHost = isHostAsync.when(
+    final canModerateAsync = ref.watch(canModerateProvider);
+    final canModerateRole = canModerateAsync.when(
       data: (value) => value,
       loading: () => false,
       error: (_, __) => false,
     );
-    final canModerate = isHost || (currentUser != null && post.authorId == currentUser.id);
+    final canModerate = canModerateRole || (currentUser != null && post.authorId == currentUser.id);
 
 
     return Container(
@@ -611,8 +611,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
   Widget _buildCommentCard(ForumComment comment) {
     final currentUser = ref.watch(authUserProvider);
-    final isHostAsync = ref.watch(isHostProvider);
-    final isHost = isHostAsync.when(
+    final canModerateAsync = ref.watch(canModerateProvider);
+    final canModerateRole = canModerateAsync.when(
       data: (value) => value,
       loading: () => false,
       error: (_, __) => false,
@@ -621,11 +621,11 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     // User can edit/delete if they are:
     // 1. The comment author
     // 2. The post author (forum creator)
-    // 3. A host
+    // 3. A moderator (host or mediator)
     final canEditComment = currentUser != null && (
       comment.authorId == currentUser.id ||  // Comment author
       _post!.authorId == currentUser.id ||   // Post author (forum creator)
-      isHost                                 // Host
+      canModerateRole                        // Moderator (host or mediator)
     );
 
     return Container(

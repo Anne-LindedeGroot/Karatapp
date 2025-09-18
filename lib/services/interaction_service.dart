@@ -1,8 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/interaction_models.dart';
+import 'role_service.dart';
 
 class InteractionService {
   final SupabaseClient _client = Supabase.instance.client;
+  final RoleService _roleService = RoleService();
 
   // KATA COMMENTS
   
@@ -59,7 +61,7 @@ class InteractionService {
     }
   }
 
-  // Update a kata comment (only author can do this)
+  // Update a kata comment (author, mediator, or host can do this)
   Future<KataComment> updateKataComment({
     required int commentId,
     required String content,
@@ -70,14 +72,28 @@ class InteractionService {
         throw Exception('User not authenticated');
       }
 
-      // Check if user can edit this comment
+      // Get comment details and check permissions
       final existingComment = await _client
           .from('kata_comments')
-          .select('author_id')
+          .select('author_id, kata_id')
           .eq('id', commentId)
           .single();
 
-      if (existingComment['author_id'] != user.id) {
+      // Check if user is the comment author
+      bool canEdit = existingComment['author_id'] == user.id;
+
+      // If not the author, check if user is a mediator or host using RoleService
+      if (!canEdit) {
+        try {
+          final userRole = await _roleService.getCurrentUserRole();
+          canEdit = userRole == UserRole.mediator || userRole == UserRole.host;
+        } catch (e) {
+          // If role check fails, fall back to author-only permission
+          canEdit = false;
+        }
+      }
+
+      if (!canEdit) {
         throw Exception('You do not have permission to edit this comment');
       }
 
@@ -97,7 +113,7 @@ class InteractionService {
     }
   }
 
-  // Delete a kata comment (only author can do this)
+  // Delete a kata comment (author, mediator, or host can do this)
   Future<void> deleteKataComment(int commentId) async {
     try {
       final user = _client.auth.currentUser;
@@ -105,14 +121,28 @@ class InteractionService {
         throw Exception('User not authenticated');
       }
 
-      // Check if user can delete this comment
+      // Get comment details and check permissions
       final existingComment = await _client
           .from('kata_comments')
-          .select('author_id')
+          .select('author_id, kata_id')
           .eq('id', commentId)
           .single();
 
-      if (existingComment['author_id'] != user.id) {
+      // Check if user is the comment author
+      bool canDelete = existingComment['author_id'] == user.id;
+
+      // If not the author, check if user is a mediator or host using RoleService
+      if (!canDelete) {
+        try {
+          final userRole = await _roleService.getCurrentUserRole();
+          canDelete = userRole == UserRole.mediator || userRole == UserRole.host;
+        } catch (e) {
+          // If role check fails, fall back to author-only permission
+          canDelete = false;
+        }
+      }
+
+      if (!canDelete) {
         throw Exception('You do not have permission to delete this comment');
       }
 

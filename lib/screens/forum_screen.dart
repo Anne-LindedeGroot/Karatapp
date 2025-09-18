@@ -179,13 +179,13 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
 
   Widget _buildPostCard(ForumPost post) {
     final currentUser = ref.watch(authUserProvider);
-    final isHostAsync = ref.watch(isHostProvider);
-    final isHost = isHostAsync.when(
+    final canModerateAsync = ref.watch(canModerateProvider);
+    final canModerateRole = canModerateAsync.when(
       data: (value) => value,
       loading: () => false,
       error: (_, __) => false,
     );
-    final canModerate = isHost || (currentUser != null && post.authorId == currentUser.id);
+    final canModerate = canModerateRole || (currentUser != null && post.authorId == currentUser.id);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -246,28 +246,26 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                         }
                       },
                       itemBuilder: (context) => [
-                        if (isHost) ...[
-                          PopupMenuItem(
-                            value: 'pin',
-                            child: Row(
-                              children: [
-                                Icon(post.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
-                                const SizedBox(width: 8),
-                                Text(post.isPinned ? 'Unpin' : 'Pin'),
-                              ],
-                            ),
+                        PopupMenuItem(
+                          value: 'pin',
+                          child: Row(
+                            children: [
+                              Icon(post.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+                              const SizedBox(width: 8),
+                              Text(post.isPinned ? 'Unpin' : 'Pin'),
+                            ],
                           ),
-                          PopupMenuItem(
-                            value: 'lock',
-                            child: Row(
-                              children: [
-                                Icon(post.isLocked ? Icons.lock_open : Icons.lock),
-                                const SizedBox(width: 8),
-                                Text(post.isLocked ? 'Unlock' : 'Lock'),
-                              ],
-                            ),
+                        ),
+                        PopupMenuItem(
+                          value: 'lock',
+                          child: Row(
+                            children: [
+                              Icon(post.isLocked ? Icons.lock_open : Icons.lock),
+                              const SizedBox(width: 8),
+                              Text(post.isLocked ? 'Unlock' : 'Lock'),
+                            ],
                           ),
-                        ],
+                        ),
                         PopupMenuItem(
                           value: 'delete',
                           child: Row(

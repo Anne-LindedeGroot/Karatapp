@@ -8,6 +8,7 @@ import '../providers/image_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
+import '../providers/role_provider.dart';
 import '../screens/edit_kata_screen.dart';
 import 'formatted_text.dart';
 import 'image_gallery.dart';
@@ -1070,15 +1071,16 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     return Consumer(
       builder: (context, ref, child) {
         final currentUser = ref.watch(authUserProvider);
-        final isHostAsync = ref.watch(isHostProvider);
-        final isHost = isHostAsync.when(
-          data: (value) => value,
+        
+        // Check if user can edit/delete comment
+        // User can edit if they are the comment author OR if they are a moderator
+        final isCommentAuthor = comment.authorId == currentUser?.id;
+        final isModeratorAsync = ref.watch(isCurrentUserModeratorProvider);
+        
+        final canDeleteComment = isCommentAuthor || isModeratorAsync.when(
+          data: (isModerator) => isModerator,
           loading: () => false,
           error: (_, __) => false,
-        );
-        
-        final canDeleteComment = currentUser != null && (
-          comment.authorId == currentUser.id || isHost
         );
 
         final theme = Theme.of(context);
@@ -1124,20 +1126,23 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       ],
                     ),
                   ),
-                  if (canDeleteComment)
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        switch (value) {
-                          case 'edit':
-                            _showEditKataCommentDialog(comment);
-                            break;
-                          case 'delete':
-                            _showDeleteKataCommentConfirmation(comment);
-                            break;
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        if (comment.authorId == currentUser.id)
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'edit':
+                          _showEditKataCommentDialog(comment);
+                          break;
+                        case 'delete':
+                          _showDeleteKataCommentConfirmation(comment);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) {
+                      List<PopupMenuEntry<String>> items = [];
+                      
+                      // Add edit option if user is the comment author OR has edit permissions (mediator/host)
+                      if (comment.authorId == currentUser?.id || canDeleteComment) {
+                        items.add(
                           const PopupMenuItem(
                             value: 'edit',
                             child: Row(
@@ -1148,23 +1153,47 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                               ],
                             ),
                           ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              Icon(Icons.delete, color: Colors.red, size: 14),
-                              SizedBox(width: 8),
-                              Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
-                            ],
+                        );
+                      }
+                      
+                      // Add delete option if user has permission
+                      if (canDeleteComment) {
+                        items.add(
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, color: Colors.red, size: 14),
+                                SizedBox(width: 8),
+                                Text('Delete', style: TextStyle(color: Colors.red, fontSize: 12)),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
-                      icon: Icon(
-                        Icons.more_vert,
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
+                        );
+                      }
+                      
+                      // If no items available, show a disabled "No actions" item
+                      if (items.isEmpty) {
+                        items.add(
+                          const PopupMenuItem(
+                            enabled: false,
+                            value: 'none',
+                            child: Text(
+                              'No actions available',
+                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                          ),
+                        );
+                      }
+                      
+                      return items;
+                    },
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: 16,
+                      color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.grey[600],
                     ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -1235,22 +1264,126 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
 
 
   Future<void> _showEditKataCommentDialog(KataComment comment) async {
-    // Simple implementation - just show a snackbar for now
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Edit comment - to be implemented'),
-        backgroundColor: Colors.blue,
-      ),
+    final TextEditingController editController = TextEditingController(text: comment.content);
+    
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Edit Comment'),
+          content: TextField(
+            controller: editController,
+            decoration: const InputDecoration(
+              hintText: 'Edit your comment...',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+            minLines: 1,
+            maxLength: 500,
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            Consumer(
+              builder: (context, ref, child) {
+                return ElevatedButton(
+                  child: const Text('Save'),
+                  onPressed: () async {
+                    if (editController.text.trim().isNotEmpty) {
+                      try {
+                        await ref.read(kataInteractionProvider(widget.kata.id).notifier)
+                            .updateComment(
+                              commentId: comment.id,
+                              content: editController.text.trim(),
+                            );
+                        
+                        if (mounted && context.mounted) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Comment updated successfully!'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error updating comment: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
   Future<void> _showDeleteKataCommentConfirmation(KataComment comment) async {
-    // Simple implementation - just show a snackbar for now
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Delete comment - to be implemented'),
-        backgroundColor: Colors.red,
-      ),
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Comment'),
+          content: const Text('Are you sure you want to delete this comment? This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            Consumer(
+              builder: (context, ref, child) {
+                return ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Delete'),
+                  onPressed: () async {
+                    try {
+                      await ref.read(kataInteractionProvider(widget.kata.id).notifier)
+                          .deleteComment(comment.id);
+                      
+                      if (mounted && context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Comment deleted successfully!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error deleting comment: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 

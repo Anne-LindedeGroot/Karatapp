@@ -116,9 +116,9 @@ final canEditForumCommentProvider = FutureProvider.family<bool, Map<String, Stri
   }
   
   try {
-    // Or if they are a host
-    final forumService = ForumService();
-    return await forumService.isAppHost(user.id);
+    // Or if they are a moderator (host or mediator)
+    final userRole = await ref.watch(currentUserRoleProvider.future);
+    return userRole == UserRole.host || userRole == UserRole.mediator;
   } catch (e) {
     // Return false on error instead of throwing
     return false;
@@ -146,9 +146,9 @@ final canEditKataCommentProvider = FutureProvider.family<bool, Map<String, Strin
   }
   
   try {
-    // Or if they are a host
-    final forumService = ForumService();
-    return await forumService.isAppHost(user.id);
+    // Or if they are a moderator (host or mediator) - use the existing moderator provider
+    final isModerator = await ref.watch(isCurrentUserModeratorProvider.future);
+    return isModerator;
   } catch (e) {
     // Return false on error instead of throwing
     return false;
