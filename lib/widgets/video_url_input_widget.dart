@@ -84,17 +84,17 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
     final url = _urlController.text.trim();
     
     if (!_isValidUrl(url)) {
-      _showErrorSnackBar('Please enter a valid URL');
+      _showErrorSnackBar('Voer een geldige URL in');
       return;
     }
     
     if (!_isSupportedMediaUrl(url)) {
-      _showErrorSnackBar('URL does not appear to be a supported media format');
+      _showErrorSnackBar('URL lijkt geen ondersteund mediaformaat te zijn');
       return;
     }
     
     if (_currentUrls.contains(url)) {
-      _showErrorSnackBar('This URL has already been added');
+      _showErrorSnackBar('Deze URL is al toegevoegd');
       return;
     }
     
@@ -105,7 +105,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
     
     widget.onVideoUrlsChanged(_currentUrls);
     
-    _showSuccessSnackBar('Video URL added successfully');
+    _showSuccessSnackBar('Video URL succesvol toegevoegd');
   }
 
   void _removeUrl(int index) {
@@ -227,7 +227,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
             TextField(
               controller: _urlController,
               decoration: const InputDecoration(
-                labelText: 'Enter video/media URL',
+                labelText: 'Voer video/media URL in',
                 hintText: 'https://www.youtube.com/watch?v=...',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.link),
@@ -265,7 +265,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Supported Media',
+                        'Ondersteunde Media',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
@@ -277,8 +277,8 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
                   const SizedBox(height: 8),
                   Text(
                     '• Video platforms: YouTube, Vimeo, Dailymotion, Twitch\n'
-                    '• Video files: MP4, AVI, MOV, WMV, FLV, WebM, MKV\n'
-                    '• Press Enter or Done on keyboard to add URL',
+                    '• Video bestanden: MP4, AVI, MOV, WMV, FLV, WebM, MKV\n'
+                    '• Druk op Enter of Klaar op toetsenbord om URL toe te voegen',
                     style: TextStyle(
                       fontSize: 12,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -292,7 +292,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
             if (_currentUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
-                'Added URLs (${_currentUrls.length})',
+                'Toegevoegde URLs (${_currentUrls.length})',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.primary,
@@ -300,7 +300,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Long press and drag to reorder URLs',
+                'Houd ingedrukt en sleep om URLs te herordenen',
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -357,14 +357,14 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
                               icon: const Icon(Icons.copy, size: 18),
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(text: url));
-                                _showSuccessSnackBar('URL copied to clipboard');
+                                _showSuccessSnackBar('URL gekopieerd naar klembord');
                               },
-                              tooltip: 'Copy URL',
+                              tooltip: 'URL kopiëren',
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, size: 18),
                               onPressed: () => _removeUrl(index),
-                              tooltip: 'Remove URL',
+                              tooltip: 'URL verwijderen',
                               color: Colors.red,
                             ),
                             const Icon(

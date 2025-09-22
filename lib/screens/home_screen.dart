@@ -479,7 +479,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: isConnected ? _refreshKatas : null,
-              tooltip: isConnected ? 'Refresh katas' : 'No connection',
+              tooltip: isConnected ? 'Kata\'s verversen' : 'Geen verbinding',
             ),
             IconButton(
               icon: const Icon(Icons.forum),
@@ -490,7 +490,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             PopupMenuButton(
               icon: const Icon(Icons.more_vert),
-              tooltip: 'More options',
+              tooltip: 'Meer opties',
               itemBuilder: (context) {
                 return <PopupMenuEntry>[
                   PopupMenuItem(
@@ -598,15 +598,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 switch (mode) {
                                   case AppThemeMode.light:
                                     icon = Icons.light_mode;
-                                    label = 'Light';
+                                    label = 'Licht';
                                     break;
                                   case AppThemeMode.dark:
                                     icon = Icons.dark_mode;
-                                    label = 'Dark';
+                                    label = 'Donker';
                                     break;
                                   case AppThemeMode.system:
                                     icon = Icons.brightness_auto;
-                                    label = 'System';
+                                    label = 'Systeem';
                                     break;
                                 }
                                 return DropdownMenuItem(
@@ -786,7 +786,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return AlertDialog(
-              title: const Text("Add a New Kata"),
+              title: const Text("Nieuwe Kata Toevoegen"),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -797,8 +797,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       TextField(
                         controller: nameController,
                         decoration: const InputDecoration(
-                          labelText: "Kata Name",
-                          hintText: "Enter kata name",
+                          labelText: "Kata Naam",
+                          hintText: "Voer kata naam in",
                           prefixIcon: Icon(Icons.sports_martial_arts),
                         ),
                       ),
@@ -806,8 +806,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       TextField(
                         controller: styleController,
                         decoration: const InputDecoration(
-                          labelText: "Style",
-                          hintText: "Enter karate style (e.g., Wado Ryu)",
+                          labelText: "Stijl",
+                          hintText: "Voer karate stijl in (bijv. Wado Ryu)",
                           prefixIcon: Icon(Icons.style),
                         ),
                       ),
@@ -815,8 +815,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       TextField(
                         controller: descriptionController,
                         decoration: const InputDecoration(
-                          labelText: "Description",
-                          hintText: "Enter kata description",
+                          labelText: "Beschrijving",
+                          hintText: "Voer kata beschrijving in",
                           prefixIcon: Icon(Icons.description),
                         ),
                         maxLines: 3,

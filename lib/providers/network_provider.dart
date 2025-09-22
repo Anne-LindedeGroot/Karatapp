@@ -128,15 +128,15 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
     final errorString = error.toString().toLowerCase();
     
     if (error is SocketException) {
-      return 'No internet connection available';
+      return 'Geen internetverbinding beschikbaar';
     } else if (error is TimeoutException) {
-      return 'Connection timeout - server not responding';
+      return 'Verbinding time-out - server reageert niet';
     } else if (errorString.contains('network')) {
-      return 'Network connection problem';
+      return 'Netwerkverbindingsprobleem';
     } else if (errorString.contains('dns') || errorString.contains('host')) {
-      return 'Cannot reach server';
+      return 'Kan server niet bereiken';
     } else {
-      return 'Connection problem - please check your internet';
+      return 'Verbindingsprobleem - controleer je internet';
     }
   }
 

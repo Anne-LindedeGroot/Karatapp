@@ -137,7 +137,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Kata Description',
+                    'Kata Beschrijving',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -153,7 +153,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                 child: TextField(
                   controller: dialogController,
                   decoration: const InputDecoration(
-                    hintText: 'Enter kata description...',
+                    hintText: 'Voer kata beschrijving in...',
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.all(16),
                   ),
@@ -169,13 +169,13 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: const Text('Annuleren'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () =>
                         Navigator.pop(context, dialogController.text),
-                    child: const Text('Save'),
+                    child: const Text('Opslaan'),
                   ),
                 ],
               ),
@@ -207,7 +207,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                   )
                 : const Icon(Icons.save),
             onPressed: _isLoading ? null : _createKata,
-            tooltip: 'Create Kata',
+            tooltip: 'Kata Aanmaken',
           ),
         ],
       ),
@@ -236,7 +236,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
-                          labelText: 'Kata Name *',
+                          labelText: 'Kata Naam *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.sports_martial_arts),
                         ),
@@ -251,7 +251,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       TextFormField(
                         controller: _styleController,
                         decoration: const InputDecoration(
-                          labelText: 'Style *',
+                          labelText: 'Stijl *',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.style),
                         ),
@@ -278,7 +278,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                           ),
                           child: InputDecorator(
                             decoration: const InputDecoration(
-                              labelText: 'Description *',
+                              labelText: 'Beschrijving *',
                               border: InputBorder.none,
                               prefixIcon: Icon(Icons.description),
                               suffixIcon: Icon(Icons.edit),
@@ -292,7 +292,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                               width: double.infinity,
                               child: Text(
                                 _descriptionController.text.isEmpty
-                                    ? 'Tap to add description...'
+                                    ? 'Tik om beschrijving toe te voegen...'
                                     : _descriptionController.text,
                                 style: TextStyle(
                                   color: _descriptionController.text.isEmpty
@@ -311,8 +311,8 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       ),
                       const SizedBox(height: 16),
                       SwitchListTile(
-                        title: const Text('Private Kata'),
-                        subtitle: const Text('Only you can see this kata'),
+                        title: const Text('Privé Kata'),
+                        subtitle: const Text('Alleen jij kunt deze kata zien'),
                         value: _isPrivate,
                         onChanged: (value) {
                           setState(() {
@@ -335,7 +335,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Selected Images (${_selectedImages.length})',
+                          'Geselecteerde Afbeeldingen (${_selectedImages.length})',
                           style: Theme.of(context).textTheme.titleLarge
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -344,7 +344,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Long press and drag to reorder images',
+                          'Houd ingedrukt en sleep om afbeeldingen te herordenen',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(
@@ -480,14 +480,14 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add Images & Videos',
+                        'Afbeeldingen & Video\'s Toevoegen',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Images',
+                        'Afbeeldingen',
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
                               fontWeight: FontWeight.w600,
@@ -502,7 +502,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                               onPressed: _pickImagesFromGallery,
                               icon: const Icon(Icons.photo_library, size: 20),
                               label: const Text(
-                                'Gallery',
+                                'Galerij',
                                 style: TextStyle(fontSize: 14),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -557,7 +557,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                     _videoUrls.addAll(urls);
                   });
                 },
-                title: 'Add Video URLs',
+                title: 'Video URL\'s Toevoegen',
               ),
               const SizedBox(height: 16),
 
@@ -581,7 +581,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Creation Tips',
+                            'Aanmaak Tips',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
@@ -593,29 +593,29 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       const SizedBox(height: 12),
                       _buildTipItem(
                         icon: Icons.sports_martial_arts,
-                        text: 'Name and style are required fields',
+                        text: 'Naam en stijl zijn verplichte velden',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.description,
                         text:
-                            'Tap the description field to open the full editor',
+                            'Tik op het beschrijvingsveld om de volledige editor te openen',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.photo_library,
-                        text: 'Add multiple images from gallery or camera',
+                        text: 'Voeg meerdere afbeeldingen toe vanuit galerij of camera',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.video_library,
                         text:
-                            'Add video URLs from YouTube, Vimeo, or direct links',
+                            'Voeg video URL\'s toe van YouTube, Vimeo, of directe links',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.lock,
-                        text: 'Private katas are only visible to you',
+                        text: 'Privé kata\'s zijn alleen zichtbaar voor jou',
                       ),
                     ],
                   ),

@@ -100,7 +100,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Account created successfully! Please check your email to confirm your account.'),
+            content: Text('Account succesvol aangemaakt! Controleer je e-mail om je account te bevestigen.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 4),
           ),
@@ -139,7 +139,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             
             // App Logo/Title
             const Text(
-              'Welcome Back',
+              'Welkom Terug',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -148,7 +148,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Sign in to your account',
+              'Log in op je account',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurface,
               ),
@@ -189,7 +189,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             TextFormField(
               controller: _loginEmailController,
               decoration: const InputDecoration(
-                labelText: 'Email',
+                labelText: 'E-mail',
                 prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder(),
               ),
@@ -197,10 +197,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               textInputAction: TextInputAction.next,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
+                  return 'Voer je e-mailadres in';
                 }
                 if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                  return 'Please enter a valid email';
+                  return 'Voer een geldig e-mailadres in';
                 }
                 return null;
               },
@@ -211,7 +211,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             TextFormField(
               controller: _loginPasswordController,
               decoration: const InputDecoration(
-                labelText: 'Password',
+                labelText: 'Wachtwoord',
                 prefixIcon: Icon(Icons.lock_outlined),
                 border: OutlineInputBorder(),
               ),
@@ -220,10 +220,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               onFieldSubmitted: (_) => _signIn(),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter your password';
+                  return 'Voer je wachtwoord in';
                 }
                 if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
+                  return 'Wachtwoord moet minimaal 6 tekens zijn';
                 }
                 return null;
               },
@@ -241,7 +241,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Sign In'),
+                    : const Text('Inloggen'),
               ),
             ),
             const SizedBox(height: 16),
@@ -251,12 +251,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Don\'t have an account? ',
+                  'Nog geen account? ',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 TextButton(
                   onPressed: () => _tabController.animateTo(1),
-                  child: const Text('Sign Up'),
+                  child: const Text('Registreren'),
                 ),
               ],
             ),
@@ -278,7 +278,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             
             // App Logo/Title
             const Text(
-              'Create Account',
+              'Account Aanmaken',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -287,7 +287,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Join the Karate community',
+              'Word lid van de Karate gemeenschap',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -328,17 +328,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             TextFormField(
               controller: _signupNameController,
               decoration: const InputDecoration(
-                labelText: 'Full Name',
+                labelText: 'Volledige Naam',
                 prefixIcon: Icon(Icons.person_outlined),
                 border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter your full name';
+                  return 'Voer je volledige naam in';
                 }
                 if (value.trim().length < 2) {
-                  return 'Name must be at least 2 characters';
+                  return 'Naam moet minimaal 2 tekens zijn';
                 }
                 return null;
               },
@@ -349,7 +349,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             TextFormField(
               controller: _signupEmailController,
               decoration: const InputDecoration(
-                labelText: 'Email',
+                labelText: 'E-mail',
                 prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder(),
               ),
@@ -357,10 +357,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               textInputAction: TextInputAction.next,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter your email';
+                  return 'Voer je e-mailadres in';
                 }
                 if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                  return 'Please enter a valid email';
+                  return 'Voer een geldig e-mailadres in';
                 }
                 return null;
               },
@@ -371,19 +371,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             TextFormField(
               controller: _signupPasswordController,
               decoration: const InputDecoration(
-                labelText: 'Password',
+                labelText: 'Wachtwoord',
                 prefixIcon: Icon(Icons.lock_outlined),
                 border: OutlineInputBorder(),
-                helperText: 'At least 6 characters',
+                helperText: 'Minimaal 6 tekens',
               ),
               obscureText: true,
               textInputAction: TextInputAction.next,
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please enter a password';
+                  return 'Voer een wachtwoord in';
                 }
                 if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
+                  return 'Wachtwoord moet minimaal 6 tekens zijn';
                 }
                 return null;
               },
@@ -394,7 +394,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             TextFormField(
               controller: _signupConfirmPasswordController,
               decoration: const InputDecoration(
-                labelText: 'Confirm Password',
+                labelText: 'Bevestig Wachtwoord',
                 prefixIcon: Icon(Icons.lock_outlined),
                 border: OutlineInputBorder(),
               ),
@@ -403,10 +403,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               onFieldSubmitted: (_) => _signUp(),
               validator: (value) {
                 if (value == null || value.isEmpty) {
-                  return 'Please confirm your password';
+                  return 'Bevestig je wachtwoord';
                 }
                 if (value != _signupPasswordController.text) {
-                  return 'Passwords do not match';
+                  return 'Wachtwoorden komen niet overeen';
                 }
                 return null;
               },
@@ -424,7 +424,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Create Account'),
+                    : const Text('Account Aanmaken'),
               ),
             ),
             const SizedBox(height: 16),
@@ -434,12 +434,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Already have an account? ',
+                  'Al een account? ',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 TextButton(
                   onPressed: () => _tabController.animateTo(0),
-                  child: const Text('Sign In'),
+                      child: const Text('Inloggen'),
                 ),
               ],
             ),
@@ -495,8 +495,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
                 dividerColor: Colors.transparent,
                 tabs: const [
-                  Tab(text: 'Sign In'),
-                  Tab(text: 'Sign Up'),
+                  Tab(text: 'Inloggen'),
+                  Tab(text: 'Registreren'),
                 ],
               ),
             ),

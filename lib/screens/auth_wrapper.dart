@@ -55,7 +55,7 @@ class AuthWrapper extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Authentication Error',
+                'Authenticatie Fout',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
@@ -70,7 +70,7 @@ class AuthWrapper extends ConsumerWidget {
                   // Retry by invalidating the provider
                   ref.invalidate(authNotifierProvider);
                 },
-                child: const Text('Retry'),
+                child: const Text('Opnieuw'),
               ),
             ],
           ),

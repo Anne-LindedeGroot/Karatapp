@@ -197,36 +197,36 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   /// Get theme description for UI
   String get themeDescription {
     final baseDescription = switch (state.themeMode) {
-      AppThemeMode.light => state.isHighContrast ? 'Light (High Contrast)' : 'Light',
-      AppThemeMode.dark => state.isHighContrast ? 'Dark (High Contrast)' : 'Dark',
-      AppThemeMode.system => state.isHighContrast ? 'System (High Contrast)' : 'System',
+      AppThemeMode.light => state.isHighContrast ? 'Licht (Hoog Contrast)' : 'Licht',
+      AppThemeMode.dark => state.isHighContrast ? 'Donker (Hoog Contrast)' : 'Donker',
+      AppThemeMode.system => state.isHighContrast ? 'Systeem (Hoog Contrast)' : 'Systeem',
     };
     
     final colorDescription = switch (state.colorScheme) {
-      AppColorScheme.defaultGreen => 'Default Green',
-      AppColorScheme.emeraldGreen => 'Emerald Green',
-      AppColorScheme.neonGreen => 'Neon Green',
-      AppColorScheme.forestGreen => 'Forest Green',
-      AppColorScheme.mintGreen => 'Mint Green',
-      AppColorScheme.blue => 'Blue',
-      AppColorScheme.purple => 'Purple',
-      AppColorScheme.orange => 'Orange',
+      AppColorScheme.defaultGreen => 'Standaard Groen',
+      AppColorScheme.emeraldGreen => 'Smaragd Groen',
+      AppColorScheme.neonGreen => 'Neon Groen',
+      AppColorScheme.forestGreen => 'Bos Groen',
+      AppColorScheme.mintGreen => 'Mint Groen',
+      AppColorScheme.blue => 'Blauw',
+      AppColorScheme.purple => 'Paars',
+      AppColorScheme.orange => 'Oranje',
     };
     
-    return '$baseDescription - $colorDescription${state.glowEffects ? ' (Glow)' : ''}';
+    return '$baseDescription - $colorDescription${state.glowEffects ? ' (Gloed)' : ''}';
   }
 
   /// Get color scheme name
   String get colorSchemeName {
     return switch (state.colorScheme) {
-      AppColorScheme.defaultGreen => 'Default Green',
-      AppColorScheme.emeraldGreen => 'Emerald Green',
-      AppColorScheme.neonGreen => 'Neon Green',
-      AppColorScheme.forestGreen => 'Forest Green',
-      AppColorScheme.mintGreen => 'Mint Green',
-      AppColorScheme.blue => 'Blue',
-      AppColorScheme.purple => 'Purple',
-      AppColorScheme.orange => 'Orange',
+      AppColorScheme.defaultGreen => 'Standaard Groen',
+      AppColorScheme.emeraldGreen => 'Smaragd Groen',
+      AppColorScheme.neonGreen => 'Neon Groen',
+      AppColorScheme.forestGreen => 'Bos Groen',
+      AppColorScheme.mintGreen => 'Mint Groen',
+      AppColorScheme.blue => 'Blauw',
+      AppColorScheme.purple => 'Paars',
+      AppColorScheme.orange => 'Oranje',
     };
   }
 

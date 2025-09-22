@@ -30,26 +30,30 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   Future<void> _signUp() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     // Clear any previous errors
     ref.read(authNotifierProvider.notifier).clearError();
 
     try {
-      await ref.read(authNotifierProvider.notifier).signUp(
-        _emailController.text.trim(),
-        _passwordController.text,
-        _nameController.text.trim(),
-      );
-      
+      await ref
+          .read(authNotifierProvider.notifier)
+          .signUp(
+            _emailController.text.trim(),
+            _passwordController.text,
+            _nameController.text.trim(),
+          );
+
       // Show success message and navigate to login
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Account created successfully! Please check your email to confirm your account.'),
+            content: Text(
+              'Account succesvol aangemaakt! Controleer je e-mail om je account te bevestigen.',
+            ),
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Navigate to login screen
         context.goToLogin();
       }
@@ -66,9 +70,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final errorMessage = authState.error;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign Up'),
-      ),
+      appBar: AppBar(title: const Text('Registreren')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -78,11 +80,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  'Create Account',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  'Account Aanmaken',
+                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 40),
                 if (errorMessage != null)
@@ -101,12 +100,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 TextFormField(
                   controller: _nameController,
                   decoration: const InputDecoration(
-                    labelText: 'Full Name',
+                    labelText: 'Volledige Naam',
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your full name';
+                      return 'Voer je volledige naam in';
                     }
                     return null;
                   },
@@ -115,15 +114,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
+                    labelText: 'E-mail',
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return 'Voer je e-mailadres in';
                     }
                     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                      return 'Please enter a valid email';
+                      return 'Voer een geldig e-mailadres in';
                     }
                     return null;
                   },
@@ -132,16 +131,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
-                    labelText: 'Password',
+                    labelText: 'Wachtwoord',
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
+                      return 'Voer een wachtwoord in';
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return 'Wachtwoord moet minimaal 6 tekens zijn';
                     }
                     return null;
                   },
@@ -150,16 +149,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 TextFormField(
                   controller: _confirmPasswordController,
                   decoration: const InputDecoration(
-                    labelText: 'Confirm Password',
+                    labelText: 'Bevestig Wachtwoord',
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please confirm your password';
+                      return 'Bevestig je wachtwoord';
                     }
                     if (value != _passwordController.text) {
-                      return 'Passwords do not match';
+                      return 'Wachtwoorden komen niet overeen';
                     }
                     return null;
                   },
@@ -172,7 +171,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     onPressed: isLoading ? null : _signUp,
                     child: isLoading
                         ? const CircularProgressIndicator()
-                        : const Text('Sign Up'),
+                        : const Text('Registreren'),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -180,12 +179,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Already have an account? ',
+                      'Al een account? ',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     TextButton(
                       onPressed: () => context.goToLogin(),
-                      child: const Text('Login'),
+                      child: const Text('Inloggen'),
                     ),
                   ],
                 ),

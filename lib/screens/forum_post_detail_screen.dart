@@ -10,13 +10,11 @@ import '../widgets/avatar_widget.dart';
 class ForumPostDetailScreen extends ConsumerStatefulWidget {
   final int postId;
 
-  const ForumPostDetailScreen({
-    super.key,
-    required this.postId,
-  });
+  const ForumPostDetailScreen({super.key, required this.postId});
 
   @override
-  ConsumerState<ForumPostDetailScreen> createState() => _ForumPostDetailScreenState();
+  ConsumerState<ForumPostDetailScreen> createState() =>
+      _ForumPostDetailScreenState();
 }
 
 class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
@@ -41,7 +39,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
   Future<void> _loadPost() async {
     try {
-      final post = await ref.read(forumNotifierProvider.notifier).getPostWithComments(widget.postId);
+      final post = await ref
+          .read(forumNotifierProvider.notifier)
+          .getPostWithComments(widget.postId);
       setState(() {
         _post = post;
         _isLoading = false;
@@ -53,7 +53,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading post: $e'),
+            content: Text('Fout bij laden bericht: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -72,7 +72,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('You must be logged in to comment'),
+            content: Text('Je moet ingelogd zijn om te reageren'),
             backgroundColor: Colors.red,
           ),
         );
@@ -85,21 +85,23 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     });
 
     try {
-      await ref.read(forumNotifierProvider.notifier).addComment(
-        postId: widget.postId,
-        content: _commentController.text.trim(),
-      );
+      await ref
+          .read(forumNotifierProvider.notifier)
+          .addComment(
+            postId: widget.postId,
+            content: _commentController.text.trim(),
+          );
 
       _commentController.clear();
       _commentFocusNode.unfocus();
-      
+
       // Reload the post to get updated comments
       await _loadPost();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Comment added successfully!'),
+            content: Text('Reactie succesvol toegevoegd!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -108,7 +110,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error adding comment: $e'),
+            content: Text('Fout bij toevoegen reactie: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -126,7 +128,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     switch (category) {
       case ForumCategory.general:
         return Colors.blue;
-        case ForumCategory.kataRequests:
+      case ForumCategory.kataRequests:
         return Colors.green;
       case ForumCategory.techniques:
         return Colors.orange;
@@ -140,15 +142,15 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
+      return '${difference.inDays}d geleden';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
+      return '${difference.inHours}u geleden';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
+      return '${difference.inMinutes}m geleden';
     } else {
-      return 'Just now';
+      return 'Zojuist';
     }
   }
 
@@ -160,8 +162,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       loading: () => false,
       error: (_, __) => false,
     );
-    final canModerate = canModerateRole || (currentUser != null && post.authorId == currentUser.id);
-
+    final canModerate =
+        canModerateRole ||
+        (currentUser != null && post.authorId == currentUser.id);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -188,7 +191,10 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _getCategoryColor(post.category),
                           borderRadius: BorderRadius.circular(12),
@@ -205,7 +211,10 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                       const SizedBox(width: 8),
                       if (post.isPinned)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.orange,
                             borderRadius: BorderRadius.circular(8),
@@ -213,10 +222,14 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.push_pin, color: Colors.white, size: 12),
+                              Icon(
+                                Icons.push_pin,
+                                color: Colors.white,
+                                size: 12,
+                              ),
                               SizedBox(width: 4),
                               Text(
-                                'PINNED',
+                                'VASTGEMAAKT',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -229,7 +242,10 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                       if (post.isLocked)
                         Container(
                           margin: const EdgeInsets.only(left: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(8),
@@ -240,7 +256,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                               Icon(Icons.lock, color: Colors.white, size: 12),
                               SizedBox(width: 4),
                               Text(
-                                'LOCKED',
+                                'VERGRENDELD',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -264,24 +280,36 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           _showEditPostDialog(post);
                           break;
                         case 'pin':
-                          await ref.read(forumNotifierProvider.notifier).togglePinPost(post.id);
+                          await ref
+                              .read(forumNotifierProvider.notifier)
+                              .togglePinPost(post.id);
                           await _loadPost(); // Reload to get updated status
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(post.isPinned ? 'Post unpinned successfully' : 'Post pinned successfully'),
+                                content: Text(
+                                  post.isPinned
+                                      ? 'Bericht losgemaakt'
+                                      : 'Bericht vastgemaakt',
+                                ),
                                 backgroundColor: Colors.green,
                               ),
                             );
                           }
                           break;
                         case 'lock':
-                          await ref.read(forumNotifierProvider.notifier).toggleLockPost(post.id);
+                          await ref
+                              .read(forumNotifierProvider.notifier)
+                              .toggleLockPost(post.id);
                           await _loadPost(); // Reload to get updated status
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(post.isLocked ? 'Post unlocked successfully' : 'Post locked successfully'),
+                                content: Text(
+                                  post.isLocked
+                                      ? 'Bericht ontgrendeld'
+                                      : 'Bericht vergrendeld',
+                                ),
                                 backgroundColor: Colors.green,
                               ),
                             );
@@ -310,7 +338,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         children: [
                           Icon(Icons.edit, color: Colors.blue),
                           SizedBox(width: 8),
-                          Text('Edit'),
+                          Text('Bewerk'),
                         ],
                       ),
                     ),
@@ -319,9 +347,13 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                       value: 'pin',
                       child: Row(
                         children: [
-                          Icon(post.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+                          Icon(
+                            post.isPinned
+                                ? Icons.push_pin_outlined
+                                : Icons.push_pin,
+                          ),
                           const SizedBox(width: 8),
-                          Text(post.isPinned ? 'Unpin' : 'Pin'),
+                          Text(post.isPinned ? 'Losmaken' : 'Vastmaken'),
                         ],
                       ),
                     ),
@@ -331,7 +363,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         children: [
                           Icon(post.isLocked ? Icons.lock_open : Icons.lock),
                           const SizedBox(width: 8),
-                          Text(post.isLocked ? 'Unlock' : 'Lock'),
+                          Text(post.isLocked ? 'Ontgrendel' : 'Vergrendel'),
                         ],
                       ),
                     ),
@@ -341,7 +373,10 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         children: [
                           Icon(Icons.delete, color: Colors.red),
                           SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
+                          Text(
+                            'Verwijder',
+                            style: TextStyle(color: Colors.red),
+                          ),
                         ],
                       ),
                     ),
@@ -354,10 +389,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           // Title
           Text(
             post.title,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
 
@@ -383,10 +415,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     ),
                     Text(
                       _formatDate(post.createdAt),
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
                   ],
                 ),
@@ -398,7 +427,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           // Interaction buttons
           Consumer(
             builder: (context, ref, child) {
-              final forumInteraction = ref.watch(forumInteractionProvider(post.id));
+              final forumInteraction = ref.watch(
+                forumInteractionProvider(post.id),
+              );
               final isLiked = forumInteraction.isLiked;
               final likeCount = forumInteraction.likeCount;
               final isFavorited = forumInteraction.isFavorited;
@@ -410,24 +441,37 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                   children: [
                     // Like button
                     GestureDetector(
-                      onTap: isLoading ? null : () async {
-                        try {
-                          await ref.read(forumInteractionProvider(post.id).notifier).toggleLike();
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
+                      onTap: isLoading
+                          ? null
+                          : () async {
+                              try {
+                                await ref
+                                    .read(
+                                      forumInteractionProvider(
+                                        post.id,
+                                      ).notifier,
+                                    )
+                                    .toggleLike();
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: isLiked ? Colors.red.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                          color: isLiked
+                              ? Colors.red.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: isLiked ? Colors.red : Colors.grey,
@@ -459,37 +503,54 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
                     // Favorite button
                     GestureDetector(
-                      onTap: isLoading ? null : () async {
-                        try {
-                          await ref.read(forumInteractionProvider(post.id).notifier).toggleFavorite();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isFavorited ? 'Removed from favorites' : 'Added to favorites'
-                                ),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      },
+                      onTap: isLoading
+                          ? null
+                          : () async {
+                              try {
+                                await ref
+                                    .read(
+                                      forumInteractionProvider(
+                                        post.id,
+                                      ).notifier,
+                                    )
+                                    .toggleFavorite();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        isFavorited
+                                            ? 'Verwijderd uit favorieten'
+                                            : 'Toegevoegd aan favorieten',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
-                          color: isFavorited ? Colors.teal.shade400.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+                          color: isFavorited
+                              ? Colors.teal.shade400.withValues(alpha: 0.1)
+                              : Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isFavorited ? Colors.teal.shade400 : Colors.grey,
+                            color: isFavorited
+                                ? Colors.teal.shade400
+                                : Colors.grey,
                             width: 1,
                           ),
                         ),
@@ -497,15 +558,21 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              isFavorited ? Icons.bookmark : Icons.bookmark_border,
+                              isFavorited
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
                               size: 16,
-                              color: isFavorited ? Colors.teal.shade400 : Colors.grey[600],
+                              color: isFavorited
+                                  ? Colors.teal.shade400
+                                  : Colors.grey[600],
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              isFavorited ? 'Saved' : 'Save',
+                              isFavorited ? 'Opgeslagen' : 'Opslaan',
                               style: TextStyle(
-                                color: isFavorited ? Colors.teal.shade400 : Colors.grey[600],
+                                color: isFavorited
+                                    ? Colors.teal.shade400
+                                    : Colors.grey[600],
                                 fontWeight: FontWeight.w500,
                                 fontSize: 12,
                               ),
@@ -518,14 +585,14 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
                     // Comment count display
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.grey,
-                          width: 1,
-                        ),
+                        border: Border.all(color: Colors.grey, width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -563,10 +630,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       padding: const EdgeInsets.all(16),
       child: Text(
         post.content,
-        style: const TextStyle(
-          fontSize: 16,
-          height: 1.6,
-        ),
+        style: const TextStyle(fontSize: 16, height: 1.6),
       ),
     );
   }
@@ -586,10 +650,13 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           ),
           child: Row(
             children: [
-              Icon(Icons.comment, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              Icon(
+                Icons.comment,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 8),
               Text(
-                '${post.comments.length} Comment${post.comments.length != 1 ? 's' : ''}',
+                '${post.comments.length} Reactie${post.comments.length != 1 ? 's' : ''}',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -602,7 +669,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
         // Comments list
         ...post.comments.map((comment) => _buildCommentCard(comment)),
-        
+
         // Add some bottom padding to ensure content is not hidden behind navigation
         const SizedBox(height: 100),
       ],
@@ -617,23 +684,26 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       loading: () => false,
       error: (_, __) => false,
     );
-    
+
     // User can edit/delete if they are:
     // 1. The comment author
     // 2. The post author (forum creator)
     // 3. A moderator (host or mediator)
-    final canEditComment = currentUser != null && (
-      comment.authorId == currentUser.id ||  // Comment author
-      _post!.authorId == currentUser.id ||   // Post author (forum creator)
-      canModerateRole                        // Moderator (host or mediator)
-    );
+    final canEditComment =
+        currentUser != null &&
+        (comment.authorId == currentUser.id || // Comment author
+            _post!.authorId == currentUser.id || // Post author (forum creator)
+            canModerateRole // Moderator (host or mediator)
+            );
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
-          bottom: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
         ),
       ),
       child: Column(
@@ -661,10 +731,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     ),
                     Text(
                       _formatDate(comment.createdAt),
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
                 ),
@@ -691,7 +758,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           children: [
                             Icon(Icons.edit, color: Colors.blue, size: 16),
                             SizedBox(width: 8),
-                            Text('Edit'),
+                            Text('Bewerk'),
                           ],
                         ),
                       ),
@@ -701,7 +768,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         children: [
                           Icon(Icons.delete, color: Colors.red, size: 16),
                           SizedBox(width: 8),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
+                          Text('Verwijder', style: TextStyle(color: Colors.red)),
                         ],
                       ),
                     ),
@@ -719,10 +786,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           // Comment content
           Text(
             comment.content,
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.4,
-            ),
+            style: const TextStyle(fontSize: 14, height: 1.4),
           ),
         ],
       ),
@@ -733,19 +797,19 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete "${post.title}"?'),
+        title: Text('Verwijder "${post.title}"?'),
         content: const Text(
-          'This will permanently delete the post and all its comments. This cannot be undone.',
+          'Dit zal het bericht en alle reacties permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Verwijder'),
           ),
         ],
       ),
@@ -780,19 +844,19 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Comment?'),
+        title: const Text('Reactie Verwijderen?'),
         content: const Text(
-          'This will permanently delete the comment. This cannot be undone.',
+          'Dit zal de reactie permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Verwijder'),
           ),
         ],
       ),
@@ -800,11 +864,13 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
     if (confirmed == true) {
       try {
-        await ref.read(forumNotifierProvider.notifier).deleteComment(comment.id);
-        
+        await ref
+            .read(forumNotifierProvider.notifier)
+            .deleteComment(comment.id);
+
         // Reload the post to get updated comments
         await _loadPost();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -835,12 +901,15 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 40,
+          ),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final maxWidth = MediaQuery.of(context).size.width - 48;
               final maxHeight = MediaQuery.of(context).size.height - 80;
-              
+
               return Container(
                 width: maxWidth,
                 height: maxHeight,
@@ -858,7 +927,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         children: [
                           const Expanded(
                             child: Text(
-                              'Edit Post',
+                              'Bericht Bewerken',
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
@@ -875,7 +944,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                       ),
                     ),
                     const Divider(height: 1),
-                    
+
                     // Content
                     Expanded(
                       child: SingleChildScrollView(
@@ -885,7 +954,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                             TextField(
                               controller: titleController,
                               decoration: const InputDecoration(
-                                labelText: 'Title',
+                                labelText: 'Titel',
                                 border: OutlineInputBorder(),
                               ),
                               maxLength: 200,
@@ -894,7 +963,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                             DropdownButtonFormField<ForumCategory>(
                               initialValue: selectedCategory,
                               decoration: const InputDecoration(
-                                labelText: 'Category',
+                                labelText: 'Categorie',
                                 border: OutlineInputBorder(),
                               ),
                               items: ForumCategory.values.map((category) {
@@ -913,7 +982,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                             TextField(
                               controller: contentController,
                               decoration: const InputDecoration(
-                                labelText: 'Content',
+                                labelText: 'Inhoud',
                                 border: OutlineInputBorder(),
                                 alignLabelWithHint: true,
                               ),
@@ -924,9 +993,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         ),
                       ),
                     ),
-                    
+
                     const Divider(height: 1),
-                    
+
                     // Actions
                     Padding(
                       padding: const EdgeInsets.all(16),
@@ -935,12 +1004,12 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
+                            child: const Text('Annuleren'),
                           ),
                           const SizedBox(width: 8),
                           ElevatedButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Save'),
+                            child: const Text('Opslaan'),
                           ),
                         ],
                       ),
@@ -956,16 +1025,18 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
     if (result == true) {
       try {
-        await ref.read(forumNotifierProvider.notifier).updatePost(
-          postId: post.id,
-          title: titleController.text.trim(),
-          content: contentController.text.trim(),
-          category: selectedCategory,
-        );
-        
+        await ref
+            .read(forumNotifierProvider.notifier)
+            .updatePost(
+              postId: post.id,
+              title: titleController.text.trim(),
+              content: contentController.text.trim(),
+              category: selectedCategory,
+            );
+
         // Reload the post to get updated data
         await _loadPost();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -993,13 +1064,13 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Comment'),
+        title: const Text('Reactie Bewerken'),
         content: SizedBox(
           width: double.maxFinite,
           child: TextField(
             controller: contentController,
             decoration: const InputDecoration(
-              labelText: 'Comment',
+              labelText: 'Reactie',
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
@@ -1011,11 +1082,11 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save'),
+            child: const Text('Opslaan'),
           ),
         ],
       ),
@@ -1023,14 +1094,16 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
     if (result == true) {
       try {
-        await ref.read(forumNotifierProvider.notifier).updateComment(
-          commentId: comment.id,
-          content: contentController.text.trim(),
-        );
-        
+        await ref
+            .read(forumNotifierProvider.notifier)
+            .updateComment(
+              commentId: comment.id,
+              content: contentController.text.trim(),
+            );
+
         // Reload the post to get updated comments
         await _loadPost();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1056,20 +1129,14 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Loading...'),
-        ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        appBar: AppBar(title: const Text('Loading...')),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_post == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Post Not Found'),
-        ),
+        appBar: AppBar(title: const Text('Post Not Found')),
         body: const Center(
           child: Text(
             'Post not found or failed to load',
@@ -1080,9 +1147,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Forum Post'),
-      ),
+      appBar: AppBar(title: const Text('Forum Post')),
       body: Column(
         children: [
           // Main content
@@ -1098,7 +1163,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               ),
             ),
           ),
-          
+
           // Fixed comment input at bottom (if not locked)
           if (!_post!.isLocked)
             Container(
@@ -1106,7 +1171,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                 color: Theme.of(context).colorScheme.surface,
                 boxShadow: [
                   BoxShadow(
-                    color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.shadow.withValues(alpha: 0.2),
                     spreadRadius: 1,
                     blurRadius: 5,
                     offset: const Offset(0, -2),
@@ -1123,7 +1190,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           controller: _commentController,
                           focusNode: _commentFocusNode,
                           decoration: InputDecoration(
-                            hintText: 'Write a comment...',
+                            hintText: 'Schrijf een reactie...',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(25),
                             ),
@@ -1145,20 +1212,21 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          onPressed: _isSubmittingComment ? null : _submitComment,
+                          onPressed: _isSubmittingComment
+                              ? null
+                              : _submitComment,
                           icon: _isSubmittingComment
                               ? const SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
-                              : const Icon(
-                                  Icons.send,
-                                  color: Colors.white,
-                                ),
+                              : const Icon(Icons.send, color: Colors.white),
                         ),
                       ),
                     ],

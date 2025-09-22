@@ -13,7 +13,8 @@ class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
 
   @override
-  ConsumerState<UserManagementScreen> createState() => _UserManagementScreenState();
+  ConsumerState<UserManagementScreen> createState() =>
+      _UserManagementScreenState();
 }
 
 class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
@@ -48,20 +49,24 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     }
   }
 
-  Future<void> _changeUserRole(String userId, String userName, UserRole newRole) async {
+  Future<void> _changeUserRole(
+    String userId,
+    String userName,
+    UserRole newRole,
+  ) async {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Change Role for $userName'),
+        title: Text('Rol Wijzigen voor $userName'),
         content: Text(
-          'Are you sure you want to change $userName\'s role to ${newRole.displayName}?\n\n'
+          'Weet je zeker dat je $userName\'s rol wilt wijzigen naar ${newRole.displayName}?\n\n'
           '${newRole.description}',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -69,7 +74,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               backgroundColor: _getRoleColor(newRole),
               foregroundColor: Colors.white,
             ),
-            child: const Text('Change Role'),
+            child: const Text('Rol Wijzigen'),
           ),
         ],
       ),
@@ -85,7 +90,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(width: 16),
-                  Text('Updating user role...'),
+                  Text('Gebruikersrol bijwerken...'),
                 ],
               ),
               duration: Duration(seconds: 5),
@@ -101,7 +106,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           if (success) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Successfully changed $userName\'s role to ${newRole.displayName}'),
+                content: Text(
+                  'Rol van $userName succesvol gewijzigd naar ${newRole.displayName}',
+                ),
                 backgroundColor: Colors.green,
                 duration: const Duration(seconds: 3),
               ),
@@ -111,7 +118,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Failed to change $userName\'s role'),
+                content: Text('Kon rol van $userName niet wijzigen'),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
@@ -123,7 +130,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error changing role: $e'),
+              content: Text('Fout bij wijzigen rol: $e'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 5),
             ),
@@ -166,11 +173,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            _getRoleIcon(role),
-            size: 16,
-            color: _getRoleColor(role),
-          ),
+          Icon(_getRoleIcon(role), size: 16, color: _getRoleColor(role)),
           const SizedBox(width: 6),
           Text(
             role.displayName,
@@ -190,21 +193,21 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       builder: (context, ref, child) {
         final muteAsync = ref.watch(currentMuteProvider(userId));
         final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-        
+
         return muteAsync.when(
           data: (muteInfo) {
             final isMuted = muteInfo != null && !muteInfo.isExpired;
-            final muteIconColor = isMuted 
-                ? Colors.red 
+            final muteIconColor = isMuted
+                ? Colors.red
                 : (isDarkMode ? Colors.grey[400] : Colors.grey[600]);
-            
+
             return PopupMenuButton<String>(
               icon: Icon(
                 isMuted ? Icons.volume_off : Icons.volume_up,
                 color: muteIconColor,
                 size: 20,
               ),
-              tooltip: isMuted ? 'User is muted' : 'Mute user',
+              tooltip: isMuted ? 'Gebruiker is gedempt' : 'Gebruiker dempen',
               itemBuilder: (context) {
                 if (isMuted) {
                   return [
@@ -218,14 +221,20 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('Unmute User'),
+                              const Text('Gebruiker Ontdempen'),
                               Text(
-                                'Muted until: ${muteInfo.mutedUntil.day}/${muteInfo.mutedUntil.month}/${muteInfo.mutedUntil.year}',
-                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                'Gedempt tot: ${muteInfo.mutedUntil.day}/${muteInfo.mutedUntil.month}/${muteInfo.mutedUntil.year}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
                               ),
                               Text(
-                                'Time left: ${muteInfo.timeRemainingText}',
-                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                'Tijd over: ${muteInfo.timeRemainingText}',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
                               ),
                             ],
                           ),
@@ -238,7 +247,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.history, color: Colors.blue),
                           SizedBox(width: 12),
-                          Text('View Mute History'),
+                          Text('Dempgeschiedenis Bekijken'),
                         ],
                       ),
                     ),
@@ -251,7 +260,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.volume_off, color: Colors.orange),
                           SizedBox(width: 12),
-                          Text('Mute for 1 Day'),
+                          Text('Dempen voor 1 Dag'),
                         ],
                       ),
                     ),
@@ -261,7 +270,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.volume_off, color: Colors.orange),
                           SizedBox(width: 12),
-                          Text('Mute for 3 Days'),
+                          Text('Dempen voor 3 Dagen'),
                         ],
                       ),
                     ),
@@ -271,7 +280,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.volume_off, color: Colors.red),
                           SizedBox(width: 12),
-                          Text('Mute for 1 Week'),
+                          Text('Dempen voor 1 Week'),
                         ],
                       ),
                     ),
@@ -281,7 +290,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.volume_off, color: Colors.red),
                           SizedBox(width: 12),
-                          Text('Mute for 1 Month'),
+                          Text('Dempen voor 1 Maand'),
                         ],
                       ),
                     ),
@@ -291,7 +300,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.volume_off, color: Colors.red),
                           SizedBox(width: 12),
-                          Text('Mute for 3 Months'),
+                          Text('Dempen voor 3 Maanden'),
                         ],
                       ),
                     ),
@@ -301,7 +310,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.volume_off, color: Colors.red),
                           SizedBox(width: 12),
-                          Text('Mute for 6 Months'),
+                          Text('Dempen voor 6 Maanden'),
                         ],
                       ),
                     ),
@@ -311,7 +320,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.volume_off, color: Colors.red),
                           SizedBox(width: 12),
-                          Text('Mute for 1 Year'),
+                          Text('Dempen voor 1 Jaar'),
                         ],
                       ),
                     ),
@@ -321,7 +330,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.schedule, color: Colors.purple),
                           SizedBox(width: 12),
-                          Text('Custom Duration'),
+                          Text('Aangepaste Duur'),
                         ],
                       ),
                     ),
@@ -331,7 +340,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         children: [
                           Icon(Icons.history, color: Colors.blue),
                           SizedBox(width: 12),
-                          Text('View Mute History'),
+                          Text('Dempgeschiedenis Bekijken'),
                         ],
                       ),
                     ),
@@ -343,14 +352,20 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               },
             );
           },
-          loading: () => const Icon(Icons.hourglass_empty, size: 20, color: Colors.grey),
-          error: (_, __) => const Icon(Icons.error, size: 20, color: Colors.red),
+          loading: () =>
+              const Icon(Icons.hourglass_empty, size: 20, color: Colors.grey),
+          error: (error, stackTrace) =>
+              const Icon(Icons.error, size: 20, color: Colors.red),
         );
       },
     );
   }
 
-  Future<void> _handleMuteAction(String action, String userId, String userName) async {
+  Future<void> _handleMuteAction(
+    String action,
+    String userId,
+    String userName,
+  ) async {
     switch (action) {
       case 'unmute':
         await _unmuteUser(userId, userName);
@@ -385,8 +400,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     }
   }
 
-  Future<void> _muteUser(String userId, String userName, MuteDuration duration) async {
-    final reason = await _showReasonDialog('Mute $userName', 'Please provide a reason for muting this user:');
+  Future<void> _muteUser(
+    String userId,
+    String userName,
+    MuteDuration duration,
+  ) async {
+    final reason = await _showReasonDialog(
+      '$userName Dempen',
+      'Geef een reden op voor het dempen van deze gebruiker:',
+    );
     if (reason == null || reason.trim().isEmpty) return;
 
     try {
@@ -401,7 +423,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Successfully muted $userName for ${duration.displayName}'),
+              content: Text(
+                '$userName succesvol gedempt voor ${duration.displayName}',
+              ),
               backgroundColor: Colors.orange,
               duration: const Duration(seconds: 3),
             ),
@@ -411,7 +435,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to mute $userName'),
+              content: Text('Kon $userName niet dempen'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 3),
             ),
@@ -422,7 +446,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error muting user: $e'),
+            content: Text('Fout bij dempen gebruiker: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -435,12 +459,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Unmute $userName'),
-        content: Text('Are you sure you want to unmute $userName?'),
+        title: Text('$userName Ontdempen'),
+        content: Text('Weet je zeker dat je $userName wilt ontdempen?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -448,7 +472,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Unmute'),
+            child: const Text('Ontdempen'),
           ),
         ],
       ),
@@ -463,7 +487,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           if (success) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Successfully unmuted $userName'),
+                content: Text('$userName succesvol ontdempt'),
                 backgroundColor: Colors.green,
                 duration: const Duration(seconds: 3),
               ),
@@ -473,7 +497,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Failed to unmute $userName'),
+                content: Text('Kon $userName niet ontdempen'),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
@@ -484,7 +508,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error unmuting user: $e'),
+              content: Text('Fout bij ontdempen gebruiker: $e'),
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 5),
             ),
@@ -496,7 +520,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   Future<String?> _showReasonDialog(String title, String prompt) async {
     final controller = TextEditingController();
-    
+
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -509,7 +533,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             TextField(
               controller: controller,
               decoration: const InputDecoration(
-                hintText: 'Enter reason...',
+                hintText: 'Voer reden in...',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
@@ -520,11 +544,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Confirm'),
+            child: const Text('Bevestigen'),
           ),
         ],
       ),
@@ -533,11 +557,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   Future<void> _showCustomMuteDialog(String userId, String userName) async {
     MuteDuration? selectedDuration;
-    
+
     final duration = await showDialog<MuteDuration>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Custom Mute Duration for $userName'),
+        title: Text('Aangepaste Dempingsduur voor $userName'),
         content: SizedBox(
           width: double.maxFinite,
           height: 400, // Fixed height to prevent overflow
@@ -552,11 +576,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     style: const TextStyle(fontSize: 12),
                   ),
                   leading: Icon(
-                    selectedDuration == duration 
-                        ? Icons.radio_button_checked 
+                    selectedDuration == duration
+                        ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked,
-                    color: selectedDuration == duration 
-                        ? Theme.of(context).primaryColor 
+                    color: selectedDuration == duration
+                        ? Theme.of(context).primaryColor
                         : Colors.grey,
                   ),
                   onTap: () {
@@ -571,7 +595,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
         ],
       ),
@@ -590,12 +614,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Mute History for $userName'),
+          title: Text('Dempgeschiedenis voor $userName'),
           content: SizedBox(
             width: double.maxFinite,
             height: 400,
             child: history.isEmpty
-                ? const Center(child: Text('No mute history'))
+                ? const Center(child: Text('Geen dempgeschiedenis'))
                 : ListView.builder(
                     itemCount: history.length,
                     itemBuilder: (context, index) {
@@ -610,10 +634,16 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Muted: ${mute.mutedAt.day}/${mute.mutedAt.month}/${mute.mutedAt.year}'),
-                              Text('Until: ${mute.mutedUntil.day}/${mute.mutedUntil.month}/${mute.mutedUntil.year}'),
+                              Text(
+                                'Gedempt: ${mute.mutedAt.day}/${mute.mutedAt.month}/${mute.mutedAt.year}',
+                              ),
+                              Text(
+                                'Tot: ${mute.mutedUntil.day}/${mute.mutedUntil.month}/${mute.mutedUntil.year}',
+                              ),
                               if (!mute.isActive && mute.unmutedAt != null)
-                                Text('Unmuted: ${mute.unmutedAt!.day}/${mute.unmutedAt!.month}/${mute.unmutedAt!.year}'),
+                                Text(
+                                  'Ontdempt: ${mute.unmutedAt!.day}/${mute.unmutedAt!.month}/${mute.unmutedAt!.year}',
+                                ),
                             ],
                           ),
                           trailing: mute.isActive
@@ -633,7 +663,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+              child: const Text('Sluiten'),
             ),
           ],
         ),
@@ -641,23 +671,20 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     }
   }
 
-  Widget _buildRoleSelector(String userId, String userName, UserRole currentRole) {
+  Widget _buildRoleSelector(
+    String userId,
+    String userName,
+    UserRole currentRole,
+  ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    final iconColor = isDarkMode 
-        ? Colors.blue.shade300  // Lighter blue for dark mode
-        : Theme.of(context).primaryColor;  // Original color for light mode
-    
+    final iconColor = isDarkMode
+        ? Colors.blue.shade300 // Lighter blue for dark mode
+        : Theme.of(context).primaryColor; // Original color for light mode
+
     return PopupMenuButton<UserRole>(
-      icon: Icon(
-        Icons.edit,
-        color: iconColor,
-        size: 20,
-      ),
-      tooltip: 'Change Role',
-      constraints: const BoxConstraints(
-        minWidth: 200,
-        maxWidth: 280,
-      ),
+      icon: Icon(Icons.edit, color: iconColor, size: 20),
+      tooltip: 'Rol Wijzigen',
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
       itemBuilder: (context) {
         return UserRole.values.map((role) {
           final isCurrentRole = role == currentRole;
@@ -693,7 +720,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           role.description,
                           style: TextStyle(
                             fontSize: 11,
-                            color: isCurrentRole ? Colors.grey : Colors.grey[600],
+                            color: isCurrentRole
+                                ? Colors.grey
+                                : Colors.grey[600],
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -704,11 +733,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   ),
                   if (isCurrentRole) ...[
                     const SizedBox(width: 8),
-                    const Icon(
-                      Icons.check,
-                      color: Colors.green,
-                      size: 16,
-                    ),
+                    const Icon(Icons.check, color: Colors.green, size: 16),
                   ],
                 ],
               ),
@@ -733,7 +758,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         if (userRole != UserRole.host && userRole != UserRole.mediator) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Access Denied'),
+              title: const Text('Toegang Geweigerd'),
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => context.goToHome(),
@@ -743,14 +768,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.lock,
-                    size: 64,
-                    color: Colors.red,
-                  ),
+                  Icon(Icons.lock, size: 64, color: Colors.red),
                   SizedBox(height: 16),
                   Text(
-                    'Access Denied',
+                    'Toegang Geweigerd',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -759,11 +780,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Only hosts and mediators can access user management.',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
+                    'Alleen hosts en moderators kunnen gebruikersbeheer openen.',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -774,7 +792,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('User Management'),
+            title: const Text('Gebruikersbeheer'),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () => context.goToHome(),
@@ -783,7 +801,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: _loadUsers,
-                tooltip: 'Refresh Users',
+                tooltip: 'Gebruikers Verversen',
               ),
             ],
           ),
@@ -791,7 +809,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             children: [
               // Connection error widget
               const ConnectionErrorWidget(),
-              
+
               // Header info
               Container(
                 width: double.infinity,
@@ -815,7 +833,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'User Role Management',
+                          'Gebruikersrollenbeheer',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -826,11 +844,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Manage user roles and mute users. Hosts can change roles, both hosts and mediators can mute users.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
+                      'Beheer gebruikersrollen en demp gebruikers. Hosts kunnen rollen wijzigen, zowel hosts als moderators kunnen gebruikers dempen.',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -852,7 +867,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 const Text(
-                                  'Error Loading Users',
+                                  'Fout bij Laden Gebruikers',
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
@@ -867,7 +882,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                 const SizedBox(height: 16),
                                 ElevatedButton(
                                   onPressed: _loadUsers,
-                                  child: const Text('Retry'),
+                                  child: const Text('Opnieuw Proberen'),
                                 ),
                               ],
                             ),
@@ -884,7 +899,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                     ),
                                     SizedBox(height: 16),
                                     Text(
-                                      'No Users Found',
+                                      'Geen Gebruikers Gevonden',
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
@@ -902,9 +917,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                   itemBuilder: (context, index) {
                                     final user = _users[index];
                                     final userId = user['id'] as String;
-                                    final email = user['email'] as String? ?? 'No email';
-                                    final fullName = user['full_name'] as String? ?? 'No name';
-                                    final roleString = user['role'] as String? ?? 'user';
+                                    final email =
+                                        user['email'] as String? ?? 'Geen email';
+                                    final fullName =
+                                        user['full_name'] as String? ?? 'Geen naam';
+                                    final roleString =
+                                        user['role'] as String? ?? 'user';
                                     final role = UserRole.values.firstWhere(
                                       (r) => r.value == roleString,
                                       orElse: () => UserRole.user,
@@ -961,7 +979,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                                             ),
                                                           ),
                                                           child: const Text(
-                                                            'You',
+                                                            'Jij',
                                                             style: TextStyle(
                                                               fontSize: 10,
                                                               color: Colors.green,
@@ -1009,7 +1027,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       },
       loading: () => Scaffold(
         appBar: AppBar(
-          title: const Text('User Management'),
+          title: const Text('Gebruikersbeheer'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.pop(),
@@ -1019,7 +1037,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       ),
       error: (error, _) => Scaffold(
         appBar: AppBar(
-          title: const Text('User Management'),
+          title: const Text('Gebruikersbeheer'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.pop(),
@@ -1029,18 +1047,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red,
-              ),
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
               const SizedBox(height: 16),
               const Text(
-                'Error Loading Role',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Fout bij Laden Rol',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Text(

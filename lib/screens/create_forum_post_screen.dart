@@ -44,7 +44,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Post created successfully!'),
+            content: Text('Bericht succesvol aangemaakt!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -53,7 +53,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating post: $e'),
+            content: Text('Fout bij aanmaken bericht: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -85,15 +85,15 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
   String _getCategoryDescription(ForumCategory category) {
     switch (category) {
       case ForumCategory.general:
-        return 'General discussions about karate and martial arts';
+        return 'Algemene discussies over karate en vechtsporten';
       case ForumCategory.kataRequests:
-        return 'Request new katas to be added to the app';
+        return 'Vraag nieuwe kata\'s aan om toe te voegen aan de app';
       case ForumCategory.techniques:
-        return 'Share and discuss karate techniques and tips';
+        return 'Deel en bespreek karate technieken en tips';
       case ForumCategory.events:
-        return 'Announcements about karate events and competitions';
+        return 'Aankondigingen over karate evenementen en competities';
       case ForumCategory.feedback:
-        return 'Feedback and suggestions for the app';
+        return 'Feedback en suggesties voor de app';
     }
   }
 
@@ -112,7 +112,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Text(
-                    'POST',
+                    'PLAATSEN',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
@@ -134,7 +134,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                   children: [
                     // Category selection
                     const Text(
-                      'Category',
+                      'Categorie',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -241,7 +241,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
 
                     // Title field
                     const Text(
-                      'Title',
+                      'Titel',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -251,18 +251,18 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                     TextFormField(
                       controller: _titleController,
                       decoration: const InputDecoration(
-                        hintText: 'Enter a descriptive title for your post',
+                        hintText: 'Voer een beschrijvende titel in voor je bericht',
                         border: OutlineInputBorder(),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter a title';
+                          return 'Voer een titel in';
                         }
                         if (value.trim().length < 5) {
-                          return 'Title must be at least 5 characters long';
+                          return 'Titel moet minimaal 5 karakters lang zijn';
                         }
                         if (value.trim().length > 100) {
-                          return 'Title must be less than 100 characters';
+                          return 'Titel moet minder dan 100 karakters zijn';
                         }
                         return null;
                       },
@@ -272,7 +272,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
 
                     // Content field
                     const Text(
-                      'Content',
+                      'Inhoud',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -282,20 +282,20 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                     TextFormField(
                       controller: _contentController,
                       decoration: const InputDecoration(
-                        hintText: 'Write your post content here...',
+                        hintText: 'Schrijf hier de inhoud van je bericht...',
                         border: OutlineInputBorder(),
                         alignLabelWithHint: true,
                       ),
                       maxLines: 8,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter some content';
+                          return 'Voer inhoud in';
                         }
                         if (value.trim().length < 10) {
-                          return 'Content must be at least 10 characters long';
+                          return 'Inhoud moet minimaal 10 karakters lang zijn';
                         }
                         if (value.trim().length > 5000) {
-                          return 'Content must be less than 5000 characters';
+                          return 'Inhoud moet minder dan 5000 karakters zijn';
                         }
                         return null;
                       },
@@ -319,7 +319,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                               Icon(Icons.info, color: Colors.blue[700], size: 20),
                               const SizedBox(width: 8),
                               Text(
-                                'Community Guidelines',
+                                'Community Richtlijnen',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.blue[700],
@@ -329,8 +329,8 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '• Be respectful and courteous to other members\n'
-                            '• Stay on topic and choose the appropriate category\n'
+                            '• Wees respectvol en beleefd naar andere leden\n'
+                            '• Blijf bij het onderwerp en kies de juiste categorie\n'
                             '• Gebruik duidelijke en beschrijvende titels\n'
                             '• Zoek voordat je post om duplicaten te voorkomen\n'
                             '• Volg de juiste karate etiquette en terminologie',
@@ -392,7 +392,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                                 ),
                               ),
                               SizedBox(width: 12),
-                              Text('Creating Post...'),
+                              Text('Bericht Aanmaken...'),
                             ],
                           )
                         : const Text(

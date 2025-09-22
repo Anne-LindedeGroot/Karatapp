@@ -46,19 +46,19 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete "${post.title}"?'),
+        title: Text('Verwijder "${post.title}"?'),
         content: const Text(
-          'This will permanently delete the post and all its comments. This cannot be undone.',
+          'Dit zal het bericht en alle reacties permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Verwijderen'),
           ),
         ],
       ),
@@ -70,7 +70,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Post "${post.title}" deleted successfully'),
+              content: Text('Bericht "${post.title}" succesvol verwijderd'),
               backgroundColor: Colors.green,
             ),
           );
@@ -79,7 +79,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error deleting post: $e'),
+              content: Text('Fout bij verwijderen bericht: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -96,8 +96,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
           SnackBar(
             content: Text(
               post.isPinned 
-                ? 'Post unpinned successfully' 
-                : 'Post pinned successfully'
+                ? 'Bericht losgemaakt' 
+                : 'Bericht vastgemaakt'
             ),
             backgroundColor: Colors.green,
           ),
@@ -123,8 +123,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
           SnackBar(
             content: Text(
               post.isLocked 
-                ? 'Post unlocked successfully' 
-                : 'Post locked successfully'
+                ? 'Bericht ontgrendeld' 
+                : 'Bericht vergrendeld'
             ),
             backgroundColor: Colors.green,
           ),
@@ -151,7 +151,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          _buildCategoryChip(null, 'All', selectedCategory),
+          _buildCategoryChip(null, 'Alle', selectedCategory),
           const SizedBox(width: 8),
           ...ForumCategory.values.map((category) => 
             _buildCategoryChip(category, category.displayName, selectedCategory)
@@ -253,7 +253,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                             children: [
                               Icon(post.isPinned ? Icons.push_pin_outlined : Icons.push_pin),
                               const SizedBox(width: 8),
-                              Text(post.isPinned ? 'Unpin' : 'Pin'),
+                              Text(post.isPinned ? 'Losmaken' : 'Vastmaken'),
                             ],
                           ),
                         ),
@@ -263,7 +263,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                             children: [
                               Icon(post.isLocked ? Icons.lock_open : Icons.lock),
                               const SizedBox(width: 8),
-                              Text(post.isLocked ? 'Unlock' : 'Lock'),
+                              Text(post.isLocked ? 'Ontgrendelen' : 'Vergrendelen'),
                             ],
                           ),
                         ),
@@ -273,7 +273,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                             children: [
                               const Icon(Icons.delete, color: Colors.red),
                               const SizedBox(width: 8),
-                              Text('Delete', style: TextStyle(color: Colors.red)),
+                              Text('Verwijderen', style: TextStyle(color: Colors.red)),
                             ],
                           ),
                         ),
@@ -400,7 +400,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        isFavorited ? 'Removed from favorites' : 'Added to favorites'
+                                        isFavorited ? 'Verwijderd uit favorieten' : 'Toegevoegd aan favorieten'
                                       ),
                                       backgroundColor: Colors.green,
                                     ),
@@ -472,13 +472,13 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final difference = now.difference(date);
     
     if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
+      return '${difference.inDays}d geleden';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
+      return '${difference.inHours}u geleden';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
+      return '${difference.inMinutes}m geleden';
     } else {
-      return 'Just now';
+      return 'Zojuist';
     }
   }
 
@@ -644,7 +644,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: _refreshPosts,
-                    tooltip: 'Refresh posts',
+                    tooltip: 'Berichten verversen',
                   ),
                 ],
               );
@@ -699,7 +699,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       onPressed: () {
                         ref.read(forumNotifierProvider.notifier).clearError();
                       },
-                      child: const Text('Dismiss'),
+                      child: const Text('Sluiten'),
                     ),
                   ],
                 ),
@@ -714,7 +714,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       child: posts.isEmpty
                           ? const Center(
                               child: Text(
-                                'No posts found',
+                                'Geen berichten gevonden',
                                 style: TextStyle(
                                   fontSize: 18,
                                   color: Colors.grey,

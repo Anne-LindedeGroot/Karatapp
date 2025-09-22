@@ -38,7 +38,7 @@ class ConnectionErrorWidget extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Connection Problem',
+                      'Verbindingsprobleem',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -47,7 +47,7 @@ class ConnectionErrorWidget extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      networkState.lastError ?? 'Please check your internet connection',
+                      networkState.lastError ?? 'Controleer je internetverbinding',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.orange.shade600,
@@ -67,7 +67,7 @@ class ConnectionErrorWidget extends ConsumerWidget {
                   ref.read(networkProvider.notifier).markErrorAsShown();
                 },
                 child: Text(
-                  'Dismiss',
+                  'Sluiten',
                   style: TextStyle(color: Colors.orange.shade700),
                 ),
               ),
@@ -90,7 +90,7 @@ class ConnectionErrorWidget extends ConsumerWidget {
                         ),
                       )
                     : const Icon(Icons.refresh, size: 18),
-                label: Text(networkState.isChecking ? 'Checking...' : 'Retry'),
+                label: Text(networkState.isChecking ? 'Controleren...' : 'Opnieuw'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange.shade700,
                   foregroundColor: Colors.white,
@@ -129,17 +129,17 @@ class ConnectionStatusIndicator extends ConsumerWidget {
       case NetworkStatus.checking:
         indicatorColor = Colors.orange;
         indicatorIcon = Icons.wifi_find;
-        statusText = 'Checking connection...';
+        statusText = 'Verbinding controleren...';
         break;
       case NetworkStatus.disconnected:
         indicatorColor = Colors.red;
         indicatorIcon = Icons.wifi_off;
-        statusText = 'No connection';
+        statusText = 'Geen verbinding';
         break;
       case NetworkStatus.unknown:
         indicatorColor = Colors.grey;
         indicatorIcon = Icons.help_outline;
-        statusText = 'Connection unknown';
+        statusText = 'Verbinding onbekend';
         break;
       case NetworkStatus.connected:
         return const SizedBox.shrink();

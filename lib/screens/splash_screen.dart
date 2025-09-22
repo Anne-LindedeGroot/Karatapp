@@ -172,7 +172,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               
               // Tagline
               Text(
-                'Your Karate Journey',
+                'Jouw Karate Reis',
                 style: TextStyle(
                   fontSize: 16,
                       color: Colors.white.withValues(alpha: 0.8),

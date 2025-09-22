@@ -61,7 +61,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: const Text('Inloggen'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -95,15 +95,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Email',
+                    labelText: 'E-mail',
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return 'Voer je e-mailadres in';
                     }
                     if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                      return 'Please enter a valid email';
+                      return 'Voer een geldig e-mailadres in';
                     }
                     return null;
                   },
@@ -112,16 +112,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   decoration: const InputDecoration(
-                    labelText: 'Password',
+                    labelText: 'Wachtwoord',
                     border: OutlineInputBorder(),
                   ),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your password';
+                      return 'Voer je wachtwoord in';
                     }
                     if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
+                      return 'Wachtwoord moet minimaal 6 tekens zijn';
                     }
                     return null;
                   },
@@ -134,7 +134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: _isLoading ? null : _signIn,
                     child: _isLoading
                         ? const CircularProgressIndicator()
-                        : const Text('Login'),
+                        : const Text('Inloggen'),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -142,12 +142,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Don\'t have an account? ',
+                      'Nog geen account? ',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     TextButton(
                       onPressed: () => context.goToSignup(),
-                      child: const Text('Sign up'),
+                      child: const Text('Registreren'),
                     ),
                   ],
                 ),

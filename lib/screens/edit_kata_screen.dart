@@ -112,17 +112,17 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Image?'),
-        content: const Text('This will permanently delete the image. This cannot be undone.'),
+        title: const Text('Afbeelding Verwijderen?'),
+        content: const Text('Dit zal de afbeelding permanent verwijderen. Dit kan niet ongedaan worden gemaakt.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: const Text('Verwijderen'),
           ),
         ],
       ),
@@ -138,7 +138,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(width: 16),
-                  Text('Deleting image...'),
+                  Text('Afbeelding verwijderen...'),
                 ],
               ),
               duration: Duration(seconds: 5),
@@ -162,10 +162,10 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
           final scaffoldMessenger = ScaffoldMessenger.of(context);
           scaffoldMessenger.hideCurrentSnackBar();
           scaffoldMessenger.showSnackBar(
-            const SnackBar(
-              content: Text('Image deleted successfully'),
-              backgroundColor: Colors.green,
-            ),
+          const SnackBar(
+            content: Text('Afbeelding succesvol verwijderd'),
+            backgroundColor: Colors.green,
+          ),
           );
         }
       } catch (e) {
@@ -174,7 +174,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
           scaffoldMessenger.hideCurrentSnackBar();
           scaffoldMessenger.showSnackBar(
             SnackBar(
-              content: Text('Error deleting image: $e'),
+              content: Text('Fout bij verwijderen afbeelding: $e'),
               backgroundColor: Colors.red,
             ),
           );
@@ -256,10 +256,10 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Kata updated successfully!'),
-            backgroundColor: Colors.green,
-          ),
+        const SnackBar(
+          content: Text('Kata succesvol bijgewerkt!'),
+          backgroundColor: Colors.green,
+        ),
         );
         Navigator.of(context).pop();
       }
@@ -267,10 +267,10 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
       if (mounted) {
         final scaffoldMessenger = ScaffoldMessenger.of(context);
         scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Error updating kata: $e'),
-            backgroundColor: Colors.red,
-          ),
+        SnackBar(
+          content: Text('Fout bij bijwerken kata: $e'),
+          backgroundColor: Colors.red,
+        ),
         );
       }
     } finally {
@@ -297,7 +297,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Edit Description',
+                    'Beschrijving Bewerken',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -313,7 +313,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 child: TextField(
                   controller: dialogController,
                   decoration: const InputDecoration(
-                    hintText: 'Enter kata description...',
+                    hintText: 'Voer kata beschrijving in...',
                     border: OutlineInputBorder(),
                     contentPadding: EdgeInsets.all(16),
                   ),
@@ -329,12 +329,12 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
+                    child: const Text('Annuleren'),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context, dialogController.text),
-                    child: const Text('Save'),
+                    child: const Text('Opslaan'),
                   ),
                 ],
               ),
@@ -358,17 +358,17 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     final shouldDiscard = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Discard Changes?'),
-        content: const Text('You have unsaved changes. Are you sure you want to leave?'),
+        title: const Text('Wijzigingen Verwerpen?'),
+        content: const Text('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je wilt vertrekken?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('Annuleren'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Discard'),
+            child: const Text('Verwerpen'),
           ),
         ],
       ),
@@ -391,7 +391,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Edit Kata'),
+          title: const Text('Kata Bewerken'),
           actions: [
             if (_hasChanges)
               IconButton(
@@ -403,7 +403,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       )
                     : const Icon(Icons.save),
                 onPressed: _isLoading ? null : _saveChanges,
-                tooltip: 'Save Changes',
+                tooltip: 'Wijzigingen Opslaan',
               ),
           ],
         ),
@@ -421,7 +421,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Kata Information',
+                        'Kata Informatie',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -430,7 +430,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       TextField(
                         controller: _nameController,
                         decoration: const InputDecoration(
-                          labelText: 'Kata Name',
+                          labelText: 'Kata Naam',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.sports_martial_arts),
                         ),
@@ -439,7 +439,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       TextField(
                         controller: _styleController,
                         decoration: const InputDecoration(
-                          labelText: 'Style',
+                          labelText: 'Stijl',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.style),
                         ),
@@ -454,7 +454,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                           ),
                           child: InputDecorator(
                             decoration: const InputDecoration(
-                              labelText: 'Description',
+                              labelText: 'Beschrijving',
                               border: InputBorder.none,
                               prefixIcon: Icon(Icons.description),
                               suffixIcon: Icon(Icons.edit),
@@ -465,7 +465,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                               width: double.infinity,
                               child: Text(
                                 _descriptionController.text.isEmpty 
-                                    ? 'Tap to edit description...' 
+                                    ? 'Tik om beschrijving te bewerken...' 
                                     : _descriptionController.text,
                                 style: TextStyle(
                                   color: _descriptionController.text.isEmpty 
@@ -498,7 +498,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Current Images (${_currentImageUrls.length})',
+                                'Huidige Afbeeldingen (${_currentImageUrls.length})',
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -521,7 +521,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                                 },
                                 icon: const Icon(Icons.fullscreen, size: 18),
                                 label: const Text(
-                                  'Gallery',
+                                  'Galerij',
                                   style: TextStyle(fontSize: 14),
                                 ),
                                 style: TextButton.styleFrom(
@@ -535,7 +535,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Long press and drag to reorder images',
+                          'Houd ingedrukt en sleep om afbeeldingen te herordenen',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
@@ -655,7 +655,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'New Images to Add (${_newSelectedImages.length})',
+                          'Nieuwe Afbeeldingen om Toe te Voegen (${_newSelectedImages.length})',
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
@@ -663,7 +663,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Long press and drag to reorder images',
+                          'Houd ingedrukt en sleep om afbeeldingen te herordenen',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
@@ -778,7 +778,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Add Images',
+                        'Afbeeldingen Toevoegen',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -791,7 +791,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                               onPressed: _pickImagesFromGallery,
                               icon: const Icon(Icons.photo_library, size: 20),
                               label: const Text(
-                                'Gallery',
+                                'Galerij',
                                 style: TextStyle(fontSize: 14),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -841,7 +841,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                     _hasChanges = true;
                   });
                 },
-                title: 'Video URLs',
+                title: 'Video URL\'s',
               ),
               const SizedBox(height: 16),
 
@@ -863,7 +863,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            'Editing Tips',
+                            'Bewerkingstips',
                             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: Colors.blue[700],
@@ -874,27 +874,27 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       const SizedBox(height: 12),
                       _buildTipItem(
                         icon: Icons.drag_handle,
-                        text: 'Long press and drag images to reorder them',
+                        text: 'Houd ingedrukt en sleep afbeeldingen om ze te herordenen',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.description,
-                        text: 'Tap the description field to open the full editor',
+                        text: 'Tik op het beschrijvingsveld om de volledige editor te openen',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.save,
-                        text: 'Changes are automatically detected and saved',
+                        text: 'Wijzigingen worden automatisch gedetecteerd en opgeslagen',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.photo_library,
-                        text: 'Add multiple images from gallery or camera',
+                        text: 'Voeg meerdere afbeeldingen toe vanuit galerij of camera',
                       ),
                       const SizedBox(height: 8),
                       _buildTipItem(
                         icon: Icons.video_library,
-                        text: 'Add or edit video URLs from various platforms',
+                        text: 'Voeg video URL\'s toe van verschillende platforms of bewerk ze',
                       ),
                     ],
                   ),
