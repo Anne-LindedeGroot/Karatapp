@@ -200,6 +200,7 @@ class MyApp extends ConsumerWidget {
           );
         };
 
+        // Removed GlobalTTSOverlay as requested - no more accessibility floating button
         return child ?? const SizedBox.shrink();
       },
     );

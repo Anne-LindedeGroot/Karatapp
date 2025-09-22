@@ -5,7 +5,6 @@ import '../providers/role_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/accessibility_settings_widget.dart';
 import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 import 'avatar_selection_screen.dart';
@@ -394,9 +393,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
 
                 const SizedBox(height: 30),
-
-                // Accessibility Settings Section
-                const AccessibilitySettingsWidget(),
               ],
             ),
           ),

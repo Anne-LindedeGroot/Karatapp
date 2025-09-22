@@ -173,6 +173,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: AccessibilityDemoScreen(),
         ),
       ),
+      
     ],
     
     // Error handling

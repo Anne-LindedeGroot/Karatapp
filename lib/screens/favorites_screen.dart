@@ -10,7 +10,6 @@ import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/accessibility_settings_widget.dart';
 import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 
@@ -107,15 +106,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           // Connection error widget
           const ConnectionErrorWidget(),
           
-          // Accessibility Settings (compact version)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: AccessibilitySettingsWidget(
-              showTitle: false,
-              isCompact: true,
-            ),
-          ),
-
           // Tab content
           Expanded(
             child: TabBarView(

@@ -14,6 +14,8 @@ import 'image_gallery.dart';
 import 'video_gallery.dart';
 import 'video_player_widget.dart';
 import 'avatar_widget.dart';
+import 'tts_headphones_button.dart';
+import '../services/smart_tts_service.dart';
 
 class CollapsibleKataCard extends ConsumerStatefulWidget {
   final Kata kata;
@@ -882,6 +884,23 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 Text('$commentCount'),
                 
                 const Spacer(),
+                
+                // Smart TTS button for kata content
+                IconButton(
+                  onPressed: () async {
+                    await SmartTTSService.speakKata(kata, ref);
+                  },
+                  icon: const Icon(
+                    Icons.headphones,
+                    size: 18,
+                  ),
+                  tooltip: 'Kata voorlezen',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                ),
               ],
             ),
             
@@ -936,6 +955,15 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
+                ),
+                const SizedBox(width: 8),
+                // TTS button for comments section
+                DialogTTSButton(
+                  customTestText: comments.isEmpty 
+                    ? 'Reacties sectie. Nog geen reacties. Wees de eerste om te reageren!'
+                    : 'Reacties sectie met ${comments.length} reactie${comments.length == 1 ? '' : 's'}. ${comments.map((c) => '${c.authorName} zegt: ${c.content}').join('. ')}',
+                  showBackground: false,
+                  padding: EdgeInsets.zero,
                 ),
                 const Spacer(),
                 // Collapse button
@@ -1124,6 +1152,13 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       ],
                     ),
                   ),
+                  // TTS button for individual comment
+                  DialogTTSButton(
+                    customTestText: '${comment.authorName} zegt: ${comment.content}',
+                    showBackground: false,
+                    padding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(width: 4),
                   PopupMenuButton<String>(
                     onSelected: (value) {
                       switch (value) {

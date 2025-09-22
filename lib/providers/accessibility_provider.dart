@@ -20,6 +20,7 @@ class AccessibilityState {
   final double speechRate;
   final double speechPitch;
   final bool useHeadphones;
+  final bool isSpeaking;
 
   const AccessibilityState({
     this.fontSize = AccessibilityFontSize.normal,
@@ -28,6 +29,7 @@ class AccessibilityState {
     this.speechRate = 0.5,
     this.speechPitch = 1.0,
     this.useHeadphones = true,
+    this.isSpeaking = false,
   });
 
   AccessibilityState copyWith({
@@ -37,6 +39,7 @@ class AccessibilityState {
     double? speechRate,
     double? speechPitch,
     bool? useHeadphones,
+    bool? isSpeaking,
   }) {
     return AccessibilityState(
       fontSize: fontSize ?? this.fontSize,
@@ -45,6 +48,7 @@ class AccessibilityState {
       speechRate: speechRate ?? this.speechRate,
       speechPitch: speechPitch ?? this.speechPitch,
       useHeadphones: useHeadphones ?? this.useHeadphones,
+      isSpeaking: isSpeaking ?? this.isSpeaking,
     );
   }
 
@@ -85,7 +89,8 @@ class AccessibilityState {
         other.isTextToSpeechEnabled == isTextToSpeechEnabled &&
         other.speechRate == speechRate &&
         other.speechPitch == speechPitch &&
-        other.useHeadphones == useHeadphones;
+        other.useHeadphones == useHeadphones &&
+        other.isSpeaking == isSpeaking;
   }
 
   @override
@@ -94,11 +99,12 @@ class AccessibilityState {
       isTextToSpeechEnabled.hashCode ^ 
       speechRate.hashCode ^ 
       speechPitch.hashCode ^
-      useHeadphones.hashCode;
+      useHeadphones.hashCode ^
+      isSpeaking.hashCode;
 
   @override
   String toString() {
-    return 'AccessibilityState(fontSize: $fontSize, isDyslexiaFriendly: $isDyslexiaFriendly, isTextToSpeechEnabled: $isTextToSpeechEnabled, speechRate: $speechRate, speechPitch: $speechPitch, useHeadphones: $useHeadphones)';
+    return 'AccessibilityState(fontSize: $fontSize, isDyslexiaFriendly: $isDyslexiaFriendly, isTextToSpeechEnabled: $isTextToSpeechEnabled, speechRate: $speechRate, speechPitch: $speechPitch, useHeadphones: $useHeadphones, isSpeaking: $isSpeaking)';
   }
 }
 
@@ -113,6 +119,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
 
   late FlutterTts _flutterTts;
   bool _isTtsInitialized = false;
+  bool _isSpeaking = false;
 
   AccessibilityNotifier() : super(const AccessibilityState()) {
     _initializeTts();
@@ -133,6 +140,28 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       
       // Configure audio routing for headphones
       await _configureAudioRouting();
+      
+      // Set up TTS event handlers
+      _flutterTts.setStartHandler(() {
+        _isSpeaking = true;
+        state = state.copyWith(isSpeaking: true);
+      });
+      
+      _flutterTts.setCompletionHandler(() {
+        _isSpeaking = false;
+        state = state.copyWith(isSpeaking: false);
+      });
+      
+      _flutterTts.setCancelHandler(() {
+        _isSpeaking = false;
+        state = state.copyWith(isSpeaking: false);
+      });
+      
+      _flutterTts.setErrorHandler((msg) {
+        _isSpeaking = false;
+        state = state.copyWith(isSpeaking: false);
+        debugPrint('TTS Error: $msg');
+      });
       
       _isTtsInitialized = true;
     } catch (e) {
@@ -332,10 +361,16 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       // Stop any current speech
       await _flutterTts.stop();
       
+      // Update speaking state immediately
+      _isSpeaking = true;
+      state = state.copyWith(isSpeaking: true);
+      
       // Speak the text
       await _flutterTts.speak(text);
     } catch (e) {
       debugPrint('Error speaking text: $e');
+      _isSpeaking = false;
+      state = state.copyWith(isSpeaking: false);
     }
   }
 
@@ -345,22 +380,16 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     
     try {
       await _flutterTts.stop();
+      _isSpeaking = false;
+      state = state.copyWith(isSpeaking: false);
     } catch (e) {
       debugPrint('Error stopping speech: $e');
     }
   }
 
   /// Check if TTS is currently speaking
-  Future<bool> isSpeaking() async {
-    if (!_isTtsInitialized) return false;
-    
-    try {
-      // Note: This might not be available on all platforms
-      return false; // Placeholder - actual implementation depends on platform
-    } catch (e) {
-      debugPrint('Error checking if speaking: $e');
-      return false;
-    }
+  bool isSpeaking() {
+    return _isSpeaking;
   }
 
   /// Get dyslexia-friendly text style modifications
@@ -425,6 +454,10 @@ final speechPitchProvider = Provider<double>((ref) {
 
 final useHeadphonesProvider = Provider<bool>((ref) {
   return ref.watch(accessibilityNotifierProvider).useHeadphones;
+});
+
+final isSpeakingProvider = Provider<bool>((ref) {
+  return ref.watch(accessibilityNotifierProvider).isSpeaking;
 });
 
 final fontSizeDescriptionProvider = Provider<String>((ref) {

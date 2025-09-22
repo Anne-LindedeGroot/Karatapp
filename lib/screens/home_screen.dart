@@ -6,7 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
-import '../widgets/tts_headphones_button.dart';
+import '../widgets/enhanced_tts_headphones_button.dart';
+import '../services/context_aware_tts_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
@@ -52,7 +53,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Row(
           children: [
             const Expanded(child: Text('Verweesde afbeeldingen opruimen?')),
-            DialogTTSButton(
+            DialogEnhancedTTSButton(
+              pageType: TTSPageType.custom,
               customTestText: 'Verweesde afbeeldingen opruimen? Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen.',
             ),
           ],
@@ -145,7 +147,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Row(
           children: [
             Expanded(child: Text('$kataName verwijderen?')),
-            DialogTTSButton(
+            DialogEnhancedTTSButton(
+              pageType: TTSPageType.custom,
               customTestText: '$kataName verwijderen? Dit zal de kata en alle afbeeldingen permanent verwijderen.',
             ),
           ],
@@ -222,7 +225,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Row(
           children: [
             const Expanded(child: Text('Uitloggen')),
-            DialogTTSButton(
+            DialogEnhancedTTSButton(
+              pageType: TTSPageType.custom,
               customTestText: 'Uitloggen. Weet je zeker dat je uit wilt loggen?',
             ),
           ],
@@ -379,7 +383,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Text-to-speech toggle using new component
-                    AppBarTTSButton(
+                    AppBarEnhancedTTSButton(
+                      pageType: TTSPageType.home,
                       customTestText: 'Spraak is nu ingeschakeld voor de hoofdpagina',
                     ),
                     
@@ -512,7 +517,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                        CompactTTSButton(
+                        CompactEnhancedTTSButton(
+                          pageType: TTSPageType.custom,
                           customTestText: 'Gebruikersmenu geopend voor ${currentUser?.userMetadata?['full_name'] ?? currentUser?.email ?? 'gebruiker'}',
                         ),
                       ],
@@ -556,23 +562,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   // Only show admin options for hosts
                   if (isHost) ...[
-                    PopupMenuItem(
-                      child: const Row(
-                        children: [
-                          Icon(Icons.admin_panel_settings, size: 20),
-                          SizedBox(width: 12),
-                          Text('Gebruikersbeheer'),
-                        ],
-                      ),
-                      onTap: () {
-                        // Add a slight delay to ensure the popup menu closes first
-                        Future.microtask(() {
-                          if (context.mounted) {
-                            context.go('/user-management');
-                          }
-                        });
-                      },
+                  PopupMenuItem(
+                    child: const Row(
+                      children: [
+                        Icon(Icons.admin_panel_settings, size: 20),
+                        SizedBox(width: 12),
+                        Text('Gebruikersbeheer'),
+                      ],
                     ),
+                    onTap: () {
+                      // Add a slight delay to ensure the popup menu closes first
+                      Future.microtask(() {
+                        if (context.mounted) {
+                          context.go('/user-management');
+                        }
+                      });
+                    },
+                  ),
                     PopupMenuItem(
                       child: const Row(
                         children: [
@@ -805,7 +811,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               title: Row(
                 children: [
                   const Expanded(child: Text("Nieuwe Kata Toevoegen")),
-                  DialogTTSButton(
+                  DialogEnhancedTTSButton(
+                    pageType: TTSPageType.custom,
                     customTestText: 'Nieuwe Kata Toevoegen. Vul de gegevens in voor de nieuwe kata.',
                   ),
                 ],

@@ -8,7 +8,8 @@ import '../providers/interaction_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/skeleton_forum_post.dart';
-import '../widgets/tts_headphones_button.dart';
+import '../widgets/enhanced_tts_headphones_button.dart';
+import '../services/context_aware_tts_service.dart';
 import '../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
@@ -50,7 +51,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         title: Row(
           children: [
             Expanded(child: Text('Verwijder "${post.title}"?')),
-            DialogTTSButton(
+            DialogEnhancedTTSButton(
+              pageType: TTSPageType.custom,
               customTestText: 'Verwijder ${post.title}? Dit zal het bericht en alle reacties permanent verwijderen.',
             ),
           ],
@@ -533,7 +535,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Text-to-speech toggle using new component
-                  AppBarTTSButton(
+                  AppBarEnhancedTTSButton(
+                    pageType: TTSPageType.forum,
                     customTestText: 'Spraak is nu ingeschakeld voor het forum',
                   ),
                   
