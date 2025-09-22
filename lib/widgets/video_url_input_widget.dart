@@ -193,12 +193,12 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
       if (path.endsWith('.flac')) return 'FLAC Audio';
       if (path.endsWith('.m4a')) return 'M4A Audio';
       
-      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'JPEG Image';
-      if (path.endsWith('.png')) return 'PNG Image';
-      if (path.endsWith('.gif')) return 'GIF Image';
-      if (path.endsWith('.bmp')) return 'BMP Image';
-      if (path.endsWith('.webp')) return 'WebP Image';
-      if (path.endsWith('.svg')) return 'SVG Image';
+      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'JPEG Afbeeldingen';
+      if (path.endsWith('.png')) return 'PNG Afbeeldingen';
+      if (path.endsWith('.gif')) return 'GIF Afbeeldingen';
+      if (path.endsWith('.bmp')) return 'BMP Afbeeldingen';
+      if (path.endsWith('.webp')) return 'WebP Afbeeldingen';
+      if (path.endsWith('.svg')) return 'SVG Afbeeldingen';
       
       // Generic
       return uri.host.isNotEmpty ? uri.host : 'Media URL';
@@ -227,7 +227,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
             TextField(
               controller: _urlController,
               decoration: const InputDecoration(
-                labelText: 'Voer video/media URL in',
+                labelText: 'Voer video URL in',
                 hintText: 'https://www.youtube.com/watch?v=...',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.link),
@@ -264,26 +264,27 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Ondersteunde Media',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    '• Video platforms: YouTube, Vimeo, Dailymotion, Twitch\n'
-                    '• Video bestanden: MP4, AVI, MOV, WMV, FLV, WebM, MKV\n'
-                    '• Druk op Enter of Klaar op toetsenbord om URL toe te voegen',
+                    'Ondersteunde Media',
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 14,
                     ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '• Video platforms: YouTube, Vimeo, Dailymotion, Twitch\n'
+                '• Video bestanden: MP4, AVI, MOV, WMV, FLV, WebM, MKV\n'
+                '• Afbeeldingen bestanden: JPG, PNG, GIF, BMP, WebP, SVG\n'
+                '• Druk op Enter of Klaar op toetsenbord om URL toe te voegen',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
                 ],
               ),
             ),
@@ -292,7 +293,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
             if (_currentUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
-                'Toegevoegde URLs (${_currentUrls.length})',
+                'Toegevoegde video URLs (${_currentUrls.length})',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.primary,

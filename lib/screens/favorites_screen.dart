@@ -11,6 +11,7 @@ import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
 import '../widgets/accessible_text.dart';
 import '../widgets/accessibility_settings_widget.dart';
+import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
@@ -91,6 +92,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           ],
         ),
         actions: [
+          AppBarTTSButton(
+            customTestText: 'Spraak is nu ingeschakeld voor favorieten',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshFavorites,

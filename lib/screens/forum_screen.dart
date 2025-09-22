@@ -8,6 +8,7 @@ import '../providers/interaction_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/skeleton_forum_post.dart';
+import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
@@ -46,7 +47,14 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Verwijder "${post.title}"?'),
+        title: Row(
+          children: [
+            Expanded(child: Text('Verwijder "${post.title}"?')),
+            DialogTTSButton(
+              customTestText: 'Verwijder ${post.title}? Dit zal het bericht en alle reacties permanent verwijderen.',
+            ),
+          ],
+        ),
         content: const Text(
           'Dit zal het bericht en alle reacties permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
@@ -524,24 +532,9 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Text-to-speech toggle
-                  IconButton(
-                    icon: Icon(accessibilityState.isTextToSpeechEnabled 
-                        ? Icons.headphones 
-                        : Icons.headphones_outlined),
-                    tooltip: accessibilityState.isTextToSpeechEnabled ? 'Spraak uit' : 'Spraak aan',
-                    onPressed: () async {
-                      await accessibilityNotifier.toggleTextToSpeech();
-                      // Test TTS when enabling
-                      if (!accessibilityState.isTextToSpeechEnabled) {
-                        // Wait a moment for the toggle to complete
-                        await Future.delayed(const Duration(milliseconds: 100));
-                        await accessibilityNotifier.speak('Spraak is nu ingeschakeld');
-                      }
-                    },
-                    color: accessibilityState.isTextToSpeechEnabled
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
+                  // Text-to-speech toggle using new component
+                  AppBarTTSButton(
+                    customTestText: 'Spraak is nu ingeschakeld voor het forum',
                   ),
                   
                   // Combined accessibility settings popup
@@ -741,6 +734,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
             );
           },
           child: const Icon(Icons.add),
+          tooltip: 'Nieuw bericht maken',
         ),
       ),
     );

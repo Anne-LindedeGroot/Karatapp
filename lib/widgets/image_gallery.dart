@@ -11,7 +11,7 @@ class ImageGallery extends ConsumerStatefulWidget {
   const ImageGallery({
     super.key,
     required this.imageUrls,
-    this.title = 'Image Gallery',
+    this.title = 'Afbeeldingen Gallerij',
     this.kataId,
     this.initialIndex = 0,
   });
@@ -45,7 +45,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
           title: Text(widget.title),
         ),
         body: const Center(
-          child: Text('No images available'),
+          child: Text('Geen afbeeldingen beschikbaar'),
         ),
       );
     }
@@ -94,7 +94,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Failed to load image',
+                              'Afbeelding laden mislukt',
                               style: TextStyle(color: Colors.white),
                             ),
                           ],
@@ -125,7 +125,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                     );
                   } : null,
                   icon: const Icon(Icons.skip_previous, color: Colors.white),
-                  tooltip: 'Previous image',
+                  tooltip: 'Vorige afbeelding',
                 ),
                 
                 // Image counter
@@ -147,7 +147,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                     );
                   } : null,
                   icon: const Icon(Icons.skip_next, color: Colors.white),
-                  tooltip: 'Next image',
+                  tooltip: 'Volgende afbeelding',
                 ),
               ],
             ),

@@ -8,6 +8,7 @@ import '../providers/image_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/image_gallery.dart';
 import '../widgets/video_url_input_widget.dart';
+import '../widgets/tts_headphones_button.dart';
 
 class EditKataScreen extends ConsumerStatefulWidget {
   final Kata kata;
@@ -393,6 +394,9 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         appBar: AppBar(
           title: const Text('Kata Bewerken'),
           actions: [
+            AppBarTTSButton(
+              customTestText: 'Spraak is nu ingeschakeld voor kata bewerken',
+            ),
             if (_hasChanges)
               IconButton(
                 icon: _isLoading 

@@ -154,7 +154,7 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
           title: Text(widget.title),
         ),
         body: const Center(
-          child: Text('No media available'),
+          child: Text('Geen media beschikbaar'),
         ),
       );
     }
@@ -188,12 +188,12 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
             if (hasImages)
               const Tab(
                 icon: Icon(Icons.photo),
-                text: 'Images',
+                text: 'Afbeeldingen',
               ),
             if (hasVideos)
               const Tab(
                 icon: Icon(Icons.videocam),
-                text: 'Videos',
+                text: 'Video\'s',
               ),
           ],
         ),
@@ -262,7 +262,7 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                   );
                 } : null,
                 icon: const Icon(Icons.skip_previous),
-                tooltip: 'Previous image',
+                tooltip: 'Vorige afbeelding',
               ),
               
               // Image counter
@@ -280,7 +280,7 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                   );
                 } : null,
                 icon: const Icon(Icons.skip_next),
-                tooltip: 'Next image',
+                tooltip: 'Volgende afbeelding',
               ),
             ],
           ),
@@ -385,7 +385,7 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                   );
                 } : null,
                 icon: const Icon(Icons.skip_previous),
-                tooltip: 'Previous video',
+                tooltip: 'Vorige video',
               ),
               
               // Video counter
@@ -403,7 +403,7 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                   );
                 } : null,
                 icon: const Icon(Icons.skip_next),
-                tooltip: 'Next video',
+                tooltip: 'Volgende video',
               ),
             ],
           ),

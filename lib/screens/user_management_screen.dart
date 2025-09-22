@@ -7,6 +7,7 @@ import '../providers/role_provider.dart';
 import '../providers/mute_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/connection_error_widget.dart';
+import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
@@ -798,6 +799,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               onPressed: () => context.goToHome(),
             ),
             actions: [
+              AppBarTTSButton(
+                customTestText: 'Spraak is nu ingeschakeld voor gebruikersbeheer',
+              ),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: _loadUsers,

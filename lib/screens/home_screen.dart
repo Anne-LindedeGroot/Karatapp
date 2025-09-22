@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
+import '../widgets/tts_headphones_button.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
@@ -48,7 +49,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Verweesde afbeeldingen opruimen?'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Verweesde afbeeldingen opruimen?')),
+            DialogTTSButton(
+              customTestText: 'Verweesde afbeeldingen opruimen? Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen.',
+            ),
+          ],
+        ),
         content: const Text(
           'Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen. '
           'Dit omvat afbeeldingen in mappen zoals "0" of "temp_" die mogelijk zijn achtergebleven. '
@@ -134,7 +142,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('$kataName verwijderen?'),
+        title: Row(
+          children: [
+            Expanded(child: Text('$kataName verwijderen?')),
+            DialogTTSButton(
+              customTestText: '$kataName verwijderen? Dit zal de kata en alle afbeeldingen permanent verwijderen.',
+            ),
+          ],
+        ),
         content: const Text(
           'Dit zal de kata en alle afbeeldingen permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
@@ -204,7 +219,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Uitloggen'),
+        title: Row(
+          children: [
+            const Expanded(child: Text('Uitloggen')),
+            DialogTTSButton(
+              customTestText: 'Uitloggen. Weet je zeker dat je uit wilt loggen?',
+            ),
+          ],
+        ),
         content: const Text('Weet je/u zeker dat je uit wilt loggen?'),
         actions: [
           TextButton(
@@ -356,24 +378,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Text-to-speech toggle
-                    IconButton(
-                      icon: Icon(accessibilityState.isTextToSpeechEnabled 
-                          ? Icons.headphones 
-                          : Icons.headphones_outlined),
-                      tooltip: accessibilityState.isTextToSpeechEnabled ? 'Spraak uit' : 'Spraak aan',
-                      onPressed: () async {
-                        await accessibilityNotifier.toggleTextToSpeech();
-                        // Test TTS when enabling
-                        if (!accessibilityState.isTextToSpeechEnabled) {
-                          // Wait a moment for the toggle to complete
-                          await Future.delayed(const Duration(milliseconds: 100));
-                          await accessibilityNotifier.speak('Spraak is nu ingeschakeld');
-                        }
-                      },
-                      color: accessibilityState.isTextToSpeechEnabled
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
+                    // Text-to-speech toggle using new component
+                    AppBarTTSButton(
+                      customTestText: 'Spraak is nu ingeschakeld voor de hoofdpagina',
                     ),
                     
                     // Combined accessibility settings popup
@@ -495,11 +502,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return <PopupMenuEntry>[
                   PopupMenuItem(
                     // ignore: sort_child_properties_last
-                    child: Text(
-                      currentUser?.userMetadata?['full_name'] ??
-                          currentUser?.email ??
-                          'User',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            currentUser?.userMetadata?['full_name'] ??
+                                currentUser?.email ??
+                                'User',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        CompactTTSButton(
+                          customTestText: 'Gebruikersmenu geopend voor ${currentUser?.userMetadata?['full_name'] ?? currentUser?.email ?? 'gebruiker'}',
+                        ),
+                      ],
                     ),
                     enabled: false,
                   ),
@@ -587,7 +603,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             Icon(themeNotifier.themeIcon, size: 20),
                             const SizedBox(width: 12),
-                            const Text('Theme'),
+                            const Text('Thema'),
                             const Spacer(),
                             DropdownButton<AppThemeMode>(
                               value: themeState.themeMode,
@@ -644,7 +660,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             const Icon(Icons.contrast, size: 20),
                             const SizedBox(width: 12),
-                            const Text('High Contrast'),
+                            const Text('Hoog Contrast'),
                             const Spacer(),
                             Switch(
                               value: themeState.isHighContrast,
@@ -786,7 +802,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return AlertDialog(
-              title: const Text("Nieuwe Kata Toevoegen"),
+              title: Row(
+                children: [
+                  const Expanded(child: Text("Nieuwe Kata Toevoegen")),
+                  DialogTTSButton(
+                    customTestText: 'Nieuwe Kata Toevoegen. Vul de gegevens in voor de nieuwe kata.',
+                  ),
+                ],
+              ),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -830,7 +853,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const Icon(Icons.photo_library, color: Colors.blue),
                           const SizedBox(width: 8),
                           Text(
-                            "Images (${selectedImages.length})",
+                            "Afbeeldingen (${selectedImages.length})",
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -858,7 +881,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       }
                                     },
                               icon: const Icon(Icons.photo_library, size: 18),
-                              label: const Text("Gallery"),
+                              label: const Text("Galerij"),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
@@ -912,7 +935,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${selectedImages.length} image(s) selected',
+                                '${selectedImages.length} afbeelding(en) geselecteerd',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -1040,7 +1063,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                               const SizedBox(height: 4),
                               const Text(
-                                'Long press and drag to reorder',
+                                'Houd ingedrukt en sleep om te herordenen',
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey,
@@ -1073,7 +1096,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // Video URL input field
                       TextField(
                         decoration: const InputDecoration(
-                          labelText: "Add Video URL",
+                          labelText: "Voer video URL in",
                           hintText: "https://www.youtube.com/watch?v=...",
                           prefixIcon: Icon(Icons.link),
                           border: OutlineInputBorder(),
@@ -1104,7 +1127,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${videoUrls.length} video URL(s) added',
+                                '${videoUrls.length} video URL(s) toegevoegd',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -1175,18 +1198,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: isProcessing
-                      ? null
-                      : () {
-                          Navigator.pop(context);
-                        },
-                  child: const Text("Cancel"),
-                ),
-                ElevatedButton(
-                  onPressed: (isProcessing || nameController.text.isEmpty)
-                      ? null
-                      : () async {
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: isProcessing
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                              },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text("Annuleren"),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: (isProcessing || nameController.text.isEmpty)
+                            ? null
+                            : () async {
                           setState(() {
                             isProcessing = true;
                           });
@@ -1274,7 +1306,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         )
-                      : const Text("Kata Maken"),
+                      : const Text("Kata Toevoegen"),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/forum_models.dart';
 import '../providers/forum_provider.dart';
+import '../widgets/tts_headphones_button.dart';
 
 class CreateForumPostScreen extends ConsumerStatefulWidget {
   const CreateForumPostScreen({super.key});
@@ -103,21 +104,8 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
       appBar: AppBar(
         title: const Text('Nieuw Bericht Maken'),
         actions: [
-          TextButton(
-            onPressed: _isSubmitting ? null : _submitPost,
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text(
-                    'PLAATSEN',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+          AppBarTTSButton(
+            customTestText: 'Spraak is nu ingeschakeld voor nieuw bericht maken',
           ),
         ],
       ),

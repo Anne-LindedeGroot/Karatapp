@@ -6,6 +6,7 @@ import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
 import '../widgets/accessibility_settings_widget.dart';
+import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 import 'avatar_selection_screen.dart';
 
@@ -127,6 +128,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
         ),
+        actions: [
+          AppBarTTSButton(
+            customTestText: 'Spraak is nu ingeschakeld voor het profiel',
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () {
