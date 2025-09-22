@@ -78,11 +78,17 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                     // Font size options
                     Column(
                       children: AccessibilityFontSize.values.map((fontSize) {
-                        return RadioListTile<AccessibilityFontSize>(
+                        final isSelected = accessibilityState.fontSize == fontSize;
+                        return ListTile(
+                          leading: Icon(
+                            isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                            color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                          ),
                           title: AccessibleText(
                             fontSize.fontSizeDescription,
                             style: TextStyle(
                               fontSize: _getFontSizeForDemo(fontSize),
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
                             enableTextToSpeech: true,
                           ),
@@ -92,13 +98,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                               fontSize: _getFontSizeForDemo(fontSize) * 0.8,
                             ),
                           ),
-                          value: fontSize,
-                          groupValue: accessibilityState.fontSize,
-                          onChanged: (value) {
-                            if (value != null) {
-                              accessibilityNotifier.setFontSize(value);
-                            }
-                          },
+                          onTap: () => accessibilityNotifier.setFontSize(fontSize),
                         );
                       }).toList(),
                     ),
@@ -299,7 +299,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                         min: 0.5,
                         max: 2.0,
                         divisions: 15,
-                        label: '${accessibilityState.speechPitch.toStringAsFixed(1)}',
+                        label: accessibilityState.speechPitch.toStringAsFixed(1),
                         onChanged: (value) => accessibilityNotifier.setSpeechPitch(value),
                       ),
                       
@@ -461,22 +461,6 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
         return 17.0;
       case AccessibilityFontSize.extraLarge:
         return 21.0;
-    }
-  }
-}
-
-// Extension to get font size description
-extension AccessibilityFontSizeExtension on AccessibilityFontSize {
-  String get fontSizeDescription {
-    switch (this) {
-      case AccessibilityFontSize.small:
-        return 'Klein';
-      case AccessibilityFontSize.normal:
-        return 'Normaal';
-      case AccessibilityFontSize.large:
-        return 'Groot';
-      case AccessibilityFontSize.extraLarge:
-        return 'Extra Groot';
     }
   }
 }

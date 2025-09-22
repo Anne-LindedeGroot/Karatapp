@@ -430,3 +430,19 @@ final useHeadphonesProvider = Provider<bool>((ref) {
 final fontSizeDescriptionProvider = Provider<String>((ref) {
   return ref.watch(accessibilityNotifierProvider).fontSizeDescription;
 });
+
+/// Extension to get font size description
+extension AccessibilityFontSizeExtension on AccessibilityFontSize {
+  String get fontSizeDescription {
+    switch (this) {
+      case AccessibilityFontSize.small:
+        return 'Klein';
+      case AccessibilityFontSize.normal:
+        return 'Normaal';
+      case AccessibilityFontSize.large:
+        return 'Groot';
+      case AccessibilityFontSize.extraLarge:
+        return 'Extra Groot';
+    }
+  }
+}
