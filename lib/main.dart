@@ -129,6 +129,7 @@ class MyApp extends ConsumerWidget {
     
     return MaterialApp.router(
       title: 'Karatapp',
+      debugShowCheckedModeBanner: false,
       theme: themeState.isHighContrast ? AppTheme.highContrastLightTheme : AppTheme.lightTheme,
       darkTheme: themeState.isHighContrast ? AppTheme.highContrastDarkTheme : AppTheme.darkTheme,
       themeMode: themeState.flutterThemeMode,

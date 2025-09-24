@@ -1,9 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum UserRole {
-  user('user', 'User', 'Regular user with basic permissions'),
-  mediator('mediator', 'Mediator', 'Can moderate content and help resolve conflicts'),
-  host('host', 'Host', 'Full administrative access to the application');
+  user('user', 'User', 'Gewone gebruiker met basis rechten'),
+  mediator('mediator', 'Mediator', 'Kan inhoud modereren en helpen bij het oplossen van conflicten'),
+  host('host', 'Host', 'Volledige administratieve toegang tot de applicatie');
 
   const UserRole(this.value, this.displayName, this.description);
   

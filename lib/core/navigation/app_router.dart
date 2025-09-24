@@ -40,7 +40,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: false,
     redirect: (context, state) {
       final isAuthenticated = authState.isAuthenticated;
       final isLoading = authState.isLoading;
@@ -179,7 +179,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     // Error handling
     errorBuilder: (context, state) => Scaffold(
       appBar: AppBar(
-        title: const Text('Page Not Found'),
+        title: const Text('Pagina Niet Gevonden'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go(AppRoutes.home),
@@ -196,19 +196,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
             const SizedBox(height: 16),
             Text(
-              'Page Not Found',
+              'Pagina Niet Gevonden',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
             Text(
-              'The page you are looking for does not exist.',
+              'De pagina die je zoekt bestaat niet.',
               style: Theme.of(context).textTheme.bodyMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => context.go(AppRoutes.home),
-              child: const Text('Go Home'),
+              child: const Text('Naar Home'),
             ),
           ],
         ),
@@ -363,14 +363,14 @@ class EditKataWrapper extends ConsumerWidget {
 
     if (kataState.isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Loading...')),
+        appBar: AppBar(title: const Text('Laden...')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (kataState.error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
+        appBar: AppBar(title: const Text('Fout')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -382,19 +382,19 @@ class EditKataWrapper extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Error loading kata',
+                'Fout bij laden kata',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
               Text(
-                kataState.error ?? 'Unknown error',
+                kataState.error ?? 'Onbekende fout',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => context.goToHome(),
-                child: const Text('Go Home'),
+                child: const Text('Naar Home'),
               ),
             ],
           ),
@@ -409,7 +409,7 @@ class EditKataWrapper extends ConsumerWidget {
       return EditKataScreen(kata: kata);
     } catch (e) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Error')),
+        appBar: AppBar(title: const Text('Fout')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -421,19 +421,19 @@ class EditKataWrapper extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Kata not found',
+                'Kata niet gevonden',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
               Text(
-                'The kata you are looking for does not exist.',
+                'De kata die je zoekt bestaat niet.',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => context.goToHome(),
-                child: const Text('Go Home'),
+                child: const Text('Naar Home'),
               ),
             ],
           ),
