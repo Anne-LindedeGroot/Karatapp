@@ -416,9 +416,14 @@ class _WidgetTextExtractor {
   }
 
   void _extractFromTextFormField(TextFormField widget) {
-    // TextFormField properties are not directly accessible
-    // We'll add a generic description
+    // Try to extract what we can from TextFormField
     _texts.add('invoerveld');
+    
+    // Note: TextFormField's controller and decoration are not directly accessible
+    // in this context, but we can provide a generic description
+    if (widget.initialValue != null && widget.initialValue!.isNotEmpty) {
+      _texts.add('waarde: ${widget.initialValue}');
+    }
   }
 
   void _extractFromListTile(ListTile widget) {

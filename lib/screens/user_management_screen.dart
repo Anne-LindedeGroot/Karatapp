@@ -8,6 +8,7 @@ import '../providers/mute_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/tts_headphones_button.dart';
+import '../services/context_aware_page_tts_service.dart';
 import '../core/navigation/app_router.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
@@ -801,6 +802,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             actions: [
               AppBarTTSButton(
                 customTestText: 'Spraak is nu ingeschakeld voor gebruikersbeheer',
+                onToggle: () {
+                  // Use the context-aware TTS service for user management
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    ContextAwarePageTTSService.readUserManagementScreen(context, ref);
+                  });
+                },
               ),
               IconButton(
                 icon: const Icon(Icons.refresh),
@@ -814,7 +821,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               // Connection error widget
               const ConnectionErrorWidget(),
 
-              // Header info
+              // Combined header with privacy warning
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -829,6 +836,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Main header
                     Row(
                       children: [
                         Icon(
@@ -850,6 +858,52 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     const Text(
                       'Beheer gebruikersrollen en demp gebruikers. Hosts kunnen rollen wijzigen, zowel hosts als moderators kunnen gebruikers dempen.',
                       style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                    
+                    // Privacy warning section
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.privacy_tip,
+                                color: Colors.orange.shade700,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Privacy Waarschuwing',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Deze pagina bevat gevoelige persoonlijke gegevens. Bij gebruik van spraakfunctie: '
+                            'zet volume laag of gebruik koptelefoon/oordopjes, vooral in openbare ruimtes.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

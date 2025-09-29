@@ -105,6 +105,8 @@ class ContextAwareTTSButton extends ConsumerWidget {
         return 'Hoofdpagina voorlezen';
       case TTSPageType.forum:
         return 'Forum voorlezen';
+      case TTSPageType.favorites:
+        return 'Favorieten voorlezen';
       case TTSPageType.forumPostDetail:
         return 'Bericht voorlezen';
       case TTSPageType.custom:
@@ -156,6 +158,31 @@ class ForumTTSButton extends StatelessWidget {
     return ContextAwareTTSButton(
       pageType: TTSPageType.forum,
       icon: Icons.forum,
+      size: size,
+      backgroundColor: backgroundColor,
+      foregroundColor: foregroundColor,
+    );
+  }
+}
+
+/// Specialized TTS button for favorites sections
+class FavoritesTTSButton extends StatelessWidget {
+  final double? size;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+
+  const FavoritesTTSButton({
+    super.key,
+    this.size,
+    this.backgroundColor,
+    this.foregroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ContextAwareTTSButton(
+      pageType: TTSPageType.favorites,
+      icon: Icons.favorite,
       size: size,
       backgroundColor: backgroundColor,
       foregroundColor: foregroundColor,
@@ -253,6 +280,8 @@ class ContextAwareFloatingTTSButton extends ConsumerWidget {
         return TTSPageType.home;
       case '/forum':
         return TTSPageType.forum;
+      case '/favorites':
+        return TTSPageType.favorites;
       default:
         // Default to home for unknown routes
         return TTSPageType.home;

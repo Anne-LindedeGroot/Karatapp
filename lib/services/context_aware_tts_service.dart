@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/forum_provider.dart';
+import '../providers/interaction_provider.dart';
 
 /// Context-aware TTS Service that reads content based on current page context
 class ContextAwareTTSService {
@@ -60,6 +61,9 @@ class ContextAwareTTSService {
           break;
         case TTSPageType.forum:
           await _readForumPage(context, ref, accessibilityNotifier);
+          break;
+        case TTSPageType.favorites:
+          await _readFavoritesPage(context, ref, accessibilityNotifier);
           break;
         case TTSPageType.forumPostDetail:
           if (pageTitle != null && customContent != null) {
@@ -147,6 +151,154 @@ class ContextAwareTTSService {
       accessibilityNotifier,
       highlightType: TTSHighlightType.content
     );
+  }
+
+  /// Read favorites page content with kata and forum post information
+  static Future<void> _readFavoritesPage(
+    BuildContext context, 
+    WidgetRef ref, 
+    AccessibilityNotifier accessibilityNotifier
+  ) async {
+    if (!context.mounted || !_isReading) return;
+    
+    // Page introduction
+    await _speakWithCursor(
+      context, 
+      'Welkom op de favorieten pagina. Hier kun je al je favoriete kata\'s en forumberichten bekijken.',
+      accessibilityNotifier,
+      highlightType: TTSHighlightType.page
+    );
+    
+    if (!context.mounted || !_isReading) return;
+    
+    // Get favorites data
+    final kataState = ref.read(kataNotifierProvider);
+    final forumState = ref.read(forumNotifierProvider);
+    
+    try {
+      // Get favorite kata IDs
+      final favoriteKataIds = await ref.read(interactionServiceProvider).getUserFavoriteKatas();
+      final favoriteKatas = kataState.katas
+          .where((kata) => favoriteKataIds.contains(kata.id))
+          .toList();
+          
+      // Get favorite forum post IDs
+      final favoriteForumPostIds = await ref.read(interactionServiceProvider).getUserFavoriteForumPosts();
+      final favoriteForumPosts = forumState.posts
+          .where((post) => favoriteForumPostIds.contains(post.id))
+          .toList();
+      
+      if (!context.mounted || !_isReading) return;
+      
+      // Read favorite katas section
+      if (favoriteKatas.isEmpty) {
+        await _speakWithCursor(
+          context,
+          'Je hebt geen favoriete kata\'s.',
+          accessibilityNotifier,
+          highlightType: TTSHighlightType.noContent
+        );
+      } else {
+        await _speakWithCursor(
+          context,
+          'Je hebt ${favoriteKatas.length} favoriete kata${favoriteKatas.length == 1 ? '' : '\'s'}. Ik lees ze nu voor.',
+          accessibilityNotifier,
+          highlightType: TTSHighlightType.contentCount
+        );
+        
+        if (!context.mounted || !_isReading) return;
+        
+        // Read each kata
+        for (int i = 0; i < favoriteKatas.length && _isReading; i++) {
+          final kata = favoriteKatas[i];
+          
+          await _speakWithCursor(
+            context,
+            'Kata ${i + 1}: ${kata.name} uit de ${kata.style} stijl. ${kata.description}',
+            accessibilityNotifier,
+            highlightType: TTSHighlightType.kataTitle,
+            itemIndex: i
+          );
+          
+          if (i < favoriteKatas.length - 1 && _isReading && context.mounted) {
+            await Future.delayed(const Duration(milliseconds: 800));
+          }
+        }
+      }
+      
+      if (!context.mounted || !_isReading) return;
+      
+      // Short pause between sections
+      await Future.delayed(const Duration(milliseconds: 1000));
+      
+      if (!context.mounted || !_isReading) return;
+      
+      // Read favorite forum posts section
+      if (favoriteForumPosts.isEmpty) {
+        await _speakWithCursor(
+          context,
+          'Je hebt geen favoriete forumberichten.',
+          accessibilityNotifier,
+          highlightType: TTSHighlightType.noContent
+        );
+      } else {
+        await _speakWithCursor(
+          context,
+          'Je hebt ${favoriteForumPosts.length} favoriet${favoriteForumPosts.length == 1 ? '' : 'e'} forumbericht${favoriteForumPosts.length == 1 ? '' : 'en'}. Ik lees ze nu voor.',
+          accessibilityNotifier,
+          highlightType: TTSHighlightType.contentCount
+        );
+        
+        if (!context.mounted || !_isReading) return;
+        
+        // Read each forum post
+        for (int i = 0; i < favoriteForumPosts.length && _isReading; i++) {
+          final post = favoriteForumPosts[i];
+          
+          await _speakWithCursor(
+            context,
+            'Forumbericht ${i + 1}: ${post.title} door ${post.authorName}. Categorie: ${post.category.displayName}. ${post.content}',
+            accessibilityNotifier,
+            highlightType: TTSHighlightType.postTitle,
+            itemIndex: i
+          );
+          
+          if (post.commentCount > 0) {
+            await _speakWithCursor(
+              context,
+              '${post.commentCount} reactie${post.commentCount == 1 ? '' : 's'}.',
+              accessibilityNotifier,
+              highlightType: TTSHighlightType.postContent,
+              itemIndex: i
+            );
+          }
+          
+          if (i < favoriteForumPosts.length - 1 && _isReading && context.mounted) {
+            await Future.delayed(const Duration(milliseconds: 800));
+          }
+        }
+      }
+      
+      if (_isReading && context.mounted) {
+        await _speakWithCursor(
+          context,
+          'Klaar met het voorlezen van al je favorieten.',
+          accessibilityNotifier,
+          highlightType: TTSHighlightType.content
+        );
+      }
+      
+    } catch (e) {
+      debugPrint('Error reading favorites: $e');
+      if (_isReading && context.mounted) {
+        await _speakWithCursor(
+          context,
+          'Fout bij het ophalen van favorieten.',
+          accessibilityNotifier,
+          highlightType: TTSHighlightType.noContent
+        );
+      }
+    }
   }
 
   /// Read forum page content with post information
@@ -310,7 +462,7 @@ class ContextAwareTTSService {
     await accessibilityNotifier.stopSpeaking();
   }
 
-  /// Speak text with visual highlighting and word-by-word cursor tracking
+  /// Speak text without highlighting
   static Future<void> _speakWithCursor(
     BuildContext context,
     String text,
@@ -319,109 +471,17 @@ class ContextAwareTTSService {
   ) async {
     if (!_isReading || !context.mounted) return;
     
-    _currentText = text;
-    _currentWords = text.split(' ');
-    _currentWordIndex = 0;
-    
-    // Show highlight for the section being read
-    _showHighlight(context, highlightType, itemIndex);
-    
     try {
-      // Start word-by-word reading with cursor tracking
-      await _speakWithWordTracking(context, accessibilityNotifier);
-    } finally {
-      // Always remove highlights after speaking
-      if (context.mounted) {
-        _removeHighlight();
-        _removeWordCursor();
-      }
+      // Just speak the text directly without highlighting
+      await accessibilityNotifier.speak(text);
+    } catch (e) {
+      debugPrint('TTS Error: $e');
     }
   }
 
-  /// Speak text with word-by-word cursor tracking
-  static Future<void> _speakWithWordTracking(
-    BuildContext context,
-    AccessibilityNotifier accessibilityNotifier
-  ) async {
-    if (!_isReading || !context.mounted) return;
-    
-    // Split text into manageable chunks to avoid stuttering
-    const chunkSize = 10; // words per chunk
-    final chunks = <String>[];
-    
-    for (int i = 0; i < _currentWords.length; i += chunkSize) {
-      final end = (i + chunkSize < _currentWords.length) ? i + chunkSize : _currentWords.length;
-      chunks.add(_currentWords.sublist(i, end).join(' '));
-    }
-    
-    // Speak each chunk with cursor tracking
-    for (int chunkIndex = 0; chunkIndex < chunks.length && _isReading; chunkIndex++) {
-      if (!context.mounted || !_isReading) return;
-      
-      final chunk = chunks[chunkIndex];
-      final chunkWords = chunk.split(' ');
-      
-      // Show cursor for current chunk
-      _showWordCursor(context, chunkIndex * chunkSize);
-      
-      // Speak the chunk
-      await accessibilityNotifier.speak(chunk);
-      
-      // Small pause between chunks to prevent stuttering
-      if (chunkIndex < chunks.length - 1) {
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-    }
-  }
-
-  /// Show visual highlight on the element being read
-  static void _showHighlight(BuildContext context, TTSHighlightType type, int? itemIndex) {
-    _removeHighlight();
-    
-    final overlay = Overlay.of(context);
-    final overlayEntry = OverlayEntry(
-      builder: (context) => TTSHighlightWidget(
-        highlightType: type,
-        itemIndex: itemIndex,
-      ),
-    );
-    
-    overlay.insert(overlayEntry);
-    _currentHighlightOverlay = overlayEntry;
-  }
-
-  /// Show word cursor at current reading position
-  static void _showWordCursor(BuildContext context, int wordIndex) {
-    _removeWordCursor();
-    
-    final overlay = Overlay.of(context);
-    final overlayEntry = OverlayEntry(
-      builder: (context) => TTSWordCursorWidget(
-        wordIndex: wordIndex,
-        totalWords: _currentWords.length,
-      ),
-    );
-    
-    overlay.insert(overlayEntry);
-    _currentCursorOverlay = overlayEntry;
-  }
-
-  /// Remove visual highlight
-  static void _removeHighlight() {
-    _currentHighlightOverlay?.remove();
-    _currentHighlightOverlay = null;
-  }
-
-  /// Remove word cursor
-  static void _removeWordCursor() {
-    _currentCursorOverlay?.remove();
-    _currentCursorOverlay = null;
-  }
-
-  /// Remove all overlays
+  /// Remove all overlays (simplified - no highlighting)
   static void _removeAllOverlays() {
-    _removeHighlight();
-    _removeWordCursor();
+    // No overlays to remove since highlighting is disabled
   }
 }
 
@@ -691,6 +751,7 @@ class TTSHighlightPainter extends CustomPainter {
 enum TTSPageType {
   home,
   forum,
+  favorites,
   forumPostDetail,
   custom,
 }

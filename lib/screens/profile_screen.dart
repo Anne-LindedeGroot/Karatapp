@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/role_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
 import '../widgets/tts_headphones_button.dart';
+import '../widgets/context_aware_page_tts_button.dart';
 import '../core/navigation/app_router.dart';
 import 'avatar_selection_screen.dart';
 
@@ -127,11 +129,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
         ),
-        actions: [
-          AppBarTTSButton(
-            customTestText: 'Spraak is nu ingeschakeld voor het profiel',
-          ),
-        ],
+        actions: [],
       ),
       body: GestureDetector(
         onTap: () {
@@ -362,15 +360,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   enableTextToSpeech: true,
                 ),
-                TextFormField(
-                  controller: _nameController,
-                  focusNode: _nameFocusNode,
-                  decoration: InputDecoration(
-                    labelText: _isNameFieldFocused
-                        ? 'Voer uw volledige naam in'
-                        : null,
-                    border: const OutlineInputBorder(),
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _nameController,
+                        focusNode: _nameFocusNode,
+                        decoration: InputDecoration(
+                          labelText: _isNameFieldFocused
+                              ? 'Voer uw volledige naam in'
+                              : null,
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 56, // Match TextField height
+                      child: IconButton(
+                        icon: const Icon(Icons.headphones),
+                        tooltip: 'Naam veld voorlezen',
+                        onPressed: () async {
+                          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+                          final currentValue = _nameController.text.trim();
+                          final content = currentValue.isNotEmpty 
+                              ? 'Volledige naam veld. Huidige waarde: $currentValue'
+                              : 'Volledige naam veld. Veld is leeg. Voer uw volledige naam in.';
+                          await accessibilityNotifier.speak(content);
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 // Show update button only when:
@@ -397,6 +418,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
+      ),
+      floatingActionButton: CompactContextAwarePageTTSButton(
+        context: PageTTSContext.profile,
+        margin: const EdgeInsets.only(bottom: 16, right: 16),
       ),
     );
   }

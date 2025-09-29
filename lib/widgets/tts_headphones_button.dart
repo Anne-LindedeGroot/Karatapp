@@ -85,16 +85,21 @@ class TTSHeadphonesButton extends ConsumerWidget {
         if (isSpeaking) {
           // Stop speaking if currently speaking
           await accessibilityNotifier.stopSpeaking();
+        } else if (isEnabled) {
+          // TTS is already enabled, just call the custom callback
+          onToggle?.call();
         } else {
-          // Toggle TTS
+          // Enable TTS first
           await accessibilityNotifier.toggleTextToSpeech();
           
-          // Call custom callback if provided
-          onToggle?.call();
+          // Wait a moment for TTS to be ready
+          await Future.delayed(const Duration(milliseconds: 100));
           
-          // Test TTS when enabling with custom or default text
-          if (!isEnabled) {
-            await Future.delayed(const Duration(milliseconds: 100));
+          // If we have a custom callback, call it instead of test text
+          if (onToggle != null) {
+            onToggle!();
+          } else {
+            // Only speak test text if no custom callback
             final testText = customTestText ?? 'Spraak is nu ingeschakeld';
             await accessibilityNotifier.speak(testText);
           }
@@ -223,7 +228,13 @@ class _AppBarTTSButtonState extends ConsumerState<AppBarTTSButton> {
           await accessibilityNotifier.stopSpeaking();
         } else if (isEnabled) {
           // Start reading the page if TTS is enabled
-          await _startPageReading(context, ref);
+          // Use custom onToggle callback if provided (for context-aware reading)
+          if (widget.onToggle != null) {
+            widget.onToggle!();
+          } else {
+            // Fallback to generic page reading
+            await _startPageReading(context, ref);
+          }
         } else {
           // Enable TTS first, then start reading
           await accessibilityNotifier.toggleTextToSpeech();

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/kata_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/video_url_input_widget.dart';
+import '../widgets/context_aware_page_tts_button.dart';
 
 class CreateKataScreen extends ConsumerStatefulWidget {
   const CreateKataScreen({super.key});
@@ -198,6 +199,12 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
       appBar: AppBar(
         title: const Text('Nieuwe Kata Maken'),
         actions: [
+          ContextAwarePageTTSButton(
+            context: PageTTSContext.kataForm,
+            isEdit: false,
+            iconSize: 24,
+            tooltip: 'Kata formulier voorlezen',
+          ),
           IconButton(
             icon: _isLoading
                 ? const SizedBox(
@@ -678,6 +685,11 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
             ],
           ),
         ),
+      ),
+      floatingActionButton: CompactContextAwarePageTTSButton(
+        context: PageTTSContext.kataForm,
+        isEdit: false,
+        margin: const EdgeInsets.only(bottom: 80, right: 16),
       ),
     );
   }

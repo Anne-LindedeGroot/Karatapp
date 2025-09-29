@@ -5,12 +5,12 @@ import '../models/forum_models.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/forum_provider.dart';
+import '../providers/accessibility_provider.dart';
+import '../services/favorites_reader_service.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
-import '../widgets/accessible_text.dart';
-import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
@@ -48,13 +48,13 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     final forumState = ref.watch(forumNotifierProvider);
     final favoriteKatasAsync = ref.watch(userFavoriteKatasProvider);
     final favoriteForumPostsAsync = ref.watch(userFavoriteForumPostsProvider);
+    final isTextToSpeechEnabled = ref.watch(isTextToSpeechEnabledProvider);
+    final isSpeaking = ref.watch(isSpeakingProvider);
+    final favoritesReaderService = ref.watch(favoritesReaderServiceProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const AccessibleText(
-          'Mijn Favorieten',
-          enableTextToSpeech: true,
-        ),
+        title: const Text('Mijn Favorieten'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
@@ -91,9 +91,24 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           ],
         ),
         actions: [
-          AppBarTTSButton(
-            customTestText: 'Spraak is nu ingeschakeld voor favorieten',
-          ),
+          // TTS Button
+          if (isTextToSpeechEnabled)
+            IconButton(
+              icon: Icon(
+                isSpeaking ? Icons.stop : Icons.headphones,
+                color: isSpeaking ? Colors.red : null,
+              ),
+              onPressed: () => _handleTtsButtonPress(
+                favoriteKatasAsync,
+                favoriteForumPostsAsync,
+                kataState,
+                forumState,
+                isSpeaking,
+                favoritesReaderService,
+              ),
+              tooltip: isSpeaking ? 'Stop voorlezen' : 'Lees ${_getCurrentTabName()} voor',
+            ),
+          // Refresh Button
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshFavorites,
@@ -126,10 +141,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                       children: [
                         const Icon(Icons.error, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
-                        AccessibleText(
-                          'Fout bij laden favorieten: $error',
-                          enableTextToSpeech: true,
-                        ),
+                        Text('Fout bij laden favorieten: $error'),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _refreshFavorites,
@@ -158,10 +170,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                       children: [
                         const Icon(Icons.error, size: 64, color: Colors.red),
                         const SizedBox(height: 16),
-                        AccessibleText(
-                          'Fout bij laden favorieten: $error',
-                          enableTextToSpeech: true,
-                        ),
+                        Text('Fout bij laden favorieten: $error'),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _refreshFavorites,
@@ -177,6 +186,91 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         ],
       ),
     );
+  }
+
+  /// Handle TTS button press - reads current tab or stops reading
+  void _handleTtsButtonPress(
+    AsyncValue<List<int>> favoriteKatasAsync,
+    AsyncValue<List<int>> favoriteForumPostsAsync,
+    dynamic kataState,
+    dynamic forumState,
+    bool isSpeaking,
+    FavoritesReaderService favoritesReaderService,
+  ) {
+    if (isSpeaking) {
+      // Stop reading if currently speaking
+      favoritesReaderService.stopReading();
+      return;
+    }
+
+    // Read current tab content
+    final currentIndex = _tabController.index;
+    
+    if (currentIndex == 0) {
+      // Read Katas tab
+      favoriteKatasAsync.when(
+        data: (favoriteKataIds) {
+          final favoriteKatas = kataState.katas
+              .where((kata) => favoriteKataIds.contains(kata.id))
+              .cast<Kata>()
+              .toList();
+          favoritesReaderService.readKatasTab(favoriteKatas);
+        },
+        loading: () {
+          // Show loading message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Favoriete kata\'s worden geladen...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+        error: (error, _) {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fout bij laden kata\'s: $error'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        },
+      );
+    } else if (currentIndex == 1) {
+      // Read Forum tab
+      favoriteForumPostsAsync.when(
+        data: (favoriteForumPostIds) {
+          final favoriteForumPosts = forumState.posts
+              .where((post) => favoriteForumPostIds.contains(post.id))
+              .cast<ForumPost>()
+              .toList();
+          favoritesReaderService.readForumTab(favoriteForumPosts);
+        },
+        loading: () {
+          // Show loading message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Favoriete forumberichten worden geladen...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        },
+        error: (error, _) {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fout bij laden forumberichten: $error'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        },
+      );
+    }
+  }
+
+  /// Get current tab name for tooltip
+  String _getCurrentTabName() {
+    final currentIndex = _tabController.index;
+    return currentIndex == 0 ? 'kata favorieten' : 'forum favorieten';
   }
 
   Widget _buildFavoriteKatasTab(List<Kata> favoriteKatas, bool isLoading) {
@@ -195,17 +289,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                 children: [
                   Icon(Icons.favorite_border, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  AccessibleText(
+                  Text(
                     'Nog geen favoriete kata\'s',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
-                    enableTextToSpeech: true,
                   ),
                   SizedBox(height: 8),
-                  AccessibleText(
+                  Text(
                     'Tik op het hartje bij een kata om deze toe te voegen aan je favorieten',
                     style: TextStyle(fontSize: 14, color: Colors.grey),
                     textAlign: TextAlign.center,
-                    enableTextToSpeech: true,
                   ),
                 ],
               ),
@@ -222,10 +314,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         itemCount: favoriteKatas.length,
         itemBuilder: (context, index) {
           final kata = favoriteKatas[index];
-          return CollapsibleKataCard(
-            kata: kata,
-            onDelete: () {}, // Empty callback instead of null
-          );
+          return _buildKataCard(kata, index + 1);
         },
       ),
     );
@@ -250,17 +339,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                 children: [
                   Icon(Icons.favorite_border, size: 64, color: Colors.grey),
                   SizedBox(height: 16),
-                  AccessibleText(
+                  Text(
                     'Nog geen favoriete forumberichten',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
-                    enableTextToSpeech: true,
                   ),
                   SizedBox(height: 8),
-                  AccessibleText(
+                  Text(
                     'Tik op het hartje bij een forumbericht om deze toe te voegen aan je favorieten',
                     style: TextStyle(fontSize: 14, color: Colors.grey),
                     textAlign: TextAlign.center,
-                    enableTextToSpeech: true,
                   ),
                 ],
               ),
@@ -277,135 +364,211 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         itemCount: favoriteForumPosts.length,
         itemBuilder: (context, index) {
           final post = favoriteForumPosts[index];
-          return _buildForumPostCard(post);
+          return _buildForumPostCard(post, index + 1);
         },
       ),
     );
   }
 
-  Widget _buildForumPostCard(ForumPost post) {
+  Widget _buildKataCard(Kata kata, int index) {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: InkWell(
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            '/forum_post_detail',
-            arguments: post.id,
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with category and pin status
-              Row(
-                children: [
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getCategoryColor(post.category),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        post.category.displayName,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                  if (post.isPinned) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.push_pin, size: 14, color: Colors.orange),
-                  ],
-                  if (post.isLocked) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.lock, size: 14, color: Colors.red),
-                  ],
-                  const Spacer(),
-                  Flexible(
-                    child: Text(
-                      _formatDate(post.createdAt),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+      child: Column(
+        children: [
+          // Card header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
-              const SizedBox(height: 12),
-
-              // Title
-              Text(
-                post.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.sports_martial_arts,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(width: 8),
+                Text(
+                  'Kata $index',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Kata card content
+          CollapsibleKataCard(
+            kata: kata,
+            onDelete: () {}, // Empty callback instead of null
+          ),
+        ],
+      ),
+    );
+  }
 
-              // Content preview
-              Text(
-                post.content,
-                style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+  Widget _buildForumPostCard(ForumPost post, int index) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        children: [
+          // Card header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
               ),
-              const SizedBox(height: 12),
-
-              // Footer with author and stats
-              Row(
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.forum,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Forumbericht $index',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Forum post card content
+          InkWell(
+            onTap: () {
+              Navigator.pushNamed(
+                context,
+                '/forum_post_detail',
+                arguments: post.id,
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundImage: post.authorAvatar != null
-                        ? NetworkImage(post.authorAvatar!)
-                        : null,
-                    child: post.authorAvatar == null
-                        ? Text(
-                            post.authorName.isNotEmpty
-                                ? post.authorName[0].toUpperCase()
-                                : '?',
-                            style: const TextStyle(fontSize: 10),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      post.authorName,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                  // Header with category and pin status
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getCategoryColor(post.category),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            post.category.displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      if (post.isPinned) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.push_pin, size: 14, color: Colors.orange),
+                      ],
+                      if (post.isLocked) ...[
+                        const SizedBox(width: 6),
+                        const Icon(Icons.lock, size: 14, color: Colors.red),
+                      ],
+                      const Spacer(),
+                      Flexible(
+                        child: Text(
+                          _formatDate(post.createdAt),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                  if (post.commentCount > 0) ...[
-                    Icon(Icons.comment, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${post.commentCount}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  const SizedBox(height: 12),
+
+                  // Title
+                  Text(
+                    post.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
-                  ],
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Content preview
+                  Text(
+                    post.content,
+                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Footer with author and stats
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundImage: post.authorAvatar != null
+                            ? NetworkImage(post.authorAvatar!)
+                            : null,
+                        child: post.authorAvatar == null
+                            ? Text(
+                                post.authorName.isNotEmpty
+                                    ? post.authorName[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(fontSize: 10),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          post.authorName,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (post.commentCount > 0) ...[
+                        Icon(Icons.comment, size: 16, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${post.commentCount}',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

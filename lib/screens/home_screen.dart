@@ -7,7 +7,10 @@ import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/enhanced_tts_headphones_button.dart';
+import '../widgets/tts_headphones_button.dart';
+import '../widgets/context_aware_page_tts_button.dart';
 import '../services/context_aware_tts_service.dart';
+import '../services/context_aware_page_tts_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
@@ -52,10 +55,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Expanded(child: Text('Verweesde afbeeldingen opruimen?')),
-            DialogEnhancedTTSButton(
-              pageType: TTSPageType.custom,
-              customTestText: 'Verweesde afbeeldingen opruimen? Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen.',
+            const Expanded(
+              child: Text(
+                'Verweesde afbeeldingen opruimen?',
+                semanticsLabel: 'Afbeeldingen opruimen bevestiging popup',
+              ),
+            ),
+            DialogContextAwarePageTTSButton(
+              context: PageTTSContext.cleanImagesPopup,
             ),
           ],
         ),
@@ -63,16 +70,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           'Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen. '
           'Dit omvat afbeeldingen in mappen zoals "0" of "temp_" die mogelijk zijn achtergebleven. '
           'Deze actie kan niet ongedaan worden gemaakt.',
+          semanticsLabel: 'Waarschuwing bericht: Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen. Dit omvat afbeeldingen in mappen zoals nul of temp die mogelijk zijn achtergebleven. Deze actie kan niet ongedaan worden gemaakt.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuleren'),
+            child: const Text(
+              'Annuleren',
+              semanticsLabel: 'Annuleren knop om het opruimen te annuleren en terug te gaan',
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Opruimen'),
+            child: const Text(
+              'Opruimen',
+              semanticsLabel: 'Opruimen knop om te bevestigen en de verweesde afbeeldingen te verwijderen',
+            ),
           ),
         ],
       ),
@@ -147,9 +161,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Row(
           children: [
             Expanded(child: Text('$kataName verwijderen?')),
-            DialogEnhancedTTSButton(
-              pageType: TTSPageType.custom,
-              customTestText: '$kataName verwijderen? Dit zal de kata en alle afbeeldingen permanent verwijderen.',
+            DialogContextAwarePageTTSButton(
+              context: PageTTSContext.deletePopup,
             ),
           ],
         ),
@@ -224,27 +237,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            const Expanded(child: Text('Uitloggen')),
-            DialogEnhancedTTSButton(
-              pageType: TTSPageType.custom,
-              customTestText: 'Uitloggen. Weet je zeker dat je uit wilt loggen?',
+            const Expanded(
+              child: Text(
+                'Uitloggen',
+                semanticsLabel: 'Uitloggen bevestiging popup',
+              ),
+            ),
+            DialogContextAwarePageTTSButton(
+              context: PageTTSContext.logoutPopup,
             ),
           ],
         ),
-        content: const Text('Weet je/u zeker dat je uit wilt loggen?'),
+        content: const Text(
+          'Weet je/u zeker dat je uit wilt loggen?',
+          semanticsLabel: 'Bevestiging bericht: Weet je zeker dat je uit wilt loggen?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.lightGreenAccent,
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.lightGreenAccent,
             ),
-            child: const Text('Nee dankje makker!'),
+            child: const Text(
+              'Nee dankje makker!',
+              semanticsLabel: 'Nee dankje makker! Knop om uitloggen te annuleren en in de app te blijven',
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.lightBlueAccent,
             ),
-            child: const Text('Ja tuurlijk!'),
+            child: const Text(
+              'Ja tuurlijk!',
+              semanticsLabel: 'Ja tuurlijk! Knop om te bevestigen en uit te loggen van de applicatie',
+            ),
           ),
         ],
       ),
@@ -327,6 +354,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
            errorLower.contains('no internet');
   }
 
+  /// Handle TTS toggle for katas
+  Future<void> _handleKatasTTSToggle() async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final katas = ref.read(katasProvider);
+      
+      if (katas.isEmpty) {
+        await accessibilityNotifier.speak('Er zijn geen kata\'s om voor te lezen.');
+        return;
+      }
+      
+      await accessibilityNotifier.speak('Er ${katas.length == 1 ? 'is' : 'zijn'} ${katas.length} kata${katas.length == 1 ? '' : '\'s'} beschikbaar. Ik lees ze nu voor.');
+      
+      for (int i = 0; i < katas.length && i < 5; i++) { // Limit to first 5 katas
+        final kata = katas[i];
+        await accessibilityNotifier.speak('Kata ${i + 1}: ${kata.name}. Stijl: ${kata.style}. Beschrijving: ${kata.description}');
+        
+        if (i < katas.length - 1 && i < 4) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+      }
+      
+      if (katas.length > 5) {
+        await accessibilityNotifier.speak('Er zijn nog ${katas.length - 5} kata\'s meer beschikbaar.');
+      }
+      
+      await accessibilityNotifier.speak('Klaar met voorlezen van kata\'s.');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error reading katas: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   /// Get appropriate icon for font size
   IconData _getFontSizeIcon(AccessibilityFontSize fontSize) {
     switch (fontSize) {
@@ -382,10 +448,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Text-to-speech toggle using new component
-                    AppBarEnhancedTTSButton(
-                      pageType: TTSPageType.home,
-                      customTestText: 'Spraak is nu ingeschakeld voor de hoofdpagina',
+                    // Direct TTS button for katas
+                    IconButton(
+                      icon: const Icon(Icons.headphones),
+                      onPressed: () => _handleKatasTTSToggle(),
+                      tooltip: 'Lees alle kata\'s voor',
                     ),
                     
                     // Combined accessibility settings popup
@@ -517,9 +584,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                        CompactEnhancedTTSButton(
-                          pageType: TTSPageType.custom,
-                          customTestText: 'Gebruikersmenu geopend voor ${currentUser?.userMetadata?['full_name'] ?? currentUser?.email ?? 'gebruiker'}',
+                        CompactContextAwarePageTTSButton(
+                          context: PageTTSContext.menu,
                         ),
                       ],
                     ),
@@ -527,11 +593,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const PopupMenuDivider(),
                   PopupMenuItem(
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.person, size: 20),
-                        SizedBox(width: 12),
-                        Text('Profiel'),
+                        const Icon(Icons.person, size: 20),
+                        const SizedBox(width: 12),
+                        const Expanded(child: Text('Profiel')),
+                        CompactContextAwarePageTTSButton(
+                          context: PageTTSContext.profile,
+                          margin: const EdgeInsets.all(2),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -544,11 +614,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                   ),
                   PopupMenuItem(
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.favorite, size: 20),
-                        SizedBox(width: 12),
-                        Text('Mijn Favorieten'),
+                        const Icon(Icons.favorite, size: 20),
+                        const SizedBox(width: 12),
+                        const Expanded(child: Text('Mijn Favorieten')),
+                        CompactContextAwarePageTTSButton(
+                          context: PageTTSContext.favorites,
+                          margin: const EdgeInsets.all(2),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -563,11 +637,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   // Only show admin options for hosts
                   if (isHost) ...[
                   PopupMenuItem(
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.admin_panel_settings, size: 20),
-                        SizedBox(width: 12),
-                        Text('Gebruikersbeheer'),
+                        const Icon(Icons.admin_panel_settings, size: 20),
+                        const SizedBox(width: 12),
+                        const Expanded(child: Text('Gebruikersbeheer')),
+                        CompactContextAwarePageTTSButton(
+                          context: PageTTSContext.userManagement,
+                          margin: const EdgeInsets.all(2),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -580,11 +658,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                   ),
                     PopupMenuItem(
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(Icons.cleaning_services, size: 20),
-                          SizedBox(width: 12),
-                          Text('Afbeeldingen opruimen'),
+                          const Icon(Icons.cleaning_services, size: 20),
+                          const SizedBox(width: 12),
+                          const Expanded(child: Text('Afbeeldingen opruimen')),
+                          CompactContextAwarePageTTSButton(
+                            context: PageTTSContext.cleanImagesPopup,
+                            margin: const EdgeInsets.all(2),
+                          ),
                         ],
                       ),
                       onTap: () {
@@ -605,49 +687,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         final themeState = ref.watch(themeNotifierProvider);
                         final themeNotifier = ref.read(themeNotifierProvider.notifier);
                         
-                        return Row(
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(themeNotifier.themeIcon, size: 20),
-                            const SizedBox(width: 12),
-                            const Text('Thema'),
-                            const Spacer(),
-                            DropdownButton<AppThemeMode>(
-                              value: themeState.themeMode,
-                              underline: const SizedBox(),
-                              items: AppThemeMode.values.map((mode) {
-                                IconData icon;
-                                String label;
-                                switch (mode) {
-                                  case AppThemeMode.light:
-                                    icon = Icons.light_mode;
-                                    label = 'Licht';
-                                    break;
-                                  case AppThemeMode.dark:
-                                    icon = Icons.dark_mode;
-                                    label = 'Donker';
-                                    break;
-                                  case AppThemeMode.system:
-                                    icon = Icons.brightness_auto;
-                                    label = 'Systeem';
-                                    break;
-                                }
-                                return DropdownMenuItem(
-                                  value: mode,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(icon, size: 16),
-                                      const SizedBox(width: 8),
-                                      Text(label),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (mode) {
-                                if (mode != null) {
-                                  themeNotifier.setThemeMode(mode);
-                                }
-                              },
+                            Row(
+                              children: [
+                                Icon(themeNotifier.themeIcon, size: 20),
+                                const SizedBox(width: 12),
+                                const Text('Thema'),
+                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(Icons.headphones, size: 16),
+                                  onPressed: () async {
+                                    final currentTheme = themeState.themeMode == AppThemeMode.light ? 'Licht' :
+                                                       themeState.themeMode == AppThemeMode.dark ? 'Donker' : 'Systeem';
+                                    await ContextAwarePageTTSService.readThemeSettings(context, ref, 'theme', currentTheme);
+                                  },
+                                  tooltip: 'Thema instelling voorlezen',
+                                ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 32),
+                              child: DropdownButton<AppThemeMode>(
+                                value: themeState.themeMode,
+                                underline: const SizedBox(),
+                                isExpanded: true,
+                                items: AppThemeMode.values.map((mode) {
+                                  IconData icon;
+                                  String label;
+                                  switch (mode) {
+                                    case AppThemeMode.light:
+                                      icon = Icons.light_mode;
+                                      label = 'Licht';
+                                      break;
+                                    case AppThemeMode.dark:
+                                      icon = Icons.dark_mode;
+                                      label = 'Donker';
+                                      break;
+                                    case AppThemeMode.system:
+                                      icon = Icons.brightness_auto;
+                                      label = 'Systeem';
+                                      break;
+                                  }
+                                  return DropdownMenuItem(
+                                    value: mode,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(icon, size: 16),
+                                        const SizedBox(width: 8),
+                                        Text(label),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (mode) {
+                                  if (mode != null) {
+                                    themeNotifier.setThemeMode(mode);
+                                  }
+                                },
+                              ),
                             ),
                           ],
                         );
@@ -666,8 +766,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             const Icon(Icons.contrast, size: 20),
                             const SizedBox(width: 12),
-                            const Text('Hoog Contrast'),
-                            const Spacer(),
+                            const Expanded(child: Text('Hoog Contrast')),
+                            IconButton(
+                              icon: const Icon(Icons.headphones, size: 16),
+                              onPressed: () async {
+                                final contrastStatus = themeState.isHighContrast ? 'aan' : 'uit';
+                                await ContextAwarePageTTSService.readThemeSettings(context, ref, 'contrast', contrastStatus);
+                              },
+                              tooltip: 'Hoog contrast instelling voorlezen',
+                            ),
                             Switch(
                               value: themeState.isHighContrast,
                               onChanged: (value) {
@@ -682,11 +789,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const PopupMenuDivider(),
                   PopupMenuItem(
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.logout, size: 20, color: Colors.red),
-                        SizedBox(width: 12),
-                        Text('Uitloggen', style: TextStyle(color: Colors.red)),
+                        const Icon(Icons.logout, size: 20, color: Colors.red),
+                        const SizedBox(width: 12),
+                        const Expanded(child: Text('Uitloggen', style: TextStyle(color: Colors.red))),
+                        CompactContextAwarePageTTSButton(
+                          context: PageTTSContext.logoutPopup,
+                          margin: const EdgeInsets.all(2),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -811,9 +922,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               title: Row(
                 children: [
                   const Expanded(child: Text("Nieuwe Kata Toevoegen")),
-                  DialogEnhancedTTSButton(
-                    pageType: TTSPageType.custom,
-                    customTestText: 'Nieuwe Kata Toevoegen. Vul de gegevens in voor de nieuwe kata.',
+                  DialogContextAwarePageTTSButton(
+                    context: PageTTSContext.kataForm,
                   ),
                 ],
               ),
