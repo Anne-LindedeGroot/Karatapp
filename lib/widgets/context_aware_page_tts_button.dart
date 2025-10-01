@@ -93,7 +93,9 @@ class ContextAwarePageTTSButton extends ConsumerWidget {
           // Enable TTS first, then read content
           await accessibilityNotifier.toggleTextToSpeech();
           await Future.delayed(const Duration(milliseconds: 300));
-          await _readContextContent(context, ref);
+          if (context.mounted) {
+            await _readContextContent(context, ref);
+          }
         }
       },
     );
@@ -230,7 +232,9 @@ class CompactContextAwarePageTTSButton extends ConsumerWidget {
           } else {
             await accessibilityNotifier.toggleTextToSpeech();
             await Future.delayed(const Duration(milliseconds: 300));
-            await _readContextContent(context, ref);
+            if (context.mounted) {
+              await _readContextContent(context, ref);
+            }
           }
         },
         backgroundColor: backgroundColor ?? (isSpeaking 
@@ -383,7 +387,9 @@ class DialogContextAwarePageTTSButton extends ConsumerWidget {
         } else {
           await accessibilityNotifier.toggleTextToSpeech();
           await Future.delayed(const Duration(milliseconds: 300));
-          await _readContextContent(context, ref);
+          if (context.mounted) {
+            await _readContextContent(context, ref);
+          }
         }
       },
     );

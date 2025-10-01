@@ -74,7 +74,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
             Tab(text: 'Karate Mannen'),
             Tab(text: 'Karate Vrouwen'),
             Tab(text: 'Vechtsporten'),
-            Tab(text: 'Dojo & Items'),
+            Tab(text: 'Dojo & Voorwerpen'),
           ],
         ),
       ),

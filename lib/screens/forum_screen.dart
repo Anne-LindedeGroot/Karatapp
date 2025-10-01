@@ -8,7 +8,6 @@ import '../providers/interaction_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/skeleton_forum_post.dart';
-import '../widgets/tts_headphones_button.dart';
 import '../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';

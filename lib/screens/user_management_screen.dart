@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../services/role_service.dart';
 import '../services/mute_service.dart';
 import '../providers/role_provider.dart';
 import '../providers/mute_provider.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/tts_headphones_button.dart';
 import '../services/context_aware_page_tts_service.dart';
@@ -612,65 +610,65 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     final muteNotifier = ref.read(muteNotifierProvider.notifier);
     final history = await muteNotifier.getUserMuteHistory(userId);
 
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Dempgeschiedenis voor $userName'),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: history.isEmpty
-                ? const Center(child: Text('Geen dempgeschiedenis'))
-                : ListView.builder(
-                    itemCount: history.length,
-                    itemBuilder: (context, index) {
-                      final mute = history[index];
-                      return Card(
-                        child: ListTile(
-                          leading: Icon(
-                            mute.isActive ? Icons.volume_off : Icons.volume_up,
-                            color: mute.isActive ? Colors.red : Colors.green,
-                          ),
-                          title: Text(mute.reason),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Gedempt: ${mute.mutedAt.day}/${mute.mutedAt.month}/${mute.mutedAt.year}',
-                              ),
-                              Text(
-                                'Tot: ${mute.mutedUntil.day}/${mute.mutedUntil.month}/${mute.mutedUntil.year}',
-                              ),
-                              if (!mute.isActive && mute.unmutedAt != null)
-                                Text(
-                                  'Ontdempt: ${mute.unmutedAt!.day}/${mute.unmutedAt!.month}/${mute.unmutedAt!.year}',
-                                ),
-                            ],
-                          ),
-                          trailing: mute.isActive
-                              ? Text(
-                                  mute.timeRemainingText,
-                                  style: const TextStyle(
-                                    color: Colors.red,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                )
-                              : const Icon(Icons.check, color: Colors.green),
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Dempgeschiedenis voor $userName'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400,
+          child: history.isEmpty
+              ? const Center(child: Text('Geen dempgeschiedenis'))
+              : ListView.builder(
+                  itemCount: history.length,
+                  itemBuilder: (context, index) {
+                    final mute = history[index];
+                    return Card(
+                      child: ListTile(
+                        leading: Icon(
+                          mute.isActive ? Icons.volume_off : Icons.volume_up,
+                          color: mute.isActive ? Colors.red : Colors.green,
                         ),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Sluiten'),
-            ),
-          ],
+                        title: Text(mute.reason),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Gedempt: ${mute.mutedAt.day}/${mute.mutedAt.month}/${mute.mutedAt.year}',
+                            ),
+                            Text(
+                              'Tot: ${mute.mutedUntil.day}/${mute.mutedUntil.month}/${mute.mutedUntil.year}',
+                            ),
+                            if (!mute.isActive && mute.unmutedAt != null)
+                              Text(
+                                'Ontdempt: ${mute.unmutedAt!.day}/${mute.unmutedAt!.month}/${mute.unmutedAt!.year}',
+                              ),
+                          ],
+                        ),
+                        trailing: mute.isActive
+                            ? Text(
+                                mute.timeRemainingText,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : const Icon(Icons.check, color: Colors.green),
+                      ),
+                    );
+                  },
+                ),
         ),
-      );
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Sluiten'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildRoleSelector(
@@ -753,7 +751,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   Widget build(BuildContext context) {
     // Check if current user is host
     final userRoleAsync = ref.watch(currentUserRoleProvider);
-    final currentUser = ref.watch(authUserProvider);
 
     return userRoleAsync.when(
       data: (userRole) {
@@ -804,9 +801,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 customTestText: 'Spraak is nu ingeschakeld voor gebruikersbeheer',
                 onToggle: () {
                   // Use the context-aware TTS service for user management
-                  Future.delayed(const Duration(milliseconds: 500), () {
+                  if (mounted) {
                     ContextAwarePageTTSService.readUserManagementScreen(context, ref);
-                  });
+                  }
                 },
               ),
               IconButton(
@@ -929,12 +926,16 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
+                                    color: Colors.red,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   _error!,
-                                  style: const TextStyle(color: Colors.red),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                  ),
                                   textAlign: TextAlign.center,
                                 ),
                                 const SizedBox(height: 16),
@@ -947,136 +948,76 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           )
                         : _users.isEmpty
                             ? const Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.people_outline,
-                                      size: 64,
-                                      color: Colors.grey,
-                                    ),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'Geen Gebruikers Gevonden',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
+                                child: Text(
+                                  'Geen gebruikers gevonden',
+                                  style: TextStyle(fontSize: 16, color: Colors.grey),
                                 ),
                               )
-                            : RefreshIndicator(
-                                onRefresh: _loadUsers,
-                                child: ListView.builder(
-                                  padding: const EdgeInsets.all(16),
-                                  itemCount: _users.length,
-                                  itemBuilder: (context, index) {
-                                    final user = _users[index];
-                                    final userId = user['id'] as String;
-                                    final email =
-                                        user['email'] as String? ?? 'Geen email';
-                                    final fullName =
-                                        user['full_name'] as String? ?? 'Geen naam';
-                                    final roleString =
-                                        user['role'] as String? ?? 'user';
-                                    final role = UserRole.values.firstWhere(
-                                      (r) => r.value == roleString,
-                                      orElse: () => UserRole.user,
-                                    );
-                                    final isCurrentUser = userId == currentUser?.id;
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _users.length,
+                                itemBuilder: (context, index) {
+                                  final user = _users[index];
+                                  final userId = user['id'] as String;
+                                  final userName = user['name'] as String? ?? 'Onbekende Gebruiker';
+                                  final userEmail = user['email'] as String? ?? '';
+                                  final userRole = UserRole.values.firstWhere(
+                                    (role) => role.name == user['role'],
+                                    orElse: () => UserRole.user,
+                                  );
 
-                                    return Card(
-                                      margin: const EdgeInsets.only(bottom: 12),
-                                      elevation: 2,
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(16),
-                                        child: Row(
-                                          children: [
-                                            // User avatar
-                                            CircleAvatar(
-                                              radius: 24,
-                                              backgroundColor: _getRoleColor(role).withValues(alpha: 0.2),
-                                              child: Icon(
-                                                Icons.person,
-                                                color: _getRoleColor(role),
-                                                size: 24,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 16),
-                                            
-                                            // User info
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: Text(
-                                                          fullName,
-                                                          style: const TextStyle(
-                                                            fontSize: 16,
-                                                            fontWeight: FontWeight.w600,
-                                                          ),
-                                                          overflow: TextOverflow.ellipsis,
-                                                        ),
-                                                      ),
-                                                      if (isCurrentUser)
-                                                        Container(
-                                                          padding: const EdgeInsets.symmetric(
-                                                            horizontal: 8,
-                                                            vertical: 2,
-                                                          ),
-                                                          decoration: BoxDecoration(
-                                                            color: Colors.green.withValues(alpha: 0.1),
-                                                            borderRadius: BorderRadius.circular(12),
-                                                            border: Border.all(
-                                                              color: Colors.green.withValues(alpha: 0.3),
-                                                            ),
-                                                          ),
-                                                          child: const Text(
-                                                            'Jij',
-                                                            style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: Colors.green,
-                                                              fontWeight: FontWeight.w600,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    email,
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  _buildRoleChip(role),
-                                                ],
-                                              ),
-                                            ),
-                                            
-                                            // Controls (only show for other users)
-                                            if (!isCurrentUser) ...[
-                                              _buildMuteButton(userId, fullName),
-                                              // Only hosts can change roles
-                                              if (userRole == UserRole.host) ...[
-                                                const SizedBox(width: 8),
-                                                _buildRoleSelector(userId, fullName, role),
-                                              ],
-                                            ],
-                                          ],
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.all(16),
+                                      leading: CircleAvatar(
+                                        backgroundColor: _getRoleColor(userRole),
+                                        child: Icon(
+                                          _getRoleIcon(userRole),
+                                          color: Colors.white,
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
+                                      title: Text(
+                                        userName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          if (userEmail.isNotEmpty) ...[
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              userEmail,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 8),
+                                          _buildRoleChip(userRole),
+                                        ],
+                                      ),
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Only hosts can change roles
+                                          if (ref.watch(currentUserRoleProvider).value == UserRole.host)
+                                            _buildRoleSelector(
+                                              userId,
+                                              userName,
+                                              userRole,
+                                            ),
+                                          // Both hosts and mediators can mute users
+                                          _buildMuteButton(userId, userName),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
               ),
             ],
@@ -1088,34 +1029,52 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           title: const Text('Gebruikersbeheer'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
+            onPressed: () => context.goToHome(),
           ),
         ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
       ),
-      error: (error, _) => Scaffold(
+      error: (error, stackTrace) => Scaffold(
         appBar: AppBar(
           title: const Text('Gebruikersbeheer'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.pop(),
+            onPressed: () => context.goToHome(),
           ),
         ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.red,
+              ),
               const SizedBox(height: 16),
               const Text(
-                'Fout bij Laden Rol',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                'Fout bij Laden Gebruikersrol',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 error.toString(),
-                style: const TextStyle(color: Colors.red),
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => context.goToHome(),
+                child: const Text('Terug naar Home'),
               ),
             ],
           ),

@@ -6,7 +6,6 @@ import '../providers/role_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/tts_headphones_button.dart';
 import '../widgets/context_aware_page_tts_button.dart';
 import '../core/navigation/app_router.dart';
 import 'avatar_selection_screen.dart';
@@ -129,7 +128,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
         ),
-        actions: [],
+        actions: [
+          ContextAwarePageTTSButton(
+            context: PageTTSContext.profile,
+            iconSize: 24.0,
+            tooltip: 'Profiel voorlezen',
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: GestureDetector(
         onTap: () {
@@ -376,7 +382,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
+                    SizedBox(
                       height: 56, // Match TextField height
                       child: IconButton(
                         icon: const Icon(Icons.headphones),
@@ -418,10 +424,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
         ),
-      ),
-      floatingActionButton: CompactContextAwarePageTTSButton(
-        context: PageTTSContext.profile,
-        margin: const EdgeInsets.only(bottom: 16, right: 16),
       ),
     );
   }

@@ -13,9 +13,6 @@ class ComprehensiveTTSService {
   static OverlayEntry? _currentHighlightOverlay;
   static OverlayEntry? _currentCursorOverlay;
   static bool _isReading = false;
-  static String _currentText = '';
-  static int _currentWordIndex = 0;
-  static List<String> _currentWords = [];
 
   /// Read entire home page with visual highlighting and cursor tracking
   static Future<void> readHomePage(BuildContext context, WidgetRef ref) async {

@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
@@ -131,6 +130,9 @@ class ContextAwarePageTTSService {
       // Wait a moment before continuing
       await Future.delayed(const Duration(milliseconds: 1500));
       
+      // Check if context is still mounted after async operation
+      if (!context.mounted) return;
+      
       final content = await _extractUserManagementContentFromService(context, ref);
       await accessibilityNotifier.speak('Gebruikersbeheer pagina. $content');
     } catch (e) {
@@ -166,6 +168,9 @@ class ContextAwarePageTTSService {
       // Small delay to ensure previous TTS is fully stopped
       await Future.delayed(const Duration(milliseconds: 100));
       
+      // Check if context is still mounted after async operation
+      if (!context.mounted) return;
+      
       final content = _extractCleanImagesPopupContent(context);
       await accessibilityNotifier.speak(content);
     } catch (e) {
@@ -186,6 +191,9 @@ class ContextAwarePageTTSService {
       
       // Small delay to ensure previous TTS is fully stopped
       await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Check if context is still mounted after async operation
+      if (!context.mounted) return;
       
       final content = _extractLogoutPopupContent(context);
       await accessibilityNotifier.speak(content);
@@ -534,12 +542,6 @@ class ContextAwarePageTTSService {
     return content.toString().isNotEmpty ? content.toString() : 'Gebruikersbeheer pagina geladen.';
   }
 
-  /// Legacy method for backward compatibility - now calls the new async method
-  static String _extractUserManagementContent(BuildContext context, WidgetRef ref) {
-    // This method is kept for backward compatibility but should not be used
-    // The new async method _extractUserManagementContentFromService should be used instead
-    return 'Gebruikersbeheer pagina geladen. Gebruikersgegevens worden geladen...';
-  }
 
   static String _extractDialogContent(BuildContext context) {
     // Look for dialog content

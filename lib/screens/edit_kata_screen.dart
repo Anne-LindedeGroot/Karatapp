@@ -8,7 +8,6 @@ import '../providers/image_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/image_gallery.dart';
 import '../widgets/video_url_input_widget.dart';
-import '../widgets/tts_headphones_button.dart';
 import '../widgets/context_aware_page_tts_button.dart';
 
 class EditKataScreen extends ConsumerStatefulWidget {

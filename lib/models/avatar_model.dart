@@ -80,7 +80,7 @@ class AvatarData {
     // Karate Men Photos
     Avatar(
       id: 'karate_man_white_gi',
-      name: 'Karateka (White Gi)',
+      name: 'Karateka (Witte Gi)',
       assetPath: 'assets/avatars/photos/karate_men/white_gi.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -88,7 +88,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_man_black_gi',
-      name: 'Karateka (Black Gi)',
+      name: 'Karateka (Zwarte Gi)',
       assetPath: 'assets/avatars/photos/karate_men/black_gi.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -96,7 +96,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_sensei',
-      name: 'Sensei Master',
+      name: 'Sensei Meester',
       assetPath: 'assets/avatars/photos/karate_men/sensei_master.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -104,7 +104,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_student',
-      name: 'Young Karate Student',
+      name: 'Jonge Student',
       assetPath: 'assets/avatars/photos/karate_men/student_young.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -112,7 +112,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_competitor',
-      name: 'Tournament Competitor',
+      name: 'Toernooi Deelnemer',
       assetPath: 'assets/avatars/photos/karate_men/competitor_tournament.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -120,7 +120,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_referee',
-      name: 'Referee',
+      name: 'Scheids',
       assetPath: 'assets/avatars/photos/karate_men/referee.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -130,7 +130,7 @@ class AvatarData {
     //Karate Women Photos
     Avatar(
       id: 'karate_woman_white_gi',
-      name: 'Karateka (White Gi)',
+      name: 'Karateka (Witte Gi)',
       assetPath: 'assets/avatars/photos/karate_women/white_gi.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -138,7 +138,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_woman_black_gi',
-      name: 'Karateka (Black Gi)',
+      name: 'Karateka (Zwarte Gi)',
       assetPath: 'assets/avatars/photos/karate_women/black_gi.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -146,7 +146,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_female_sensei',
-      name: 'Female Sensei Master',
+      name: 'Sensei Vrouw',
       assetPath: 'assets/avatars/photos/karate_women/sensei_master.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -154,7 +154,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_female_student',
-      name: 'Young Female Student',
+      name: 'Jonge Student',
       assetPath: 'assets/avatars/photos/karate_women/student_young.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -162,7 +162,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_female_competitor',
-      name: 'Tournament Competitor',
+      name: 'Toernooi Deelneemster',
       assetPath: 'assets/avatars/photos/karate_women/competitor_tournament.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -170,7 +170,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_female_referee',
-      name: 'Referee',
+      name: 'Scheids',
       assetPath: 'assets/avatars/photos/karate_women/referee.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -180,7 +180,7 @@ class AvatarData {
     // Martial Arts Characters Photos
     Avatar(
       id: 'samurai_warrior',
-      name: 'Traditional Samurai',
+      name: 'Traditionele Samurai',
       assetPath: 'assets/avatars/photos/characters/samurai_traditional.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -188,7 +188,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'ninja',
-      name: 'Modern Ninja',
+      name: 'Moderne Ninja',
       assetPath: 'assets/avatars/photos/characters/ninja_modern.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -196,7 +196,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'kung_fu_master',
-      name: 'Kung Fu Master',
+      name: 'Kung Fu Meester',
       assetPath: 'assets/avatars/photos/characters/kung_fu_master.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -204,7 +204,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'aikido_practitioner',
-      name: 'Aikido Master',
+      name: 'Aikido Meester',
       assetPath: 'assets/avatars/photos/characters/aikido_master.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -212,7 +212,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'judo_fighter',
-      name: 'Judo Champion',
+      name: 'Judo Kampioen',
       assetPath: 'assets/avatars/photos/characters/judo_champion.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -220,7 +220,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'taekwondo_athlete',
-      name: 'Taekwondo Athlete',
+      name: 'Taekwondo Atleet',
       assetPath: 'assets/avatars/photos/characters/taekwondo_athlete.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -230,7 +230,7 @@ class AvatarData {
     //  Animals Photos
     Avatar(
       id: 'animal_dog',
-      name: 'Dog',
+      name: 'Hond',
       assetPath: 'assets/avatars/photos/animals/dog.jpg',
       category: AvatarCategory.animals,
       type: AvatarType.preset,
@@ -238,7 +238,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'animal_cat',
-      name: 'Cat',
+      name: 'Kat',
       assetPath: 'assets/avatars/photos/animals/cat.jpg',
       category: AvatarCategory.animals,
       type: AvatarType.preset,
@@ -254,7 +254,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'animal_fox',
-      name: 'Fox',
+      name: 'Vos',
       assetPath: 'assets/avatars/photos/animals/fox.jpg',
       category: AvatarCategory.animals,
       type: AvatarType.preset,
@@ -262,7 +262,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'animal_lion',
-      name: 'Lion',
+      name: 'Leeuw',
       assetPath: 'assets/avatars/photos/animals/lion.jpg',
       category: AvatarCategory.animals,
       type: AvatarType.preset,
@@ -278,7 +278,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'animal_unicorn',
-      name: 'Unicorn',
+      name: 'Eenhoorn',
       assetPath: 'assets/avatars/photos/animals/unicorn.jpg',
       category: AvatarCategory.animals,
       type: AvatarType.preset,
@@ -296,7 +296,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'nunchucks',
-      name: 'Nunchucks',
+      name: 'Nunchaku',
       assetPath: 'assets/avatars/photos/items/nunchucks.jpg',
       category: AvatarCategory.karateItems,
       type: AvatarType.preset,
@@ -304,7 +304,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'trophy',
-      name: 'Trophy',
+      name: 'Trofee',
       assetPath: 'assets/avatars/photos/items/trophy.jpg',
       category: AvatarCategory.karateItems,
       type: AvatarType.preset,
@@ -312,7 +312,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'medal',
-      name: 'Medal',
+      name: 'Medaille',
       assetPath: 'assets/avatars/photos/items/medal.jpg',
       category: AvatarCategory.karateItems,
       type: AvatarType.preset,
@@ -320,7 +320,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'dojo_building',
-      name: ' Dojo',
+      name: 'Dojo',
       assetPath: 'assets/avatars/photos/items/dojo.jpg',
       category: AvatarCategory.karateItems,
       type: AvatarType.preset,
@@ -328,7 +328,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'yin_yang',
-      name: ' Yin Yang',
+      name: 'Yin Yang',
       assetPath: 'assets/avatars/photos/items/yin_yang.jpg',
       category: AvatarCategory.karateItems,
       type: AvatarType.preset,
@@ -351,15 +351,15 @@ class AvatarData {
   static String getCategoryDisplayName(AvatarCategory category) {
     switch (category) {
       case AvatarCategory.animals:
-        return 'Animals';
+        return 'Dieren';
       case AvatarCategory.karateMan:
-        return 'Karate Men';
+        return 'Karate Mannen';
       case AvatarCategory.karateWoman:
-        return 'Karate Women';
+        return 'Karate Vrouwen';
       case AvatarCategory.martialArtsCharacters:
-        return 'Martial Arts';
+        return 'Vechtsporten';
       case AvatarCategory.karateItems:
-        return 'Dojo & Items';
+        return 'Dojo & Voorwerpen';
     }
   }
 }

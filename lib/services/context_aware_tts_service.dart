@@ -11,12 +11,7 @@ class ContextAwareTTSService {
   factory ContextAwareTTSService() => _instance;
   ContextAwareTTSService._internal();
 
-  static OverlayEntry? _currentHighlightOverlay;
-  static OverlayEntry? _currentCursorOverlay;
   static bool _isReading = false;
-  static String _currentText = '';
-  static int _currentWordIndex = 0;
-  static List<String> _currentWords = [];
   static TTSPageType? _currentPageType;
 
   /// Check if currently reading
@@ -220,8 +215,10 @@ class ContextAwareTTSService {
             itemIndex: i
           );
           
-          if (i < favoriteKatas.length - 1 && _isReading && context.mounted) {
+          if (i < favoriteKatas.length - 1 && _isReading) {
             await Future.delayed(const Duration(milliseconds: 800));
+            // Check context is still mounted after delay
+            if (!context.mounted || !_isReading) return;
           }
         }
       }
@@ -255,6 +252,8 @@ class ContextAwareTTSService {
         for (int i = 0; i < favoriteForumPosts.length && _isReading; i++) {
           final post = favoriteForumPosts[i];
           
+          if (!context.mounted || !_isReading) return;
+          
           await _speakWithCursor(
             context,
             'Forumbericht ${i + 1}: ${post.title} door ${post.authorName}. Categorie: ${post.category.displayName}. ${post.content}',
@@ -264,6 +263,8 @@ class ContextAwareTTSService {
           );
           
           if (post.commentCount > 0) {
+            if (!context.mounted || !_isReading) return;
+            
             await _speakWithCursor(
               context,
               '${post.commentCount} reactie${post.commentCount == 1 ? '' : 's'}.',
@@ -273,8 +274,10 @@ class ContextAwareTTSService {
             );
           }
           
-          if (i < favoriteForumPosts.length - 1 && _isReading && context.mounted) {
+          if (i < favoriteForumPosts.length - 1 && _isReading) {
             await Future.delayed(const Duration(milliseconds: 800));
+            // Check context is still mounted after delay
+            if (!context.mounted || !_isReading) return;
           }
         }
       }
@@ -419,6 +422,8 @@ class ContextAwareTTSService {
         );
         
         await Future.delayed(const Duration(milliseconds: 300));
+        // Check context is still mounted after delay
+        if (!context.mounted || !_isReading) return;
       }
     }
   }
