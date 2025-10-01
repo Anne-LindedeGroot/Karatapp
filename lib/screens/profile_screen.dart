@@ -6,7 +6,6 @@ import '../providers/role_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/context_aware_page_tts_button.dart';
 import '../core/navigation/app_router.dart';
 import 'avatar_selection_screen.dart';
 
@@ -129,11 +128,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onPressed: () => context.goBackOrHome(),
         ),
         actions: [
-          ContextAwarePageTTSButton(
-            context: PageTTSContext.profile,
-            iconSize: 24.0,
-            tooltip: 'Profiel voorlezen',
-          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -384,18 +378,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(width: 8),
                     SizedBox(
                       height: 56, // Match TextField height
-                      child: IconButton(
-                        icon: const Icon(Icons.headphones),
-                        tooltip: 'Naam veld voorlezen',
-                        onPressed: () async {
-                          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-                          final currentValue = _nameController.text.trim();
-                          final content = currentValue.isNotEmpty 
-                              ? 'Volledige naam veld. Huidige waarde: $currentValue'
-                              : 'Volledige naam veld. Veld is leeg. Voer uw volledige naam in.';
-                          await accessibilityNotifier.speak(content);
-                        },
-                      ),
+                      child: const SizedBox.shrink(),
                     ),
                   ],
                 ),
@@ -419,6 +402,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
 
+                const SizedBox(height: 30),
+                
+                // TTS Button Visibility Toggle
+                const AccessibleText(
+                  'Toegankelijkheid',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  enableTextToSpeech: true,
+                ),
+                const SizedBox(height: 16),
+                
+                // TTS Button Visibility Toggle
+                Consumer(
+                  builder: (context, ref, child) {
+                    final accessibilityState = ref.watch(accessibilityNotifierProvider);
+                    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+                    
+                    return Card(
+                      child: SwitchListTile(
+                        title: const AccessibleText(
+                          'Spraakknop weergeven',
+                          enableTextToSpeech: true,
+                        ),
+                        subtitle: const AccessibleText(
+                          'Toon of verberg de spraakknop op alle schermen',
+                          enableTextToSpeech: true,
+                        ),
+                        value: accessibilityState.showTTSButton,
+                        onChanged: (value) {
+                          accessibilityNotifier.setShowTTSButton(value);
+                        },
+                        secondary: Icon(
+                          accessibilityState.showTTSButton 
+                            ? Icons.headphones 
+                            : Icons.headphones_outlined,
+                          color: accessibilityState.showTTSButton 
+                            ? Theme.of(context).colorScheme.primary 
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                
                 const SizedBox(height: 30),
               ],
             ),

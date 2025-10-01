@@ -9,12 +9,27 @@ import 'core/navigation/app_router.dart';
 import 'core/storage/local_storage.dart' as app_storage;
 import 'providers/error_boundary_provider.dart';
 import 'providers/theme_provider.dart';
+import 'widgets/global_tts_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize environment variables
-  await Environment.initialize();
+  // Initialize environment variables (with fallback for missing .env)
+  try {
+    await Environment.initialize();
+  } catch (e) {
+    debugPrint('Warning: Could not load .env file: $e');
+    debugPrint('App will continue with default environment values');
+  }
+  
+  // Set up error handling to catch and display errors
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (kDebugMode) {
+      FlutterError.presentError(details);
+    }
+    debugPrint('Flutter Error: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+  };
   
   // Initialize Hive for local storage (required for auth persistence)
   await ensureHiveInitialized();
@@ -24,13 +39,6 @@ void main() async {
   
   // Initialize Supabase early to ensure session restoration works
   await ensureSupabaseInitialized();
-  
-  // Set up minimal error handling
-  FlutterError.onError = (FlutterErrorDetails details) {
-    if (kDebugMode) {
-      FlutterError.presentError(details);
-    }
-  };
 
   // Start app immediately - defer all heavy initialization
   runApp(
@@ -118,25 +126,45 @@ class OptimizedRiverpodObserver extends ProviderObserver {
   }
 }
 
+/// Helper function to determine if global TTS overlay should be shown
+bool _shouldShowGlobalTTS(BuildContext context) {
+  // Get the current route name
+  final route = ModalRoute.of(context);
+  final routeName = route?.settings.name;
+  
+  // Hide global TTS overlay on specific screens
+  if (routeName == '/profile' || routeName == '/create-forum-post') {
+    return false;
+  }
+  
+  // Show the global floating TTS button on all other screens
+  // It will intelligently detect the context and read appropriate content
+  return true;
+}
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
-    final themeState = ref.watch(themeNotifierProvider);
-    
-    return MaterialApp.router(
-      title: 'Karatapp',
-      debugShowCheckedModeBanner: false,
-      theme: themeState.isHighContrast ? AppTheme.highContrastLightTheme : AppTheme.lightTheme,
-      darkTheme: themeState.isHighContrast ? AppTheme.highContrastDarkTheme : AppTheme.darkTheme,
-      themeMode: themeState.flutterThemeMode,
-      routerConfig: router,
+    try {
+      final router = ref.watch(routerProvider);
+      final themeState = ref.watch(themeNotifierProvider);
+      
+      return MaterialApp.router(
+        title: 'Karatapp',
+        debugShowCheckedModeBanner: false,
+        theme: themeState.isHighContrast ? AppTheme.highContrastLightTheme : AppTheme.lightTheme,
+        darkTheme: themeState.isHighContrast ? AppTheme.highContrastDarkTheme : AppTheme.darkTheme,
+        themeMode: themeState.flutterThemeMode,
+        routerConfig: router,
       builder: (context, child) {
         // Global error handling for uncaught exceptions
         ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
+          // Log the error for debugging
+          debugPrint('ErrorWidget.builder called with: ${errorDetails.exception}');
+          debugPrint('Stack trace: ${errorDetails.stack}');
+          
           // Report error to global error boundary
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) {
@@ -158,52 +186,119 @@ class MyApp extends ConsumerWidget {
               color: Colors.red.shade50,
               padding: const EdgeInsets.all(16),
               child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.red.shade700,
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Something went wrong',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
                         color: Colors.red.shade700,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Please restart the app',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.red.shade600,
-                      ),
-                    ),
-                    if (kDebugMode) ...[
                       const SizedBox(height: 16),
                       Text(
-                        errorDetails.exception.toString(),
+                        'Something went wrong',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Please restart the app',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.red.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error: ${errorDetails.exception}',
                         style: const TextStyle(
                           fontSize: 12,
                           fontFamily: 'monospace',
+                          color: Colors.red,
                         ),
                         textAlign: TextAlign.center,
                       ),
+                      if (kDebugMode) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          'Stack: ${errorDetails.stack}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontFamily: 'monospace',
+                            color: Colors.grey,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
           );
         };
 
-        // Removed GlobalTTSOverlay as requested - no more accessibility floating button
-        return child ?? const SizedBox.shrink();
+        // Add global TTS overlay to all screens
+        return GlobalTTSOverlay(
+          enabled: _shouldShowGlobalTTS(context),
+          child: child ?? const SizedBox.shrink(),
+        );
       },
     );
+    } catch (e, stackTrace) {
+      debugPrint('Error in MyApp.build: $e');
+      debugPrint('Stack trace: $stackTrace');
+      
+      // Return a fallback app with basic theme
+      return MaterialApp(
+        title: 'Karatapp',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData.light(),
+        darkTheme: ThemeData.dark(),
+        home: Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'App Initialization Error',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Error: $e',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.red,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Restart the app
+                    runApp(const MyApp());
+                  },
+                  child: const Text('Restart App'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
   }
 }

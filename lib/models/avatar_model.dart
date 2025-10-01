@@ -262,7 +262,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'animal_lion',
-      name: 'Leeuw',
+      name: 'leet',
       assetPath: 'assets/avatars/photos/animals/lion.jpg',
       category: AvatarCategory.animals,
       type: AvatarType.preset,
@@ -359,7 +359,7 @@ class AvatarData {
       case AvatarCategory.martialArtsCharacters:
         return 'Vechtsporten';
       case AvatarCategory.karateItems:
-        return 'Dojo & Voorwerpen';
+        return 'Dojo & voorlezen';
     }
   }
 }

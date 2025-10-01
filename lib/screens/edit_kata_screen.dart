@@ -8,7 +8,6 @@ import '../providers/image_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/image_gallery.dart';
 import '../widgets/video_url_input_widget.dart';
-import '../widgets/context_aware_page_tts_button.dart';
 
 class EditKataScreen extends ConsumerStatefulWidget {
   final Kata kata;
@@ -394,12 +393,6 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         appBar: AppBar(
           title: const Text('Kata Bewerken'),
           actions: [
-            ContextAwarePageTTSButton(
-              context: PageTTSContext.kataForm,
-              isEdit: true,
-              iconSize: 24,
-              tooltip: 'Kata bewerken formulier voorlezen',
-            ),
             if (_hasChanges)
               IconButton(
                 icon: _isLoading 
@@ -912,11 +905,6 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
               const SizedBox(height: 80),
             ],
           ),
-        ),
-        floatingActionButton: CompactContextAwarePageTTSButton(
-          context: PageTTSContext.kataForm,
-          isEdit: true,
-          margin: const EdgeInsets.only(bottom: 16, right: 16),
         ),
       ),
     );

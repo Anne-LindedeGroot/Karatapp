@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../main.dart' show ensureSupabaseInitialized, ensureHiveInitialized;
 import '../core/storage/local_storage.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -44,16 +45,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _initializeApp() async {
     try {
-      // Run initialization in parallel for speed
-      await Future.wait([
-        ensureSupabaseInitialized(),
-        _initializeLocalStorage(),
-        // Minimum splash duration for smooth UX
-        Future.delayed(const Duration(milliseconds: 800)),
+      // Add timeout to prevent infinite loading
+      await Future.any([
+        _performInitialization(),
+        Future.delayed(const Duration(seconds: 10)), // 10 second timeout
       ]);
-      
-      // Wait for auth provider to initialize and restore session
-      await _waitForAuthInitialization();
       
       if (mounted) {
         setState(() {
@@ -70,6 +66,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         _navigateToApp(); // Continue anyway
       }
     }
+  }
+
+  Future<void> _performInitialization() async {
+    // Run initialization in parallel for speed
+    await Future.wait([
+      ensureSupabaseInitialized(),
+      _initializeLocalStorage(),
+      // Minimum splash duration for smooth UX
+      Future.delayed(const Duration(milliseconds: 800)),
+    ]);
+    
+    // Wait for auth provider to initialize and restore session
+    await _waitForAuthInitialization();
   }
 
   Future<void> _waitForAuthInitialization() async {
@@ -126,74 +135,77 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // App logo/icon
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.sports_martial_arts,
-                  size: 60,
-                  color: Colors.orange,
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // App name
-              const Text(
-                'Karatapp',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Tagline
-              Text(
-                'Jouw Karate Reis',
-                style: TextStyle(
-                  fontSize: 16,
-                      color: Colors.white.withValues(alpha: 0.8),
-                ),
-              ),
-              
-              const SizedBox(height: 40),
-              
-              // Loading indicator
-              if (!_isInitialized)
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withValues(alpha: 0.8),
-                    ),
+    return GlobalTTSOverlay(
+      enabled: true,
+      child: Scaffold(
+        backgroundColor: const Color(0xFF4CAF50), // Use a fixed green color
+        body: Center(
+          child: FadeTransition(
+            opacity: _fadeAnimation,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // App logo/icon
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.sports_martial_arts,
+                    size: 60,
+                    color: Colors.orange,
                   ),
                 ),
-            ],
+                
+                const SizedBox(height: 24),
+                
+                // App name
+                const Text(
+                  'Karatapp',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Tagline
+                Text(
+                  'Jouw Karate Reis',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+                
+                const SizedBox(height: 40),
+                
+                // Loading indicator
+                if (!_isInitialized)
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/role_provider.dart';
-import '../services/universal_tts_service.dart';
 import '../services/role_service.dart';
+import 'universal_tts_service.dart';
 
 /// Context-aware TTS service that provides specific reading functionality for different screens and components
 class ContextAwarePageTTSService {
@@ -20,7 +20,7 @@ class ContextAwarePageTTSService {
     try {
       final content = _extractProfileContent(context, ref);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      await accessibilityNotifier.speak('Profiel pagina. $content');
+      await accessibilityNotifier.speak('Je bent nu op profiel scherm. $content');
     } catch (e) {
       debugPrint('Error reading profile screen: $e');
     }
@@ -32,12 +32,36 @@ class ContextAwarePageTTSService {
     if (!accessibilityState.isTextToSpeechEnabled) return;
 
     try {
-      final content = _extractFormContent(context);
+      final content = _extractKataFormContent(context);
       final formType = isEdit ? 'Kata bewerken' : 'Nieuwe kata aanmaken';
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
       await accessibilityNotifier.speak('$formType formulier. $content');
     } catch (e) {
       debugPrint('Error reading kata form: $e');
+    }
+  }
+
+  /// Read kata form description dialog content
+  static Future<void> readKataFormDescriptionDialog(BuildContext context, WidgetRef ref) async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    if (!accessibilityState.isTextToSpeechEnabled) return;
+
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      
+      // Stop any existing TTS before starting dialog reading
+      await accessibilityNotifier.stopSpeaking();
+      
+      // Small delay to ensure previous TTS is fully stopped
+      await Future.delayed(const Duration(milliseconds: 100));
+      
+      // Check if context is still mounted after async operation
+      if (!context.mounted) return;
+      
+      final content = _extractKataDescriptionDialogContent(context);
+      await accessibilityNotifier.speak(content);
+    } catch (e) {
+      debugPrint('Error reading kata description dialog: $e');
     }
   }
 
@@ -240,7 +264,7 @@ class ContextAwarePageTTSService {
       final authState = ref.read(authNotifierProvider);
       final currentUser = authState.user;
       
-      content.write('Gebruikersprofiel. ');
+      content.write('Gebruikersprofiel sectie. ');
       
       // Read email
       if (currentUser?.email != null) {
@@ -268,6 +292,38 @@ class ContextAwarePageTTSService {
       content.write('Er is een knop beschikbaar om je naam bij te werken. ');
       content.write('Je kunt ook je avatar wijzigen door erop te tikken. ');
       
+      // Add accessibility settings section
+      content.write('Toegankelijkheid sectie. ');
+      content.write('Spraakknop weergeven schakelaar beschikbaar. ');
+      content.write('Deze schakelaar bepaalt of de spraakknop op alle schermen wordt getoond. ');
+      
+      // Extract any additional text from the screen
+      try {
+        final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffold?.body != null) {
+          final bodyText = UniversalTTSService.extractAllTextFromWidget(scaffold!.body!);
+          final lines = bodyText.split('\n').where((line) => line.trim().isNotEmpty).toList();
+          
+          // Look for any additional content we might have missed
+          for (final line in lines) {
+            final trimmedLine = line.trim();
+            if (trimmedLine.length > 10 && 
+                !trimmedLine.contains('Gebruikersprofiel') &&
+                !trimmedLine.contains('E-mail') &&
+                !trimmedLine.contains('Rol') &&
+                !trimmedLine.contains('Volledige naam') &&
+                !trimmedLine.contains('Toegankelijkheid') &&
+                !trimmedLine.contains('Spraakknop') &&
+                !trimmedLine.contains('knop') &&
+                !trimmedLine.contains('invoerveld')) {
+              content.write('$trimmedLine. ');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error extracting additional profile content: $e');
+      }
+      
     } catch (e) {
       debugPrint('Error extracting profile content: $e');
       content.write('Profiel pagina geladen. ');
@@ -283,6 +339,11 @@ class ContextAwarePageTTSService {
     final bodyText = UniversalTTSService.extractAllTextFromWidget(scaffold!.body!);
     
     final StringBuffer content = StringBuffer();
+    
+    // Check if this is a forum post form
+    if (bodyText.contains('Nieuw Bericht Maken') || bodyText.contains('Categorie')) {
+      return _extractForumPostFormContent(context);
+    }
     
     // Look for form elements
     final lines = bodyText.split('\n').where((line) => line.trim().isNotEmpty).toList();
@@ -307,6 +368,201 @@ class ContextAwarePageTTSService {
     }
     
     return content.toString().isNotEmpty ? content.toString() : 'Formulier geladen.';
+  }
+
+  /// Extract content from forum post form
+  static String _extractForumPostFormContent(BuildContext context) {
+    final StringBuffer content = StringBuffer();
+    
+    try {
+      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+      if (scaffold?.body != null) {
+        final bodyText = UniversalTTSService.extractAllTextFromWidget(scaffold!.body!);
+        
+        content.write('Nieuw forum bericht formulier. ');
+        
+        // Extract form sections
+        if (bodyText.contains('Categorie')) {
+          content.write('Categorie selectie sectie. ');
+          content.write('Beschikbare categorieën: Algemene discussies, Kata aanvragen, Technieken, Evenementen, Feedback. ');
+          content.write('Selecteer een categorie door erop te tikken. ');
+        }
+        
+        if (bodyText.contains('Titel')) {
+          content.write('Titel invoerveld - voer een beschrijvende titel in voor je bericht. ');
+        }
+        
+        if (bodyText.contains('Inhoud')) {
+          content.write('Inhoud invoerveld - schrijf hier de inhoud van je bericht. ');
+        }
+        
+        // Try to extract current text content from textareas
+        final textareaContent = _extractTextareaContent(context);
+        if (textareaContent.isNotEmpty) {
+          content.write(textareaContent);
+        }
+        
+        // Add form completion information
+        content.write('Vul alle velden in en tik op de publiceren knop om je bericht te plaatsen. ');
+      }
+    } catch (e) {
+      debugPrint('Error extracting forum post form content: $e');
+      content.write('Forum bericht formulier geladen. ');
+    }
+    
+    return content.toString().isNotEmpty ? content.toString() : 'Forum bericht formulier geladen.';
+  }
+
+  /// Extract kata form content specifically for the add kata dialog
+  static String _extractKataFormContent(BuildContext context) {
+    final StringBuffer content = StringBuffer();
+    
+    // Look for the dialog content directly
+    final dialog = context.findAncestorWidgetOfExactType<AlertDialog>();
+    if (dialog != null) {
+      final dialogText = UniversalTTSService.extractAllTextFromWidget(dialog);
+      
+      content.write('Nieuw kata toevoegen formulier. ');
+      
+      // Extract form fields systematically
+      if (dialogText.contains('Kata Naam')) {
+        content.write('Kata Naam invoerveld - voer de naam van je kata in. ');
+      }
+      
+      if (dialogText.contains('Stijl')) {
+        content.write('Stijl invoerveld - voer de karate stijl in, bijvoorbeeld Wado Ryu. ');
+      }
+      
+      if (dialogText.contains('Beschrijving')) {
+        content.write('Beschrijving invoerveld - voer een beschrijving van je kata in. ');
+      }
+      
+      // Image section
+      if (dialogText.contains('Afbeeldingen')) {
+        content.write('Afbeeldingen sectie - voeg foto\'s van je kata toe. ');
+        content.write('Galerij knop - selecteer afbeeldingen uit je galerij. ');
+        content.write('Camera knop - maak een nieuwe foto met je camera. ');
+        content.write('Je kunt afbeeldingen herordenen door ze vast te houden en te slepen. ');
+      }
+      
+      // Video section
+      if (dialogText.contains('Video URLs')) {
+        content.write('Video URLs sectie - voeg video links toe. ');
+        content.write('Voer video URL in invoerveld - bijvoorbeeld YouTube links. ');
+      }
+      
+      // Action buttons
+      if (dialogText.contains('Annuleren')) {
+        content.write('Annuleren knop - sluit het formulier zonder op te slaan. ');
+      }
+      
+      if (dialogText.contains('Kata Toevoegen')) {
+        content.write('Kata Toevoegen knop - sla je kata op en voeg het toe aan de collectie. ');
+      }
+      
+      return content.toString();
+    }
+    
+    // Enhanced form extraction for full-screen kata forms
+    return _extractFullScreenKataFormContent(context);
+  }
+
+  /// Extract content from full-screen kata forms (create/edit kata screens)
+  static String _extractFullScreenKataFormContent(BuildContext context) {
+    final StringBuffer content = StringBuffer();
+    
+    try {
+      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+      if (scaffold?.body != null) {
+        final bodyText = UniversalTTSService.extractAllTextFromWidget(scaffold!.body!);
+        
+        content.write('Kata formulier. ');
+        
+        // Extract form sections
+        if (bodyText.contains('Kata Informatie')) {
+          content.write('Kata Informatie sectie. ');
+        }
+        
+        if (bodyText.contains('Kata Naam')) {
+          content.write('Kata Naam invoerveld - voer de naam van je kata in. ');
+        }
+        
+        if (bodyText.contains('Stijl')) {
+          content.write('Stijl invoerveld - voer de karate stijl in. ');
+        }
+        
+        if (bodyText.contains('Beschrijving')) {
+          content.write('Beschrijving invoerveld - tik om beschrijving toe te voegen of te bewerken. ');
+        }
+        
+        if (bodyText.contains('Privé Kata')) {
+          content.write('Privé Kata schakelaar - maak je kata privé of openbaar. ');
+        }
+        
+        if (bodyText.contains('Afbeeldingen')) {
+          content.write('Afbeeldingen sectie - voeg foto\'s van je kata toe. ');
+        }
+        
+        if (bodyText.contains('Video')) {
+          content.write('Video sectie - voeg video links toe. ');
+        }
+        
+        // Try to extract current text content from textareas
+        final textareaContent = _extractTextareaContent(context);
+        if (textareaContent.isNotEmpty) {
+          content.write(textareaContent);
+        }
+        
+        // Add form completion information
+        content.write('Vul alle verplichte velden in en tik op de opslaan knop om je kata op te slaan. ');
+      }
+    } catch (e) {
+      debugPrint('Error extracting full-screen kata form content: $e');
+      content.write('Kata formulier geladen. ');
+    }
+    
+    return content.toString().isNotEmpty ? content.toString() : 'Kata formulier geladen.';
+  }
+
+
+  /// Extract content from textarea/TextFormField controllers
+  static String _extractTextareaContent(BuildContext context) {
+    final StringBuffer content = StringBuffer();
+    
+    try {
+      // Try to find TextFormField widgets and extract their content
+      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+      if (scaffold?.body != null) {
+        final bodyText = UniversalTTSService.extractAllTextFromWidget(scaffold!.body!);
+        
+        // Look for text content that might be from textareas
+        final lines = bodyText.split('\n').where((line) => line.trim().isNotEmpty).toList();
+        
+        for (final line in lines) {
+          final trimmedLine = line.trim();
+          // Look for content that appears to be user input (longer text, not UI labels)
+          if (trimmedLine.length > 20 && 
+              !trimmedLine.contains('invoerveld') && 
+              !trimmedLine.contains('knop') &&
+              !trimmedLine.contains('Tik om') &&
+              !trimmedLine.contains('Voer') &&
+              !trimmedLine.contains('Kata Naam') &&
+              !trimmedLine.contains('Stijl') &&
+              !trimmedLine.contains('Beschrijving')) {
+            content.write('Huidige tekst: $trimmedLine. ');
+          }
+        }
+      }
+      
+      if (content.isEmpty) {
+        content.write('Tekst invoerveld beschikbaar voor beschrijving. ');
+      }
+    } catch (e) {
+      debugPrint('Error extracting textarea content: $e');
+      content.write('Tekst invoerveld beschikbaar voor beschrijving. ');
+    }
+    
+    return content.toString();
   }
 
   static String _extractCommentsContent(BuildContext context) {
@@ -384,27 +640,51 @@ class ContextAwarePageTTSService {
     
     final StringBuffer content = StringBuffer();
     
-    // Look for post-like content
+    // Look for post-like content with better filtering
     final lines = bodyText.split('\n').where((line) => line.trim().isNotEmpty).toList();
     int postCount = 0;
     
+    content.write('Forum berichten overzicht. ');
+    
     for (final line in lines) {
       final trimmedLine = line.trim();
-      if (trimmedLine.length > 15 && !trimmedLine.contains('knop') && !trimmedLine.contains('invoerveld')) {
+      // Better filtering for actual post content
+      if (trimmedLine.length > 10 && 
+          !trimmedLine.contains('knop') && 
+          !trimmedLine.contains('invoerveld') &&
+          !trimmedLine.contains('Zoek berichten') &&
+          !trimmedLine.contains('Berichten verversen') &&
+          !trimmedLine.contains('Nieuw bericht maken') &&
+          !trimmedLine.contains('Alle') &&
+          !trimmedLine.contains('Algemene discussies') &&
+          !trimmedLine.contains('Kata aanvragen') &&
+          !trimmedLine.contains('Technieken') &&
+          !trimmedLine.contains('Evenementen') &&
+          !trimmedLine.contains('Feedback') &&
+          !trimmedLine.contains('d geleden') &&
+          !trimmedLine.contains('u geleden') &&
+          !trimmedLine.contains('m geleden') &&
+          !trimmedLine.contains('Zojuist') &&
+          !trimmedLine.contains('Geen berichten gevonden')) {
         postCount++;
-        if (postCount <= 3) { // Limit to first 3 posts
+        if (postCount <= 5) { // Increased limit to 5 posts
           content.write('Bericht $postCount: $trimmedLine. ');
         }
       }
     }
     
-    if (postCount > 3) {
-      content.write('En ${postCount - 3} meer berichten. ');
+    if (postCount > 5) {
+      content.write('En ${postCount - 5} meer berichten beschikbaar. ');
     }
     
     if (postCount == 0) {
-      content.write('Nog geen berichten geplaatst. ');
+      content.write('Nog geen berichten geplaatst in het forum. ');
     }
+    
+    // Add forum navigation information
+    content.write('Je kunt op een bericht tikken om de details te bekijken. ');
+    content.write('Gebruik de zoekbalk om specifieke berichten te vinden. ');
+    content.write('Filter berichten op categorie met de chips bovenaan. ');
     
     return content.toString().isNotEmpty ? content.toString() : 'Forum berichten geladen.';
   }
@@ -422,26 +702,36 @@ class ContextAwarePageTTSService {
     
     if (lines.isNotEmpty) {
       // First significant line is likely the post title/content
-      content.write('Bericht inhoud: ${lines.first}. ');
+      content.write('Forum bericht inhoud: ${lines.first}. ');
+      
+      // Look for comments section
+      content.write('Reacties sectie: ');
       
       // Look for comments
       int commentCount = 0;
       for (int i = 1; i < lines.length; i++) {
         final trimmedLine = lines[i].trim();
-        if (trimmedLine.length > 15 && !trimmedLine.contains('knop')) {
+        if (trimmedLine.length > 15 && !trimmedLine.contains('knop') && !trimmedLine.contains('invoerveld')) {
           commentCount++;
-          if (commentCount <= 3) {
+          if (commentCount <= 5) { // Increased limit for comments
             content.write('Reactie $commentCount: $trimmedLine. ');
           }
         }
       }
       
-      if (commentCount > 3) {
-        content.write('En ${commentCount - 3} meer reacties. ');
+      if (commentCount > 5) {
+        content.write('En ${commentCount - 5} meer reacties. ');
       }
+      
+      if (commentCount == 0) {
+        content.write('Nog geen reacties geplaatst op dit bericht. ');
+      }
+      
+      // Add information about comment input field
+      content.write('Je kunt een nieuwe reactie plaatsen door te tikken op het reactie invoerveld. ');
     }
     
-    return content.toString().isNotEmpty ? content.toString() : 'Bericht details geladen.';
+    return content.toString().isNotEmpty ? content.toString() : 'Forum bericht details geladen.';
   }
 
   /// Extract user management content directly from RoleService data
@@ -592,19 +882,23 @@ class ContextAwarePageTTSService {
         final trimmedLine = line.trim();
         if (trimmedLine.length > 10 && !trimmedLine.contains('knop') && !trimmedLine.contains('invoerveld')) {
           kataCount++;
-          if (kataCount <= 3) { // Limit to first 3 katas
+          if (kataCount <= 5) { // Increased limit for katas
             content.write('Kata $kataCount: $trimmedLine. ');
           }
         }
       }
       
-      if (kataCount > 3) {
-        content.write('En ${kataCount - 3} meer kata\'s beschikbaar. ');
+      if (kataCount > 5) {
+        content.write('En ${kataCount - 5} meer kata\'s beschikbaar. ');
       }
       
       if (kataCount == 0) {
         content.write('Kata overzicht geladen. ');
       }
+      
+      // Add information about search functionality
+      content.write('Je kunt kata\'s zoeken met de zoekbalk bovenaan. ');
+      content.write('Tik op een kata om de details te bekijken. ');
     }
     
     return content.toString().isNotEmpty ? content.toString() : 'Hoofdpagina met app balk geladen.';
@@ -616,13 +910,14 @@ class ContextAwarePageTTSService {
     // Since this is a popup menu, we'll provide a comprehensive description
     content.write('Gebruikersmenu geopend. ');
     content.write('Beschikbare opties: ');
-    content.write('Profiel - ga naar je profiel pagina. ');
+    content.write('Profiel - ga naar je profiel pagina om je gegevens te bekijken en te bewerken. ');
     content.write('Mijn Favorieten - bekijk je opgeslagen favoriete kata\'s en forum berichten. ');
-    content.write('Gebruikersbeheer - beheer gebruikers en rollen, alleen voor beheerders. ');
-    content.write('Afbeeldingen opruimen - verwijder verweesde afbeeldingen uit de opslag. ');
-    content.write('Thema instellingen - kies tussen licht, donker of systeem thema. ');
-    content.write('Hoog contrast - schakel hoog contrast modus in of uit voor betere zichtbaarheid. ');
-    content.write('Uitloggen - log uit van de applicatie. ');
+    content.write('Gebruikersbeheer - beheer gebruikers en rollen, alleen beschikbaar voor beheerders. ');
+    content.write('Afbeeldingen opruimen - verwijder verweesde afbeeldingen uit de opslag om ruimte vrij te maken. ');
+    content.write('Thema instellingen - kies tussen licht, donker of systeem thema voor de interface. ');
+    content.write('Hoog contrast - schakel hoog contrast modus in of uit voor betere zichtbaarheid van tekst en elementen. ');
+    content.write('Uitloggen - log uit van de applicatie en keer terug naar het inlogscherm. ');
+    content.write('Tik op een optie om deze te selecteren, of tik buiten het menu om het te sluiten. ');
     
     return content.toString();
   }
@@ -638,6 +933,74 @@ class ContextAwarePageTTSService {
     content.write('Eerste knop: "Nee dankje makker!" - om het uitloggen te annuleren en in de app te blijven. ');
     content.write('Tweede knop: "Ja tuurlijk!" - om te bevestigen en uit te loggen van de applicatie. ');
     content.write('Kies "Nee dankje makker!" om te blijven, of "Ja tuurlijk!" om uit te loggen.');
+    
+    return content.toString();
+  }
+
+  static String _extractKataDescriptionDialogContent(BuildContext context) {
+    final StringBuffer content = StringBuffer();
+    
+    // Read the full form content from the background scaffold, not just the dialog
+    final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+    if (scaffold?.body != null) {
+      final bodyText = UniversalTTSService.extractAllTextFromWidget(scaffold!.body!);
+      
+      content.write('Nieuw kata toevoegen formulier. ');
+      content.write('Titel: Nieuwe Kata Maken. ');
+      
+      // Look for form fields in a structured way
+      if (bodyText.contains('Kata Naam')) {
+        content.write('Kata Naam invoerveld. ');
+      }
+      
+      if (bodyText.contains('Stijl')) {
+        content.write('Stijl invoerveld. ');
+      }
+      
+      if (bodyText.contains('Beschrijving')) {
+        content.write('Beschrijving invoerveld. ');
+      }
+      
+      if (bodyText.contains('Privé Kata')) {
+        content.write('Privé Kata schakelaar. ');
+      }
+      
+      // Image section
+      if (bodyText.contains('Galerij')) {
+        content.write('Afbeeldingen sectie. ');
+        content.write('Galerij knop. ');
+      }
+      
+      if (bodyText.contains('Camera')) {
+        content.write('Camera knop. ');
+      }
+      
+      // Video section
+      if (bodyText.contains('Video')) {
+        content.write('Video URLs sectie. ');
+        content.write('Voer video URL in invoerveld. ');
+      }
+      
+      // Bottom buttons
+      if (bodyText.contains('Annuleren')) {
+        content.write('Annuleren knop. ');
+      }
+      
+      if (bodyText.contains('Kata Toevoegen') || bodyText.contains('Opslaan')) {
+        content.write('Kata Toevoegen knop. ');
+      }
+      
+      // Current dialog context
+      content.write('Je bent nu in de beschrijving bewerken dialog. ');
+      content.write('Voer hier de volledige beschrijving van je kata in. ');
+      content.write('Tik op Opslaan om je beschrijving op te slaan en terug te gaan naar het formulier.');
+    }
+    
+    if (content.length == 0) {
+      content.write('Nieuw kata toevoegen formulier. ');
+      content.write('Kata beschrijving bewerken dialog geopend. ');
+      content.write('Voer hier je kata beschrijving in en tik op Opslaan.');
+    }
     
     return content.toString();
   }
@@ -688,6 +1051,23 @@ class ContextAwarePageTTSService {
     } catch (e) {
       debugPrint('Error reading theme settings: $e');
     }
+  }
+
+  // Public static methods for content extraction (used by UniversalTTSService)
+  
+  /// Extract forum posts content for TTS
+  static String extractForumPostsContent(BuildContext context) {
+    return _extractForumPostsContent(context);
+  }
+
+  /// Extract forum post detail content for TTS
+  static String extractForumPostDetailContent(BuildContext context) {
+    return _extractForumPostDetailContent(context);
+  }
+
+  /// Extract form content for TTS
+  static String extractFormContent(BuildContext context) {
+    return _extractFormContent(context);
   }
 }
 

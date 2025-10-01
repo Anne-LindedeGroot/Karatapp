@@ -5,8 +5,6 @@ import '../models/forum_models.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/forum_provider.dart';
-import '../providers/accessibility_provider.dart';
-import '../services/favorites_reader_service.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
@@ -48,9 +46,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     final forumState = ref.watch(forumNotifierProvider);
     final favoriteKatasAsync = ref.watch(userFavoriteKatasProvider);
     final favoriteForumPostsAsync = ref.watch(userFavoriteForumPostsProvider);
-    final isTextToSpeechEnabled = ref.watch(isTextToSpeechEnabledProvider);
-    final isSpeaking = ref.watch(isSpeakingProvider);
-    final favoritesReaderService = ref.watch(favoritesReaderServiceProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -91,23 +86,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           ],
         ),
         actions: [
-          // TTS Button
-          if (isTextToSpeechEnabled)
-            IconButton(
-              icon: Icon(
-                isSpeaking ? Icons.stop : Icons.headphones,
-                color: isSpeaking ? Colors.red : null,
-              ),
-              onPressed: () => _handleTtsButtonPress(
-                favoriteKatasAsync,
-                favoriteForumPostsAsync,
-                kataState,
-                forumState,
-                isSpeaking,
-                favoritesReaderService,
-              ),
-              tooltip: isSpeaking ? 'Stop voorlezen' : 'Lees ${_getCurrentTabName()} voor',
-            ),
           // Refresh Button
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -188,90 +166,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     );
   }
 
-  /// Handle TTS button press - reads current tab or stops reading
-  void _handleTtsButtonPress(
-    AsyncValue<List<int>> favoriteKatasAsync,
-    AsyncValue<List<int>> favoriteForumPostsAsync,
-    dynamic kataState,
-    dynamic forumState,
-    bool isSpeaking,
-    FavoritesReaderService favoritesReaderService,
-  ) {
-    if (isSpeaking) {
-      // Stop reading if currently speaking
-      favoritesReaderService.stopReading();
-      return;
-    }
-
-    // Read current tab content
-    final currentIndex = _tabController.index;
-    
-    if (currentIndex == 0) {
-      // Read Katas tab
-      favoriteKatasAsync.when(
-        data: (favoriteKataIds) {
-          final favoriteKatas = kataState.katas
-              .where((kata) => favoriteKataIds.contains(kata.id))
-              .cast<Kata>()
-              .toList();
-          favoritesReaderService.readKatasTab(favoriteKatas);
-        },
-        loading: () {
-          // Show loading message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Favoriete kata\'s worden geladen...'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        error: (error, _) {
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Fout bij laden kata\'s: $error'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        },
-      );
-    } else if (currentIndex == 1) {
-      // Read Forum tab
-      favoriteForumPostsAsync.when(
-        data: (favoriteForumPostIds) {
-          final favoriteForumPosts = forumState.posts
-              .where((post) => favoriteForumPostIds.contains(post.id))
-              .cast<ForumPost>()
-              .toList();
-          favoritesReaderService.readForumTab(favoriteForumPosts);
-        },
-        loading: () {
-          // Show loading message
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Favoriete forumberichten worden geladen...'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-        error: (error, _) {
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Fout bij laden forumberichten: $error'),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        },
-      );
-    }
-  }
-
-  /// Get current tab name for tooltip
-  String _getCurrentTabName() {
-    final currentIndex = _tabController.index;
-    return currentIndex == 0 ? 'kata favorieten' : 'forum favorieten';
-  }
 
   Widget _buildFavoriteKatasTab(List<Kata> favoriteKatas, bool isLoading) {
     if (isLoading) {

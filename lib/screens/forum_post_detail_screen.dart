@@ -6,7 +6,6 @@ import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../widgets/avatar_widget.dart';
-import '../widgets/tts_headphones_button.dart';
 
 class ForumPostDetailScreen extends ConsumerStatefulWidget {
   final int postId;
@@ -1150,11 +1149,6 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Forum Post'),
-        actions: [
-          AppBarTTSButton(
-            customTestText: 'Spraak is nu ingeschakeld voor dit forumbericht',
-          ),
-        ],
       ),
       body: Column(
         children: [

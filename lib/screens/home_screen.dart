@@ -6,8 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
-import '../widgets/context_aware_page_tts_button.dart';
-import '../services/context_aware_page_tts_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
@@ -57,9 +55,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 'Verweesde afbeeldingen opruimen?',
                 semanticsLabel: 'Afbeeldingen opruimen bevestiging popup',
               ),
-            ),
-            DialogContextAwarePageTTSButton(
-              context: PageTTSContext.cleanImagesPopup,
             ),
           ],
         ),
@@ -158,9 +153,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         title: Row(
           children: [
             Expanded(child: Text('$kataName verwijderen?')),
-            DialogContextAwarePageTTSButton(
-              context: PageTTSContext.deletePopup,
-            ),
           ],
         ),
         content: const Text(
@@ -239,9 +231,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 'Uitloggen',
                 semanticsLabel: 'Uitloggen bevestiging popup',
               ),
-            ),
-            DialogContextAwarePageTTSButton(
-              context: PageTTSContext.logoutPopup,
             ),
           ],
         ),
@@ -351,44 +340,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
            errorLower.contains('no internet');
   }
 
-  /// Handle TTS toggle for katas
-  Future<void> _handleKatasTTSToggle() async {
-    try {
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      final katas = ref.read(katasProvider);
-      
-      if (katas.isEmpty) {
-        await accessibilityNotifier.speak('Er zijn geen kata\'s om voor te lezen.');
-        return;
-      }
-      
-      await accessibilityNotifier.speak('Er ${katas.length == 1 ? 'is' : 'zijn'} ${katas.length} kata${katas.length == 1 ? '' : '\'s'} beschikbaar. Ik lees ze nu voor.');
-      
-      for (int i = 0; i < katas.length && i < 5; i++) { // Limit to first 5 katas
-        final kata = katas[i];
-        await accessibilityNotifier.speak('Kata ${i + 1}: ${kata.name}. Stijl: ${kata.style}. Beschrijving: ${kata.description}');
-        
-        if (i < katas.length - 1 && i < 4) {
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-      }
-      
-      if (katas.length > 5) {
-        await accessibilityNotifier.speak('Er zijn nog ${katas.length - 5} kata\'s meer beschikbaar.');
-      }
-      
-      await accessibilityNotifier.speak('Klaar met voorlezen van kata\'s.');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error reading katas: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   /// Get appropriate icon for font size
   IconData _getFontSizeIcon(AccessibilityFontSize fontSize) {
@@ -445,12 +396,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Direct TTS button for katas
-                    IconButton(
-                      icon: const Icon(Icons.headphones),
-                      onPressed: () => _handleKatasTTSToggle(),
-                      tooltip: 'Lees alle kata\'s voor',
-                    ),
                     
                     // Combined accessibility settings popup
                     PopupMenuButton<String>(
@@ -581,9 +526,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
-                        CompactContextAwarePageTTSButton(
-                          context: PageTTSContext.menu,
-                        ),
                       ],
                     ),
                     enabled: false,
@@ -595,10 +537,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Icon(Icons.person, size: 20),
                         const SizedBox(width: 12),
                         const Expanded(child: Text('Profiel')),
-                        CompactContextAwarePageTTSButton(
-                          context: PageTTSContext.profile,
-                          margin: const EdgeInsets.all(2),
-                        ),
                       ],
                     ),
                     onTap: () {
@@ -616,10 +554,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Icon(Icons.favorite, size: 20),
                         const SizedBox(width: 12),
                         const Expanded(child: Text('Mijn Favorieten')),
-                        CompactContextAwarePageTTSButton(
-                          context: PageTTSContext.favorites,
-                          margin: const EdgeInsets.all(2),
-                        ),
                       ],
                     ),
                     onTap: () {
@@ -639,10 +573,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Icon(Icons.admin_panel_settings, size: 20),
                         const SizedBox(width: 12),
                         const Expanded(child: Text('Gebruikersbeheer')),
-                        CompactContextAwarePageTTSButton(
-                          context: PageTTSContext.userManagement,
-                          margin: const EdgeInsets.all(2),
-                        ),
                       ],
                     ),
                     onTap: () {
@@ -660,10 +590,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const Icon(Icons.cleaning_services, size: 20),
                           const SizedBox(width: 12),
                           const Expanded(child: Text('Afbeeldingen opruimen')),
-                          CompactContextAwarePageTTSButton(
-                            context: PageTTSContext.cleanImagesPopup,
-                            margin: const EdgeInsets.all(2),
-                          ),
                         ],
                       ),
                       onTap: () {
@@ -693,15 +619,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 const SizedBox(width: 12),
                                 const Text('Thema'),
                                 const Spacer(),
-                                IconButton(
-                                  icon: const Icon(Icons.headphones, size: 16),
-                                  onPressed: () async {
-                                    final currentTheme = themeState.themeMode == AppThemeMode.light ? 'Licht' :
-                                                       themeState.themeMode == AppThemeMode.dark ? 'Donker' : 'Systeem';
-                                    await ContextAwarePageTTSService.readThemeSettings(context, ref, 'theme', currentTheme);
-                                  },
-                                  tooltip: 'Thema instelling voorlezen',
-                                ),
                               ],
                             ),
                             Padding(
@@ -764,14 +681,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             const Icon(Icons.contrast, size: 20),
                             const SizedBox(width: 12),
                             const Expanded(child: Text('Hoog Contrast')),
-                            IconButton(
-                              icon: const Icon(Icons.headphones, size: 16),
-                              onPressed: () async {
-                                final contrastStatus = themeState.isHighContrast ? 'aan' : 'uit';
-                                await ContextAwarePageTTSService.readThemeSettings(context, ref, 'contrast', contrastStatus);
-                              },
-                              tooltip: 'Hoog contrast instelling voorlezen',
-                            ),
                             Switch(
                               value: themeState.isHighContrast,
                               onChanged: (value) {
@@ -791,10 +700,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         const Icon(Icons.logout, size: 20, color: Colors.red),
                         const SizedBox(width: 12),
                         const Expanded(child: Text('Uitloggen', style: TextStyle(color: Colors.red))),
-                        CompactContextAwarePageTTSButton(
-                          context: PageTTSContext.logoutPopup,
-                          margin: const EdgeInsets.all(2),
-                        ),
                       ],
                     ),
                     onTap: () {
@@ -919,9 +824,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               title: Row(
                 children: [
                   const Expanded(child: Text("Nieuwe Kata Toevoegen")),
-                  DialogContextAwarePageTTSButton(
-                    context: PageTTSContext.kataForm,
-                  ),
                 ],
               ),
               content: SizedBox(

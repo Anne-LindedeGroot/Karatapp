@@ -210,7 +210,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   Future<void> _disposeControllers() async {
     _errorDelayTimer?.cancel();
     _chewieController?.dispose();
-    await _videoPlayerController.dispose();
+    if (_isInitialized) {
+      await _videoPlayerController.dispose();
+    }
     _chewieController = null;
   }
 

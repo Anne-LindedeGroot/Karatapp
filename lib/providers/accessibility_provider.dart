@@ -21,6 +21,7 @@ class AccessibilityState {
   final double speechPitch;
   final bool useHeadphones;
   final bool isSpeaking;
+  final bool showTTSButton;
 
   const AccessibilityState({
     this.fontSize = AccessibilityFontSize.normal,
@@ -30,6 +31,7 @@ class AccessibilityState {
     this.speechPitch = 1.0,
     this.useHeadphones = true,
     this.isSpeaking = false,
+    this.showTTSButton = true,
   });
 
   AccessibilityState copyWith({
@@ -40,6 +42,7 @@ class AccessibilityState {
     double? speechPitch,
     bool? useHeadphones,
     bool? isSpeaking,
+    bool? showTTSButton,
   }) {
     return AccessibilityState(
       fontSize: fontSize ?? this.fontSize,
@@ -49,6 +52,7 @@ class AccessibilityState {
       speechPitch: speechPitch ?? this.speechPitch,
       useHeadphones: useHeadphones ?? this.useHeadphones,
       isSpeaking: isSpeaking ?? this.isSpeaking,
+      showTTSButton: showTTSButton ?? this.showTTSButton,
     );
   }
 
@@ -116,6 +120,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   static const String _speechRateKey = 'accessibility_speech_rate';
   static const String _speechPitchKey = 'accessibility_speech_pitch';
   static const String _useHeadphonesKey = 'accessibility_use_headphones';
+  static const String _showTTSButtonKey = 'accessibility_show_tts_button';
 
   late FlutterTts _flutterTts;
   bool _isTtsInitialized = false;
@@ -164,6 +169,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       });
       
       _isTtsInitialized = true;
+      debugPrint('TTS initialized successfully with Dutch language (nl-NL)');
     } catch (e) {
       debugPrint('Error initializing TTS: $e');
     }
@@ -238,6 +244,9 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       // Load headphones setting
       final useHeadphones = prefs.getBool(_useHeadphonesKey) ?? true;
 
+      // Load TTS button visibility setting
+      final showTTSButton = prefs.getBool(_showTTSButtonKey) ?? true;
+
       state = AccessibilityState(
         fontSize: fontSize,
         isDyslexiaFriendly: isDyslexiaFriendly,
@@ -245,6 +254,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
         speechRate: speechRate,
         speechPitch: speechPitch,
         useHeadphones: useHeadphones,
+        showTTSButton: showTTSButton,
       );
 
       // Update TTS settings if initialized
@@ -268,6 +278,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       await prefs.setDouble(_speechRateKey, state.speechRate);
       await prefs.setDouble(_speechPitchKey, state.speechPitch);
       await prefs.setBool(_useHeadphonesKey, state.useHeadphones);
+      await prefs.setBool(_showTTSButtonKey, state.showTTSButton);
     } catch (e) {
       debugPrint('Error saving accessibility preferences: $e');
     }
@@ -353,6 +364,18 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     await setUseHeadphones(!state.useHeadphones);
   }
 
+  /// Set TTS button visibility
+  Future<void> setShowTTSButton(bool show) async {
+    state = state.copyWith(showTTSButton: show);
+    await _saveAccessibilityToPreferences();
+  }
+
+  /// Toggle TTS button visibility
+  Future<void> toggleShowTTSButton() async {
+    final newValue = !state.showTTSButton;
+    await setShowTTSButton(newValue);
+  }
+
   /// Speak text using text-to-speech
   Future<void> speak(String text) async {
     if (!state.isTextToSpeechEnabled || !_isTtsInitialized) return;
@@ -361,12 +384,16 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       // Stop any current speech
       await _flutterTts.stop();
       
+      // Ensure Dutch language is set
+      await _flutterTts.setLanguage('nl-NL');
+      
       // Update speaking state immediately
       _isSpeaking = true;
       state = state.copyWith(isSpeaking: true);
       
       // Speak the text
       await _flutterTts.speak(text);
+      debugPrint('TTS speaking: ${text.length > 100 ? text.substring(0, 100) + '...' : text}');
     } catch (e) {
       debugPrint('Error speaking text: $e');
       _isSpeaking = false;
@@ -458,6 +485,10 @@ final useHeadphonesProvider = Provider<bool>((ref) {
 
 final isSpeakingProvider = Provider<bool>((ref) {
   return ref.watch(accessibilityNotifierProvider).isSpeaking;
+});
+
+final showTTSButtonProvider = Provider<bool>((ref) {
+  return ref.watch(accessibilityNotifierProvider).showTTSButton;
 });
 
 final fontSizeDescriptionProvider = Provider<String>((ref) {

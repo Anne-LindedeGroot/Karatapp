@@ -482,44 +482,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     }
   }
 
-  /// Handle TTS toggle for forum
-  Future<void> _handleForumTTSToggle() async {
-    try {
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      final posts = ref.read(forumPostsProvider);
-      
-      if (posts.isEmpty) {
-        await accessibilityNotifier.speak('Er zijn geen forumberichten om voor te lezen.');
-        return;
-      }
-      
-      await accessibilityNotifier.speak('Er ${posts.length == 1 ? 'is' : 'zijn'} ${posts.length} bericht${posts.length == 1 ? '' : 'en'} in het forum. Ik lees ze nu voor.');
-      
-      for (int i = 0; i < posts.length && i < 5; i++) { // Limit to first 5 posts
-        final post = posts[i];
-        await accessibilityNotifier.speak('Bericht ${i + 1}: ${post.title} door ${post.authorName}. Categorie: ${post.category.displayName}. ${post.content}');
-        
-        if (i < posts.length - 1 && i < 4) {
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
-      }
-      
-      if (posts.length > 5) {
-        await accessibilityNotifier.speak('Er zijn nog ${posts.length - 5} berichten meer in het forum.');
-      }
-      
-      await accessibilityNotifier.speak('Klaar met voorlezen van forumberichten.');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error reading forum: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   /// Get appropriate icon for font size
   IconData _getFontSizeIcon(AccessibilityFontSize fontSize) {
@@ -562,12 +524,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               return Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Direct TTS button for forum
-                  IconButton(
-                    icon: const Icon(Icons.headphones),
-                    onPressed: () => _handleForumTTSToggle(),
-                    tooltip: 'Lees forum voor',
-                  ),
                   
                   // Combined accessibility settings popup
                   PopupMenuButton<String>(

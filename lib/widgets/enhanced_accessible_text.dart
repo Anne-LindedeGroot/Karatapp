@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
-import 'universal_tts_wrapper.dart';
 
 /// Enhanced accessible text widget that automatically applies TTS and accessibility features
 class EnhancedAccessibleText extends ConsumerWidget {
@@ -77,17 +76,7 @@ class EnhancedAccessibleText extends ConsumerWidget {
       selectionColor: selectionColor,
     );
 
-    // Wrap with TTS functionality if enabled
-    if (enableTTS) {
-      textWidget = UniversalTTSWrapper(
-        customText: customTTSText ?? text,
-        speakOnTap: speakOnTap,
-        speakOnLongPress: speakOnLongPress,
-        delay: ttsDelay,
-        semanticLabel: semanticsLabel ?? customTTSText ?? text,
-        child: textWidget,
-      );
-    }
+    // TTS functionality is now handled by the global floating button
 
     return textWidget;
   }
@@ -348,16 +337,7 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
       enableIMEPersonalizedLearning: widget.enableIMEPersonalizedLearning,
     );
 
-    // Wrap with TTS functionality if enabled
-    if (widget.enableTTS) {
-      textField = TTSTextFieldWrapper(
-        controller: _controller,
-        label: widget.customTTSLabel ?? widget.decoration?.labelText,
-        hint: widget.decoration?.hintText,
-        isPassword: widget.obscureText,
-        child: textField,
-      );
-    }
+    // TTS functionality is now handled by the global floating button
 
     return textField;
   }

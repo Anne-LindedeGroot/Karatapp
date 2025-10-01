@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class Environment {
@@ -12,6 +13,12 @@ class Environment {
   static bool get isStaging => environment == 'staging';
   
   static Future<void> initialize() async {
-    await dotenv.load(fileName: '.env');
+    try {
+      await dotenv.load(fileName: '.env');
+    } catch (e) {
+      // .env file not found or couldn't be loaded
+      // This is normal for development - app will use default values
+      debugPrint('Environment file not found, using default values');
+    }
   }
 }

@@ -5,8 +5,6 @@ import '../services/mute_service.dart';
 import '../providers/role_provider.dart';
 import '../providers/mute_provider.dart';
 import '../widgets/connection_error_widget.dart';
-import '../widgets/tts_headphones_button.dart';
-import '../services/context_aware_page_tts_service.dart';
 import '../core/navigation/app_router.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
@@ -797,15 +795,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               onPressed: () => context.goToHome(),
             ),
             actions: [
-              AppBarTTSButton(
-                customTestText: 'Spraak is nu ingeschakeld voor gebruikersbeheer',
-                onToggle: () {
-                  // Use the context-aware TTS service for user management
-                  if (mounted) {
-                    ContextAwarePageTTSService.readUserManagementScreen(context, ref);
-                  }
-                },
-              ),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: _loadUsers,

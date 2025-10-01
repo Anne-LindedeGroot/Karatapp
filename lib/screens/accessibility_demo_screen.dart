@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/accessibility_floating_button.dart';
 import '../providers/accessibility_provider.dart';
 
 class AccessibilityDemoScreen extends ConsumerWidget {
@@ -176,8 +175,7 @@ class AccessibilityDemoScreen extends ConsumerWidget {
           ],
         ),
       ),
-      floatingActionButton: const AccessibilityFloatingButton(),
-      bottomNavigationBar: const AccessibilityToolbar(),
+      // TTS functionality is now handled by the global floating button
     );
   }
 }

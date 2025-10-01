@@ -55,20 +55,7 @@ class AccessibleText extends ConsumerWidget {
     if (enableTextToSpeech && isTextToSpeechEnabled) {
       textWidget = GestureDetector(
         onTap: onTap ?? () => accessibilityNotifier.speak(text),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(child: textWidget),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.headphones,
-              size: accessibleStyle.fontSize != null 
-                  ? accessibleStyle.fontSize! * 0.8 
-                  : 16,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ],
-        ),
+        child: textWidget,
       );
     } else if (onTap != null) {
       textWidget = GestureDetector(
@@ -139,18 +126,7 @@ class AccessibleRichText extends ConsumerWidget {
       final fullText = textSpans.map((span) => span.text ?? '').join(' ');
       richTextWidget = GestureDetector(
         onTap: onTap ?? () => accessibilityNotifier.speak(fullText),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(child: richTextWidget),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.volume_up,
-              size: 16,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ],
-        ),
+        child: richTextWidget,
       );
     } else if (onTap != null) {
       richTextWidget = GestureDetector(

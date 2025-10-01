@@ -38,7 +38,6 @@ dependencies:
   supabase_flutter: ^2.8.0
   cached_network_image: ^3.2.1
   image_picker: ^1.0.4
-  flutter_svg: ^2.0.9
   image: ^4.1.7
   
   # State Management
@@ -68,17 +67,6 @@ dependencies:
   # Internationalization
   flutter_localizations:
     sdk: flutter
-  intl: ^0.20.2
-  
-  # Connectivity
-  connectivity_plus: ^6.0.5
-  
-  # JSON serialization
-  json_annotation: ^4.9.0
-  
-  # Basic UI components
-  flutter_staggered_grid_view: ^0.7.0
-  flutter_slidable: ^3.0.1
   
   # Video player
   video_player: ^2.8.1
@@ -87,12 +75,6 @@ dependencies:
   
   # Responsive design (keeping only one)
   flutter_screenutil: ^5.9.0
-  
-  # Advanced state management
-  freezed_annotation: ^2.4.1
-  
-  # Logging
-  logger: ^2.0.2+1
   
   # Text-to-speech for accessibility
   flutter_tts: ^4.0.2
@@ -114,9 +96,7 @@ dev_dependencies:
   # Code Generation
   riverpod_generator: ^2.3.9
   build_runner: ^2.4.7
-  json_serializable: ^6.8.0
   hive_generator: ^2.0.1
-  freezed: ^2.4.7
   
   # Additional dev tools
   very_good_analysis: ^5.1.0
@@ -142,8 +122,6 @@ flutter:
     - assets/avatars/photos/items/
     - assets/icons/
     - .env
-    - assets/animations/
-    - assets/l10n/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
