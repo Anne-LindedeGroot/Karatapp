@@ -9,11 +9,14 @@ import '../providers/interaction_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/role_provider.dart';
 import '../screens/edit_kata_screen.dart';
+import '../utils/responsive_utils.dart';
+import '../core/theme/app_theme.dart';
 import 'formatted_text.dart';
 import 'image_gallery.dart';
 import 'video_gallery.dart';
 import 'video_player_widget.dart';
 import 'avatar_widget.dart';
+import 'responsive_layout.dart';
 
 class CollapsibleKataCard extends ConsumerStatefulWidget {
   final Kata kata;
@@ -62,37 +65,34 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
 
     return Semantics(
       label: 'Kata kaart: ${kata.name}, stijl: ${kata.style}',
-      child: Card(
-        margin: const EdgeInsets.symmetric(
-          vertical: 8.0,
-          horizontal: 8.0,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header row with drag handle, name and action buttons
-              Row(
-                children: [
-                  // Drag handle with tooltip - Made more compact
-                  Semantics(
-                    label: 'Sleep handvat om kata te herordenen',
-                    child: Container(
-                      width: 32, // Fixed width to prevent expansion
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6.0),
-                      ),
-                      child: Icon(
-                        Icons.drag_handle,
-                        color: Colors.grey[600],
-                        size: 16.0, // Reduced size
-                      ),
+      child: ResponsiveCard(
+        margin: AppTheme.getResponsiveMargin(context),
+        padding: AppTheme.getResponsivePadding(context),
+        elevation: AppTheme.getResponsiveElevation(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header row with drag handle, name and action buttons
+            Row(
+              children: [
+                // Drag handle with tooltip - Made more compact
+                Semantics(
+                  label: 'Sleep handvat om kata te herordenen',
+                  child: Container(
+                    width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                    height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: AppTheme.getResponsiveBorderRadius(context, multiplier: 0.75),
+                    ),
+                    child: Icon(
+                      Icons.drag_handle,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
                     ),
                   ),
-                  const SizedBox(width: 8.0),
+                ),
+                SizedBox(width: context.responsiveSpacing(SpacingSize.sm)),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,7 +112,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                             maxLines: 2,
                           ),
                         ),
-                        const SizedBox(height: 4.0),
+                        SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
                         // Display style
                         Semantics(
                           label: 'Karate stijl: ${kata.style}',
@@ -136,18 +136,18 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Edit button - Compact
+                    // Edit button - Responsive
                     Semantics(
                       label: 'Bewerk kata ${kata.name}',
                       button: true,
                       child: SizedBox(
-                        width: 28,
-                        height: 28,
+                        width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                        height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
                         child: IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.edit,
                             color: Colors.blue,
-                            size: 14,
+                            size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
                           ),
                           onPressed: () {
                             Navigator.push(
@@ -163,19 +163,19 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 2),
-                    // Delete button - Compact
+                    SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                    // Delete button - Responsive
                     Semantics(
                       label: 'Verwijder kata ${kata.name}',
                       button: true,
                       child: SizedBox(
-                        width: 28,
-                        height: 28,
+                        width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                        height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
                         child: IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.delete,
                             color: Colors.red,
-                            size: 14,
+                            size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
                           ),
                           onPressed: widget.onDelete,
                           tooltip: 'Verwijder kata',
@@ -188,7 +188,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 ),
               ],
             ),
-            const SizedBox(height: 8.0),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
             
             // Display description with styling
             Semantics(
@@ -222,14 +222,23 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       },
                       icon: Icon(
                         _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        size: 18,
+                        size: AppTheme.getResponsiveIconSize(context, baseSize: 18.0),
                       ),
                       label: Text(
                         _isExpanded ? 'Minder zien' : 'Alles zien',
-                        style: const TextStyle(fontSize: 14),
+                        style: TextStyle(
+                          fontSize: context.responsiveValue(
+                            mobile: 14.0,
+                            tablet: 15.0,
+                            desktop: 16.0,
+                          ),
+                        ),
                       ),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.responsiveSpacing(SpacingSize.sm),
+                          vertical: context.responsiveSpacing(SpacingSize.xs),
+                        ),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
@@ -237,19 +246,19 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   ),
                 ),
               ),
-            const SizedBox(height: 12.0),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Display media (images and videos) with smart preview
             _buildMediaSection(kata),
             
-            const SizedBox(height: 16.0),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
             
             // Interaction section (likes, favorites, comments)
             _buildInteractionSection(kata),
           ],
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildMediaSection(Kata kata) {
@@ -275,10 +284,10 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         // If no cached images and currently loading, show loading state
         if (!hasImages && !hasVideos && isLoading) {
           return Container(
-            height: 200,
+            height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
             width: double.infinity,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: context.responsiveBorderRadius,
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: const Center(
@@ -289,7 +298,14 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   SizedBox(height: 12),
                   Text(
                     'Media laden...',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: context.responsiveValue(
+                        mobile: 12.0,
+                        tablet: 13.0,
+                        desktop: 14.0,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -300,10 +316,10 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         // Error state
         if (imageError != null && imageError.contains('kata ${kata.id}')) {
           return Container(
-            height: 200,
+            height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
             width: double.infinity,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: context.responsiveBorderRadius,
               border: Border.all(color: Colors.red.shade300),
             ),
             child: Column(
@@ -346,10 +362,10 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         // If no media available at all
         if (!hasImages && !hasVideos && !isLoading) {
           return Container(
-            height: 200,
+            height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
             width: double.infinity,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: context.responsiveBorderRadius,
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: Center(
@@ -358,9 +374,16 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 children: [
                   const Icon(Icons.photo_library, size: 50, color: Colors.grey),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Geen media beschikbaar',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: context.responsiveValue(
+                        mobile: 12.0,
+                        tablet: 13.0,
+                        desktop: 14.0,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(
@@ -415,13 +438,14 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 child: _buildMainMediaDisplay(hasImages, hasVideos, cachedImages, videoUrls),
               ),
             
-            // Navigation buttons
-            const SizedBox(height: 8.0),
-            Row(
+            // Navigation buttons - stacked vertically for full width
+            SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+            Column(
               children: [
                 // Images button
                 if (hasImages)
-                  Expanded(
+                  SizedBox(
+                    width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.push(
@@ -437,22 +461,39 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                           ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
                         });
                       },
-                      icon: const Icon(Icons.photo, size: 16),
-                      label: Text('Bekijk Afbeeldingen (${cachedImages.length})'),
+                      icon: Icon(
+                        Icons.photo, 
+                        size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
+                      ),
+                      label: Text(
+                        'Afbeeldingen (${cachedImages.length})', 
+                        style: TextStyle(
+                          fontSize: context.responsiveValue(
+                            mobile: 12.0,
+                            tablet: 13.0,
+                            desktop: 14.0,
+                          ),
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.responsiveSpacing(SpacingSize.sm),
+                          vertical: context.responsiveSpacing(SpacingSize.sm),
+                        ),
+                        minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
                       ),
                     ),
                   ),
                 
                 // Spacing between buttons
-                if (hasImages && hasVideos) const SizedBox(width: 8.0),
+                if (hasImages && hasVideos) SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
                 
                 // Videos button
                 if (hasVideos)
-                  Expanded(
+                  SizedBox(
+                    width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () {
                         Navigator.push(
@@ -466,12 +507,28 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                           ),
                         );
                       },
-                      icon: const Icon(Icons.videocam, size: 16),
-                      label: Text('Bekijk Video\'s (${videoUrls.length})'),
+                      icon: Icon(
+                        Icons.videocam, 
+                        size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
+                      ),
+                      label: Text(
+                        'Video\'s (${videoUrls.length})', 
+                        style: TextStyle(
+                          fontSize: context.responsiveValue(
+                            mobile: 12.0,
+                            tablet: 13.0,
+                            desktop: 14.0,
+                          ),
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.responsiveSpacing(SpacingSize.sm),
+                          vertical: context.responsiveSpacing(SpacingSize.sm),
+                        ),
+                        minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
                       ),
                     ),
                   ),
@@ -489,17 +546,17 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     if (hasImages) {
       // Show the FIRST image in the card preview
       return Container(
-        height: 200,
+        height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
         width: double.infinity,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: context.responsiveBorderRadius,
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Stack(
           children: [
             // Main media display
             ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: context.responsiveBorderRadius,
               child: CachedNetworkImage(
                 imageUrl: imageUrls.first,
                 fit: BoxFit.contain,
@@ -632,14 +689,14 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
       if (videoUrls.length == 1) {
         // Single video - show directly without thumbnail
         return Container(
-          height: 200,
+          height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
           width: double.infinity,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: context.responsiveBorderRadius,
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: context.responsiveBorderRadius,
             child: VideoPlayerWidget(
               videoUrl: videoUrls.first,
               autoPlay: false,
@@ -683,17 +740,17 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         int currentVideoIndex = 0;
         
         return Container(
-          height: 200,
+          height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
           width: double.infinity,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: context.responsiveBorderRadius,
             border: Border.all(color: Colors.grey.shade300),
           ),
           child: Stack(
             children: [
               // Video player
               ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: context.responsiveBorderRadius,
                 child: VideoPlayerWidget(
                   videoUrl: videoUrls[currentVideoIndex],
                   autoPlay: false,

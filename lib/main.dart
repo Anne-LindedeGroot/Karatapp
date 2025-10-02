@@ -129,17 +129,8 @@ class OptimizedRiverpodObserver extends ProviderObserver {
 
 /// Helper function to determine if global TTS overlay should be shown
 bool _shouldShowGlobalTTS(BuildContext context) {
-  // Get the current route name
-  final route = ModalRoute.of(context);
-  final routeName = route?.settings.name;
-  
-  // Hide global TTS overlay on specific screens
-  if (routeName == '/profile' || routeName == '/create-forum-post') {
-    return false;
-  }
-  
-  // Show the global floating TTS button on all other screens
-  // It will intelligently detect the context and read appropriate content
+  // Show the global floating TTS button on all screens
+  // The user wants TTS to work everywhere, so we enable it globally
   return true;
 }
 

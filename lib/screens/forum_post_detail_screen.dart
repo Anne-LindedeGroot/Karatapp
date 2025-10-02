@@ -399,9 +399,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               AvatarWidget(
                 customAvatarUrl: post.authorAvatar,
                 userName: post.authorName,
-                size: 32,
+                size: 36,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,9 +410,11 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                       post.authorName,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 16,
+                        fontSize: 17,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       _formatDate(post.createdAt),
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
@@ -715,9 +717,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               AvatarWidget(
                 customAvatarUrl: comment.authorAvatar,
                 userName: comment.authorName,
-                size: 24,
+                size: 28,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,12 +728,14 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                       comment.authorName,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 15,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       _formatDate(comment.createdAt),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
                     ),
                   ],
                 ),
@@ -781,12 +785,16 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // Comment content
           Text(
             comment.content,
-            style: const TextStyle(fontSize: 14, height: 1.4),
+            style: const TextStyle(
+              fontSize: 15, 
+              height: 1.5,
+              color: Color(0xFF2C2C2C),
+            ),
           ),
         ],
       ),

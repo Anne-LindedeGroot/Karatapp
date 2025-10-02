@@ -170,13 +170,19 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Annuleren'),
+                    child: const Text(
+                      'Annuleren',
+                      maxLines: 1,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () =>
                         Navigator.pop(context, dialogController.text),
-                    child: const Text('Opslaan'),
+                    child: const Text(
+                      'Opslaan',
+                      maxLines: 1,
+                    ),
                   ),
                 ],
               ),
@@ -652,7 +658,10 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                       color: Theme.of(context).colorScheme.outline,
                     ),
                   ),
-                  child: const Text('Annuleren'),
+                  child: const Text(
+                    'Annuleren',
+                    maxLines: 1,
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -673,7 +682,10 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : const Text('Kata Toevoegen'),
+                      : const Text(
+                          'Kata Opslaan',
+                          maxLines: 1,
+                        ),
                 ),
               ),
             ],

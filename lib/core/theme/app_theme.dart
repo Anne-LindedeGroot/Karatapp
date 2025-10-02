@@ -1,32 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../providers/theme_provider.dart';
+import '../../utils/responsive_utils.dart';
 
 /// Comprehensive design system for the Karate Flutter App
 class AppTheme {
   // Private constructor to prevent instantiation
   AppTheme._();
 
-  // Color palette
-  static const Color _primaryGreen = Color(0xFF4CAF50);
-  static const Color _primaryGreenDark = Color(0xFF388E3C);
-  static const Color _primaryGreenLight = Color(0xFF81C784);
+  // Enhanced color palette with modern, accessible colors
+  static const Color _primaryGreen = Color(0xFF2E7D32);
+  static const Color _primaryGreenDark = Color(0xFF1B5E20);
+  static const Color _primaryGreenLight = Color(0xFF4CAF50);
+  static const Color _primaryGreenAccent = Color(0xFF66BB6A);
   
-  static const Color _secondaryOrange = Color(0xFFFF9800);
+  static const Color _secondaryOrange = Color(0xFFFF8F00);
   static const Color _secondaryOrangeDark = Color(0xFFE65100);
-  static const Color _secondaryOrangeLight = Color(0xFFFFCC02);
+  static const Color _secondaryOrangeLight = Color(0xFFFFB74D);
+  static const Color _secondaryOrangeAccent = Color(0xFFFFA726);
   
-  static const Color _errorRed = Color(0xFFE53935);
+  static const Color _errorRed = Color(0xFFD32F2F);
+  static const Color _warningAmber = Color(0xFFF57C00);
+  static const Color _successGreen = Color(0xFF388E3C);
   static const Color _infoBlue = Color(0xFF1976D2);
   
-  // Neutral colors
-  static const Color _neutral900 = Color(0xFF212121);
-  static const Color _neutral800 = Color(0xFF424242);
-  static const Color _neutral700 = Color(0xFF616161);
-  static const Color _neutral600 = Color(0xFF757575);
-  static const Color _neutral400 = Color(0xFFBDBDBD);
-  static const Color _neutral300 = Color(0xFFE0E0E0);
-  static const Color _neutral100 = Color(0xFFF5F5F5);
+  // Enhanced neutral colors with better contrast ratios
+  static const Color _neutral900 = Color(0xFF0D1117);
+  static const Color _neutral800 = Color(0xFF161B22);
+  static const Color _neutral700 = Color(0xFF21262D);
+  static const Color _neutral600 = Color(0xFF30363D);
+  static const Color _neutral500 = Color(0xFF484F58);
+  static const Color _neutral400 = Color(0xFF656D76);
+  static const Color _neutral300 = Color(0xFF8B949E);
+  static const Color _neutral200 = Color(0xFFB1BAC4);
+  static const Color _neutral100 = Color(0xFFD0D7DE);
+  static const Color _neutral50 = Color(0xFFF6F8FA);
+  
+  // Surface colors for better depth and hierarchy
+  static const Color _surfaceLight = Color(0xFFFFFFFF);
+  static const Color _surfaceLightVariant = Color(0xFFF8F9FA);
+  static const Color _surfaceDark = Color(0xFF0D1117);
+  static const Color _surfaceDarkVariant = Color(0xFF161B22);
 
   // Typography
   static const String _fontFamily = 'Roboto';
@@ -187,6 +201,33 @@ class AppTheme {
   static const Duration animationFast = Duration(milliseconds: 150);
   static const Duration animationMedium = Duration(milliseconds: 300);
   static const Duration animationSlow = Duration(milliseconds: 500);
+  static const Duration animationExtraSlow = Duration(milliseconds: 800);
+
+  // Responsive helper methods
+  static EdgeInsets getResponsivePadding(BuildContext context, {double multiplier = 1.0}) {
+    return ResponsiveUtils.responsivePadding(context) * multiplier;
+  }
+
+  static EdgeInsets getResponsiveMargin(BuildContext context, {double multiplier = 1.0}) {
+    return ResponsiveUtils.responsiveMargin(context) * multiplier;
+  }
+
+  static double getResponsiveFontSize(BuildContext context, double baseFontSize) {
+    return ResponsiveUtils.responsiveFontSize(context, baseFontSize: baseFontSize);
+  }
+
+  static BorderRadius getResponsiveBorderRadius(BuildContext context, {double multiplier = 1.0}) {
+    final radius = ResponsiveUtils.responsiveBorderRadius(context);
+    return BorderRadius.circular(radius.topLeft.x * multiplier);
+  }
+
+  static double getResponsiveElevation(BuildContext context, {double baseElevation = 2.0}) {
+    return ResponsiveUtils.responsiveElevation(context, baseElevation: baseElevation);
+  }
+
+  static double getResponsiveIconSize(BuildContext context, {double baseSize = 24.0}) {
+    return ResponsiveUtils.responsiveIconSize(context, baseSize: baseSize);
+  }
 
   // Color scheme palettes
   static const Map<AppColorScheme, Map<String, Color>> _colorPalettes = {

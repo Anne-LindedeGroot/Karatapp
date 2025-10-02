@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
+import '../widgets/responsive_layout.dart';
+import '../widgets/modern_loading_widget.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
@@ -14,6 +16,8 @@ import '../providers/theme_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../services/role_service.dart';
 import '../utils/image_utils.dart';
+import '../utils/responsive_utils.dart';
+import '../core/theme/app_theme.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -274,57 +278,172 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildKataList(List<dynamic> katas) {
     final searchQuery = ref.watch(kataSearchQueryProvider);
 
-    // If search is active, use regular ListView (no reordering during search)
+    // If search is active, use responsive layout (no reordering during search)
     if (searchQuery.isNotEmpty) {
-      return ListView.builder(
-        padding: const EdgeInsets.only(bottom: 80.0), // Add bottom padding for better scrolling
-        itemCount: katas.length,
-        itemBuilder: (context, index) {
-          final kata = katas[index];
-          return CollapsibleKataCard(
+      return ResponsiveLayout(
+        mobile: ListView.builder(
+          padding: EdgeInsets.only(
+            bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                    context.responsiveSpacing(SpacingSize.lg),
+          ),
+          itemCount: katas.length,
+          itemBuilder: (context, index) {
+            final kata = katas[index];
+            return CollapsibleKataCard(
+              kata: kata,
+              onDelete: () => _deleteKata(kata.id, kata.name),
+            );
+          },
+        ),
+        tablet: ResponsiveGrid(
+          maxColumns: 2,
+          padding: EdgeInsets.only(
+            bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                    context.responsiveSpacing(SpacingSize.lg),
+          ),
+          mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+          crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+          childAspectRatio: 0.8,
+          children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
+          )).toList(),
+        ),
+        desktop: ResponsiveGrid(
+          maxColumns: 3,
+          padding: EdgeInsets.only(
+            bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                    context.responsiveSpacing(SpacingSize.lg),
+          ),
+          mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+          crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+          childAspectRatio: 0.9,
+          children: katas.map((kata) => CollapsibleKataCard(
+            kata: kata,
+            onDelete: () => _deleteKata(kata.id, kata.name),
+          )).toList(),
+        ),
+      );
+    }
+
+    // Use ReorderableListView when not searching (mobile only for drag-and-drop)
+    if (context.isMobile) {
+      return ReorderableListView.builder(
+        padding: EdgeInsets.only(
+          bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                  context.responsiveSpacing(SpacingSize.lg),
+        ),
+        itemCount: katas.length,
+        onReorder: (int oldIndex, int newIndex) {
+          ref
+              .read(kataNotifierProvider.notifier)
+              .reorderKatas(oldIndex, newIndex);
+        },
+        itemBuilder: (context, index) {
+          final kata = katas[index];
+          return Container(
+            key: ValueKey(kata.id),
+            child: CollapsibleKataCard(
+              kata: kata,
+              onDelete: () => _deleteKata(kata.id, kata.name),
+            ),
+          );
+        },
+        proxyDecorator: (child, index, animation) {
+          return AnimatedBuilder(
+            animation: animation,
+            builder: (BuildContext context, Widget? child) {
+              final double animValue = Curves.easeInOut.transform(
+                animation.value,
+              );
+              final double elevation = lerpDouble(0, 6, animValue)!;
+              final double scale = lerpDouble(1, 1.02, animValue)!;
+              return Transform.scale(
+                scale: scale,
+                child: Card(elevation: elevation, child: child),
+              );
+            },
+            child: child,
           );
         },
       );
     }
 
-    // Use ReorderableListView when not searching
-    return ReorderableListView.builder(
-      padding: const EdgeInsets.only(bottom: 80.0), // Add bottom padding for better scrolling
-      itemCount: katas.length,
-      onReorder: (int oldIndex, int newIndex) {
-        ref
-            .read(kataNotifierProvider.notifier)
-            .reorderKatas(oldIndex, newIndex);
-      },
-      itemBuilder: (context, index) {
-        final kata = katas[index];
-        return Container(
-          key: ValueKey(kata.id),
-          child: CollapsibleKataCard(
-            kata: kata,
-            onDelete: () => _deleteKata(kata.id, kata.name),
+    // For larger screens, use grid layout without reordering
+    return ResponsiveLayout(
+      tablet: ResponsiveGrid(
+        maxColumns: 2,
+        padding: EdgeInsets.only(
+          bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                  context.responsiveSpacing(SpacingSize.lg),
+        ),
+        mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+        crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+        childAspectRatio: 0.8,
+        children: katas.map((kata) => CollapsibleKataCard(
+          kata: kata,
+          onDelete: () => _deleteKata(kata.id, kata.name),
+        )).toList(),
+      ),
+      desktop: ResponsiveGrid(
+        maxColumns: 3,
+        padding: EdgeInsets.only(
+          bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                  context.responsiveSpacing(SpacingSize.lg),
+        ),
+        mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+        crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+        childAspectRatio: 0.9,
+        children: katas.map((kata) => CollapsibleKataCard(
+          kata: kata,
+          onDelete: () => _deleteKata(kata.id, kata.name),
+        )).toList(),
+      ),
+    );
+  }
+
+  Widget _buildSearchSection(bool isConnected) {
+    return ResponsiveLayout(
+      mobile: Column(
+        children: [
+          _buildSearchBar(),
+          if (!isConnected) ...[
+            SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+            const ConnectionStatusIndicator(),
+          ],
+        ],
+      ),
+      desktop: Row(
+        children: [
+          Expanded(flex: 2, child: _buildSearchBar()),
+          SizedBox(width: context.responsiveSpacing(SpacingSize.md)),
+          if (!isConnected) const ConnectionStatusIndicator(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Semantics(
+      label: 'Zoek kata\'s invoerveld',
+      textField: true,
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        decoration: InputDecoration(
+          hintText: 'Zoek kata\'s...',
+          prefixIcon: Icon(
+            Icons.search,
+            size: AppTheme.getResponsiveIconSize(context),
           ),
-        );
-      },
-      proxyDecorator: (child, index, animation) {
-        return AnimatedBuilder(
-          animation: animation,
-          builder: (BuildContext context, Widget? child) {
-            final double animValue = Curves.easeInOut.transform(
-              animation.value,
-            );
-            final double elevation = lerpDouble(0, 6, animValue)!;
-            final double scale = lerpDouble(1, 1.02, animValue)!;
-            return Transform.scale(
-              scale: scale,
-              child: Card(elevation: elevation, child: child),
-            );
-          },
-          child: child,
-        );
-      },
+          border: OutlineInputBorder(
+            borderRadius: context.responsiveBorderRadius,
+          ),
+        ),
+        onChanged: (value) {
+          _filterKatas(value);
+        },
+      ),
     );
   }
 
@@ -715,57 +834,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         body: Column(
           children: [
-            // Search bar with connection status
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                children: [
-                  Semantics(
-                    label: 'Zoek kata\'s invoerveld',
-                    textField: true,
-                    child: TextField(
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      decoration: const InputDecoration(
-                        hintText: 'Zoek kata\'s...',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.all(Radius.circular(25.0)),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        _filterKatas(value);
-                      },
-                    ),
-                  ),
-                  // Small connection status indicator below search
-                  if (!isConnected) ...[
-                    const SizedBox(height: 8),
-                    const ConnectionStatusIndicator(),
-                  ],
-                ],
-              ),
+            // Enhanced responsive search bar
+            ResponsiveContainer(
+              padding: context.responsivePadding,
+              child: _buildSearchSection(isConnected),
             ),
             // Centralized connection error widget
             const ConnectionErrorWidget(),
             // Local error display (for non-network errors only)
             if (error != null && !_isNetworkError(error))
-              Container(
-                margin: const EdgeInsets.all(16.0),
-                padding: const EdgeInsets.all(12.0),
+              ResponsiveContainer(
+                margin: context.responsiveMargin,
+                padding: context.responsivePadding,
                 decoration: BoxDecoration(
                   color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8.0),
+                  borderRadius: context.responsiveBorderRadius,
                   border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error, color: Colors.red),
-                    const SizedBox(width: 8.0),
+                    Icon(
+                      Icons.error, 
+                      color: Colors.red,
+                      size: AppTheme.getResponsiveIconSize(context),
+                    ),
+                    SizedBox(width: context.responsiveSpacing(SpacingSize.sm)),
                     Expanded(
                       child: Text(
                         'Error: $error',
-                        style: const TextStyle(color: Colors.red),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.red,
+                        ),
                       ),
                     ),
                     TextButton(
@@ -777,18 +876,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
               ),
-            // Kata list
+            // Responsive kata list
             Expanded(
               child: isLoading
-                  ? const SkeletonKataList(itemCount: 3)
+                  ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
                   : RefreshIndicator(
                       onRefresh: _refreshKatas,
                       child: katas.isEmpty
-                          ? const Center(
+                          ? Center(
                               child: Text(
                                 'Geen kata\'s gevonden',
-                                style: TextStyle(
-                                  fontSize: 18,
+                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   color: Colors.grey,
                                 ),
                               ),
@@ -831,42 +929,100 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return AlertDialog(
-              title: Row(
-                children: [
-                  const Expanded(child: Text("Nieuwe Kata Toevoegen")),
-                ],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Container(
+                padding: const EdgeInsets.only(bottom: 8),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey, width: 0.5),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.sports_martial_arts, color: Colors.blue, size: 28),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        "Nieuwe Kata Toevoegen",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Text fields
+                      const SizedBox(height: 8),
+                      // Basic Information Section
+                      const Text(
+                        "Basis Informatie",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       TextField(
                         controller: nameController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: "Kata Naam",
                           hintText: "Voer kata naam in",
-                          prefixIcon: Icon(Icons.sports_martial_arts),
+                          prefixIcon: const Icon(Icons.sports_martial_arts, color: Colors.blue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.blue, width: 2),
+                          ),
                         ),
+                        onChanged: (value) {
+                          setState(() {
+                            // Trigger rebuild to update button state
+                          });
+                        },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       TextField(
                         controller: styleController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: "Stijl",
                           hintText: "Voer karate stijl in (bijv. Wado Ryu)",
-                          prefixIcon: Icon(Icons.style),
+                          prefixIcon: const Icon(Icons.style, color: Colors.blue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.blue, width: 2),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       TextField(
                         controller: descriptionController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: "Beschrijving",
                           hintText: "Voer kata beschrijving in",
-                          prefixIcon: Icon(Icons.description),
+                          prefixIcon: const Icon(Icons.description, color: Colors.blue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.blue, width: 2),
+                          ),
                         ),
                         maxLines: 3,
                         keyboardType: TextInputType.multiline,
@@ -876,13 +1032,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // Images section
                       Row(
                         children: [
-                          const Icon(Icons.photo_library, color: Colors.blue),
+                          const Icon(Icons.photo_library, color: Colors.blue, size: 24),
                           const SizedBox(width: 8),
                           Text(
                             "Afbeeldingen (${selectedImages.length})",
                             style: const TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                               color: Colors.blue,
                             ),
                           ),
@@ -911,9 +1067,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blue,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                elevation: 2,
                               ),
                             ),
                           ),
@@ -936,9 +1096,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                elevation: 2,
                               ),
                             ),
                           ),
@@ -1105,13 +1269,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       const SizedBox(height: 20),
                       Row(
                         children: [
-                          const Icon(Icons.video_library, color: Colors.purple),
+                          const Icon(Icons.video_library, color: Colors.purple, size: 24),
                           const SizedBox(width: 8),
                           Text(
                             "Video URLs (${videoUrls.length})",
                             style: const TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                               color: Colors.purple,
                             ),
                           ),
@@ -1121,11 +1285,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       // Video URL input field
                       TextField(
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: "Voer video URL in",
                           hintText: "https://www.youtube.com/watch?v=...",
-                          prefixIcon: Icon(Icons.link),
-                          border: OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.link, color: Colors.purple),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Colors.purple, width: 2),
+                          ),
                         ),
                         keyboardType: TextInputType.url,
                         onSubmitted: (url) {
@@ -1223,6 +1393,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
+              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               actions: [
                 Row(
                   children: [
@@ -1235,8 +1406,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               },
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: const BorderSide(color: Colors.grey, width: 1.5),
                         ),
-                        child: const Text("Annuleren"),
+                        child: const Text(
+                          "Annuleren",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -1320,6 +1501,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    minimumSize: const Size(120, 56),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 3,
                   ),
                   child: isProcessing
                       ? const SizedBox(
@@ -1332,7 +1519,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         )
-                      : const Text("Kata Toevoegen"),
+                      : const Text(
+                          "Kata\nToevoegen",
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            height: 1.2,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                        ),
                       ),
                     ),
                   ],

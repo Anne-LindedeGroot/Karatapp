@@ -8,6 +8,8 @@ import '../providers/interaction_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/skeleton_forum_post.dart';
+import '../widgets/responsive_layout.dart';
+import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
@@ -22,6 +24,7 @@ class ForumScreen extends ConsumerStatefulWidget {
 class _ForumScreenState extends ConsumerState<ForumScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  String? _selectedPostId;
 
   @override
   void dispose() {
@@ -187,23 +190,44 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       error: (_, __) => false,
     );
     final canModerate = canModerateRole || (currentUser != null && post.authorId == currentUser.id);
+    final isSelected = context.isDesktop && _selectedPostId == post.id;
 
     return Semantics(
       label: 'Forum bericht: ${post.title}, categorie: ${post.category.displayName}, door ${post.authorName}',
       button: true,
       child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        margin: EdgeInsets.symmetric(
+          horizontal: context.responsiveValue(mobile: 16.0, tablet: 12.0, desktop: 8.0),
+          vertical: context.responsiveValue(mobile: 6.0, tablet: 4.0, desktop: 3.0),
+        ),
+        elevation: isSelected ? 8 : 2,
+        color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isSelected 
+            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
+            : BorderSide.none,
+        ),
         child: InkWell(
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ForumPostDetailScreen(postId: post.id),
-              ),
-            );
+            if (context.isDesktop) {
+              // Master-detail mode: select post for detail view
+              setState(() {
+                _selectedPostId = post.id;
+              });
+            } else {
+              // Mobile mode: navigate to detail screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ForumPostDetailScreen(postId: post.id),
+                ),
+              );
+            }
           },
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -301,73 +325,83 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 child: Text(
                   post.title,
                   style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               
               // Content preview
               Semantics(
                 label: 'Bericht inhoud: ${post.content}',
                 child: Text(
                   post.content,
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.grey[600],
-                    height: 1.4,
+                    color: Colors.grey[700],
+                    fontSize: 15,
+                    height: 1.5,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               
-              // Footer with author and stats
-              Row(
+              // Footer with author and stats - redesigned for better spacing
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Author avatar and name
-                  Semantics(
-                    label: 'Auteur avatar voor ${post.authorName}',
-                    child: AvatarWidget(
-                      customAvatarUrl: post.authorAvatar,
-                      userName: post.authorName,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Semantics(
-                          label: 'Auteur: ${post.authorName}',
-                          child: Text(
-                            post.authorName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        Semantics(
-                          label: 'Geplaatst op: ${_formatDate(post.createdAt)}',
-                          child: Text(
-                            _formatDate(post.createdAt),
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  // Interaction buttons
+                  // Author info row
                   Row(
                     children: [
-                      // Like button
+                      Semantics(
+                        label: 'Auteur avatar voor ${post.authorName}',
+                        child: AvatarWidget(
+                          customAvatarUrl: post.authorAvatar,
+                          userName: post.authorName,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Semantics(
+                              label: 'Auteur: ${post.authorName}',
+                              child: Text(
+                                post.authorName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Semantics(
+                              label: 'Geplaatst op: ${_formatDate(post.createdAt)}',
+                              child: Text(
+                                _formatDate(post.createdAt),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Interaction buttons row - separated for better spacing
+                  Row(
+                    children: [
+                      // Like button with improved styling
                       Consumer(
                         builder: (context, ref, child) {
                           final forumInteraction = ref.watch(forumInteractionProvider(post.id));
@@ -390,29 +424,44 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                 }
                               }
                             },
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isLiked ? Icons.favorite : Icons.favorite_border,
-                                  size: 16,
-                                  color: isLiked ? Colors.red : Colors.grey[600],
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isLiked 
+                                  ? Colors.red.withValues(alpha: 0.1)
+                                  : Colors.grey.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isLiked ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                  width: 1,
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '$likeCount',
-                                  style: TextStyle(
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isLiked ? Icons.favorite : Icons.favorite_border,
+                                    size: 16,
                                     color: isLiked ? Colors.red : Colors.grey[600],
-                                    fontSize: 14,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '$likeCount',
+                                    style: TextStyle(
+                                      color: isLiked ? Colors.red : Colors.grey[700],
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       
-                      // Favorite button
+                      // Favorite button with improved styling
                       Consumer(
                         builder: (context, ref, child) {
                           final forumInteraction = ref.watch(forumInteractionProvider(post.id));
@@ -444,29 +493,67 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                 }
                               }
                             },
-                            child: Icon(
-                              isFavorited ? Icons.bookmark : Icons.bookmark_border,
-                              size: 16,
-                              color: isFavorited ? Colors.teal : Colors.grey[600],
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isFavorited 
+                                  ? Colors.teal.withValues(alpha: 0.1)
+                                  : Colors.grey.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isFavorited ? Colors.teal.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Icon(
+                                isFavorited ? Icons.bookmark : Icons.bookmark_border,
+                                size: 16,
+                                color: isFavorited ? Colors.teal : Colors.grey[600],
+                              ),
                             ),
                           );
                         },
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       
-                      // Comment count
-                      Row(
-                        children: [
-                          Icon(Icons.comment, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${post.commentCount}',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
+                      // Comment count with improved styling
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.grey.withValues(alpha: 0.2),
+                            width: 1,
                           ),
-                        ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.comment_outlined, size: 16, color: Colors.grey[600]),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${post.commentCount}',
+                              style: TextStyle(
+                                color: Colors.grey[700],
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      const Spacer(),
+                      
+                      // View count or additional info could go here
+                      Text(
+                        'Bekijk bericht',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ],
                   ),
@@ -523,6 +610,115 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       case AccessibilityFontSize.extraLarge:
         return Icons.format_size;
     }
+  }
+
+  Widget _buildForumList(List<ForumPost> posts, bool isLoading, String? error) {
+    return Column(
+      children: [
+        // Search bar
+        Padding(
+          padding: EdgeInsets.all(context.responsiveValue(mobile: 16.0, tablet: 12.0, desktop: 8.0)),
+          child: TextField(
+            controller: _searchController,
+            focusNode: _searchFocusNode,
+            decoration: const InputDecoration(
+              hintText: 'Zoek berichten...',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(25.0)),
+              ),
+            ),
+            onChanged: _filterPosts,
+          ),
+        ),
+        
+        // Category filter
+        _buildCategoryFilter(),
+        const SizedBox(height: 8),
+        
+        // Error display
+        if (error != null)
+          Container(
+            margin: EdgeInsets.all(context.responsiveValue(mobile: 16.0, tablet: 12.0, desktop: 8.0)),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Error: $error',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    ref.read(forumNotifierProvider.notifier).clearError();
+                  },
+                  child: const Text('Sluiten'),
+                ),
+              ],
+            ),
+          ),
+        
+        // Posts list
+        Expanded(
+          child: isLoading
+              ? const SkeletonForumList(itemCount: 5)
+              : RefreshIndicator(
+                  onRefresh: _refreshPosts,
+                  child: posts.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Geen berichten gevonden',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: posts.length,
+                          itemBuilder: (context, index) {
+                            return _buildPostCard(posts[index]);
+                          },
+                        ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailView() {
+    if (_selectedPostId == null) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.forum, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text(
+              'Selecteer een bericht om de details te bekijken',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ForumPostDetailScreen(
+      postId: _selectedPostId!,
+      isEmbedded: true,
+    );
   }
 
   @override
@@ -661,84 +857,36 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
           ),
         ],
       ),
-        body: Column(
-          children: [
-            // Search bar
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _searchController,
-                focusNode: _searchFocusNode,
-                decoration: const InputDecoration(
-                  hintText: 'Zoek berichten...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(25.0)),
-                  ),
-                ),
-                onChanged: _filterPosts,
-              ),
-            ),
-            
-            // Category filter
-            _buildCategoryFilter(),
-            const SizedBox(height: 8),
-            
-            // Error display
-            if (error != null)
-              Container(
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error, color: Colors.red),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Error: $error',
-                        style: const TextStyle(color: Colors.red),
+        body: ResponsiveLayout(
+          mobile: _buildForumList(posts, isLoading, error),
+          tablet: _buildForumList(posts, isLoading, error),
+          desktop: Row(
+            children: [
+              // Forum posts list (left side)
+              Expanded(
+                flex: 2,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      right: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                        width: 1,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {
-                        ref.read(forumNotifierProvider.notifier).clearError();
-                      },
-                      child: const Text('Sluiten'),
-                    ),
-                  ],
+                  ),
+                  child: _buildForumList(posts, isLoading, error),
                 ),
               ),
-            
-            // Posts list
-            Expanded(
-              child: isLoading
-                  ? const SkeletonForumList(itemCount: 5)
-                  : RefreshIndicator(
-                      onRefresh: _refreshPosts,
-                      child: posts.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'Geen berichten gevonden',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              itemCount: posts.length,
-                              itemBuilder: (context, index) {
-                                return _buildPostCard(posts[index]);
-                              },
-                            ),
-                    ),
-            ),
-          ],
+              // Post detail view (right side)
+              Expanded(
+                flex: 3,
+                child: Container(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: _buildDetailView(),
+                ),
+              ),
+            ],
+          ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
