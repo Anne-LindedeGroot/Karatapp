@@ -60,109 +60,128 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         ? kata.description 
         : _getTruncatedDescription(kata.description);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(
-        vertical: 8.0,
-        horizontal: 8.0,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header row with drag handle, name and action buttons
-            Row(
-              children: [
-                // Drag handle with tooltip - Made more compact
-                Container(
-                  width: 32, // Fixed width to prevent expansion
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6.0),
-                  ),
-                  child: Icon(
-                    Icons.drag_handle,
-                    color: Colors.grey[600],
-                    size: 16.0, // Reduced size
-                  ),
-                ),
-                const SizedBox(width: 8.0),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Display name
-                      Text(
-                        kata.name,
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
+    return Semantics(
+      label: 'Kata kaart: ${kata.name}, stijl: ${kata.style}',
+      child: Card(
+        margin: const EdgeInsets.symmetric(
+          vertical: 8.0,
+          horizontal: 8.0,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header row with drag handle, name and action buttons
+              Row(
+                children: [
+                  // Drag handle with tooltip - Made more compact
+                  Semantics(
+                    label: 'Sleep handvat om kata te herordenen',
+                    child: Container(
+                      width: 32, // Fixed width to prevent expansion
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6.0),
                       ),
-                      const SizedBox(height: 4.0),
-                      // Display style
-                      Text(
-                        kata.style,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color: Colors.blueGrey,
-                              fontStyle: FontStyle.italic,
-                            ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
+                      child: Icon(
+                        Icons.drag_handle,
+                        color: Colors.grey[600],
+                        size: 16.0, // Reduced size
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8.0),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Display name
+                        Semantics(
+                          label: 'Kata naam: ${kata.name}',
+                          child: Text(
+                            kata.name,
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                          ),
+                        ),
+                        const SizedBox(height: 4.0),
+                        // Display style
+                        Semantics(
+                          label: 'Karate stijl: ${kata.style}',
+                          child: Text(
+                            kata.style,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: Colors.blueGrey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 // Action buttons with flexible width to prevent overflow
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Edit button - Compact
-                    SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.edit,
-                          color: Colors.blue,
-                          size: 14,
+                    Semantics(
+                      label: 'Bewerk kata ${kata.name}',
+                      button: true,
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.edit,
+                            color: Colors.blue,
+                            size: 14,
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => EditKataScreen(kata: kata),
+                              ),
+                            );
+                          },
+                          tooltip: 'Bewerk kata',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                         ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EditKataScreen(kata: kata),
-                            ),
-                          );
-                        },
-                        tooltip: 'Bewerk kata',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
                       ),
                     ),
                     const SizedBox(width: 2),
                     // Delete button - Compact
-                    SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 14,
+                    Semantics(
+                      label: 'Verwijder kata ${kata.name}',
+                      button: true,
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            color: Colors.red,
+                            size: 14,
+                          ),
+                          onPressed: widget.onDelete,
+                          tooltip: 'Verwijder kata',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                         ),
-                        onPressed: widget.onDelete,
-                        tooltip: 'Verwijder kata',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
                       ),
                     ),
                   ],
@@ -172,14 +191,17 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
             const SizedBox(height: 8.0),
             
             // Display description with styling
-            FormattedText(
-              text: displayDescription,
-              baseStyle: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: Colors.grey[700]),
-              headingStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
+            Semantics(
+              label: 'Kata beschrijving: ${displayDescription.replaceAll('\n', ' ')}',
+              child: FormattedText(
+                text: displayDescription,
+                baseStyle: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Colors.grey[700]),
+                headingStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             
@@ -189,29 +211,32 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 padding: const EdgeInsets.only(top: 8.0),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _isExpanded = !_isExpanded;
-                      });
-                    },
-                    icon: Icon(
-                      _isExpanded ? Icons.expand_less : Icons.expand_more,
-                      size: 18,
-                    ),
-                    label: Text(
-                      _isExpanded ? 'Minder zien' : 'Alles zien',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  child: Semantics(
+                    label: _isExpanded ? 'Inklappen beschrijving' : 'Uitklappen volledige beschrijving',
+                    button: true,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _isExpanded = !_isExpanded;
+                        });
+                      },
+                      icon: Icon(
+                        _isExpanded ? Icons.expand_less : Icons.expand_more,
+                        size: 18,
+                      ),
+                      label: Text(
+                        _isExpanded ? 'Minder zien' : 'Alles zien',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
                     ),
                   ),
                 ),
               ),
-            
             const SizedBox(height: 12.0),
             
             // Display media (images and videos) with smart preview
@@ -224,7 +249,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildMediaSection(Kata kata) {

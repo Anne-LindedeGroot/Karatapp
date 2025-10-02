@@ -52,9 +52,20 @@ class AccessibleText extends ConsumerWidget {
     );
 
     // Add text-to-speech functionality if enabled
-    if (enableTextToSpeech && isTextToSpeechEnabled) {
+    if (enableTextToSpeech) {
       textWidget = GestureDetector(
-        onTap: onTap ?? () => accessibilityNotifier.speak(text),
+        onTap: onTap ?? () {
+          if (isTextToSpeechEnabled) {
+            accessibilityNotifier.speak(text);
+          } else {
+            // Enable TTS first, then speak
+            accessibilityNotifier.setTextToSpeechEnabled(true).then((_) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                accessibilityNotifier.speak(text);
+              });
+            });
+          }
+        },
         child: textWidget,
       );
     } else if (onTap != null) {
@@ -122,10 +133,21 @@ class AccessibleRichText extends ConsumerWidget {
     );
 
     // Add text-to-speech functionality if enabled
-    if (enableTextToSpeech && isTextToSpeechEnabled) {
+    if (enableTextToSpeech) {
       final fullText = textSpans.map((span) => span.text ?? '').join(' ');
       richTextWidget = GestureDetector(
-        onTap: onTap ?? () => accessibilityNotifier.speak(fullText),
+        onTap: onTap ?? () {
+          if (isTextToSpeechEnabled) {
+            accessibilityNotifier.speak(fullText);
+          } else {
+            // Enable TTS first, then speak
+            accessibilityNotifier.setTextToSpeechEnabled(true).then((_) {
+              Future.delayed(const Duration(milliseconds: 300), () {
+                accessibilityNotifier.speak(fullText);
+              });
+            });
+          }
+        },
         child: richTextWidget,
       );
     } else if (onTap != null) {

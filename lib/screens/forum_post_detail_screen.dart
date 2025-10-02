@@ -901,28 +901,22 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => Dialog(
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.of(context).size.width * 0.05, // Reduced to 5% padding for more space
             vertical: 40,
           ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final maxWidth = MediaQuery.of(context).size.width - 48;
-              final maxHeight = MediaQuery.of(context).size.height - 80;
-
-              return Container(
-                width: maxWidth,
-                height: maxHeight,
-                constraints: BoxConstraints(
-                  maxWidth: maxWidth,
-                  maxHeight: maxHeight,
-                ),
-                child: Column(
+          child: Container(
+            width: double.infinity,
+            height: MediaQuery.of(context).size.height - 120,
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width - 40, // Ensure maximum width
+            ),
+            child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
                           const Expanded(
@@ -948,7 +942,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     // Content
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           children: [
                             TextField(
@@ -966,10 +960,14 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                                 labelText: 'Categorie',
                                 border: OutlineInputBorder(),
                               ),
+                              isExpanded: true, // This prevents overflow by expanding the dropdown
                               items: ForumCategory.values.map((category) {
                                 return DropdownMenuItem(
                                   value: category,
-                                  child: Text(category.displayName),
+                                  child: Text(
+                                    category.displayName,
+                                    overflow: TextOverflow.ellipsis, // Handle long text gracefully
+                                  ),
                                 );
                               }).toList(),
                               onChanged: (value) {
@@ -998,26 +996,28 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
                     // Actions
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Annuleren'),
+                          Flexible(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Annuleren'),
+                            ),
                           ),
                           const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Opslaan'),
+                          Flexible(
+                            child: ElevatedButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Opslaan'),
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-              );
-            },
           ),
         ),
       ),

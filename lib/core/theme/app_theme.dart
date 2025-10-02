@@ -360,7 +360,7 @@ class AppTheme {
             onError: const Color(0xFF690005),
             errorContainer: const Color(0xFF93000A),
             onErrorContainer: const Color(0xFFFFDAD6),
-            surface: const Color(0xFF121212),
+            surface: const Color(0xFF000000),
             onSurface: _neutral100,
             surfaceContainerHighest: _neutral800,
             onSurfaceVariant: _neutral400,
@@ -391,6 +391,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       fontFamily: _fontFamily,
+      scaffoldBackgroundColor: colorScheme.surface,
       
       // Typography
       textTheme: TextTheme(
@@ -797,7 +798,7 @@ class AppTheme {
       onError: Color(0xFF690005),
       errorContainer: Color(0xFF93000A),
       onErrorContainer: Color(0xFFFFDAD6),
-      surface: Color(0xFF121212),
+      surface: Color(0xFF000000),
       onSurface: _neutral100,
       surfaceContainerHighest: _neutral800,
       onSurfaceVariant: _neutral400,
@@ -815,6 +816,7 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: colorScheme,
       fontFamily: _fontFamily,
+      scaffoldBackgroundColor: Colors.black,
       
       // Typography
       textTheme: TextTheme(

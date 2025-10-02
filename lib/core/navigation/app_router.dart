@@ -16,6 +16,7 @@ import '../../screens/accessibility_demo_screen.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kata_provider.dart';
 import '../../widgets/global_error_widget.dart';
+import '../../widgets/unified_tts_button.dart';
 
 /// App routes configuration
 class AppRoutes {
@@ -91,24 +92,30 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: HomeScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: HomeScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.profile,
         name: 'profile',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: ProfileScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: ProfileScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.forum,
         name: 'forum',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: ForumScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: ForumScreen(),
+          ),
         ),
       ),
       
@@ -117,8 +124,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'forumPostDetail',
         builder: (context, state) {
           final postId = int.parse(state.pathParameters['postId']!);
-          return GlobalErrorBoundary(
-            child: ForumPostDetailScreen(postId: postId),
+          return withUnifiedTTS(
+            child: GlobalErrorBoundary(
+              child: ForumPostDetailScreen(postId: postId),
+            ),
           );
         },
       ),
@@ -126,16 +135,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.createForumPost,
         name: 'createForumPost',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: CreateForumPostScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: CreateForumPostScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.favorites,
         name: 'favorites',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: FavoritesScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: FavoritesScreen(),
+          ),
         ),
       ),
       
@@ -144,8 +157,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'editKata',
         builder: (context, state) {
           final kataId = int.parse(state.pathParameters['kataId']!);
-          return GlobalErrorBoundary(
-            child: EditKataWrapper(kataId: kataId),
+          return withUnifiedTTS(
+            child: GlobalErrorBoundary(
+              child: EditKataWrapper(kataId: kataId),
+            ),
           );
         },
       ),
@@ -153,26 +168,33 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.avatarSelection,
         name: 'avatarSelection',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: AvatarSelectionScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: AvatarSelectionScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.userManagement,
         name: 'userManagement',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: UserManagementScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: UserManagementScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.accessibilityDemo,
         name: 'accessibilityDemo',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: AccessibilityDemoScreen(),
+        builder: (context, state) => withUnifiedTTS(
+          child: const GlobalErrorBoundary(
+            child: AccessibilityDemoScreen(),
+          ),
         ),
       ),
+      
       
     ],
     
@@ -362,41 +384,45 @@ class EditKataWrapper extends ConsumerWidget {
     final kataState = ref.watch(kataNotifierProvider);
 
     if (kataState.isLoading) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Laden...')),
-        body: const Center(child: CircularProgressIndicator()),
+      return withUnifiedTTS(
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Laden...')),
+          body: const Center(child: CircularProgressIndicator()),
+        ),
       );
     }
 
     if (kataState.error != null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Fout')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Fout bij laden kata',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                kataState.error ?? 'Onbekende fout',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => context.goToHome(),
-                child: const Text('Naar Home'),
-              ),
-            ],
+      return withUnifiedTTS(
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Fout')),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Fout bij laden kata',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  kataState.error ?? 'Onbekende fout',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => context.goToHome(),
+                  child: const Text('Naar Home'),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -406,36 +432,40 @@ class EditKataWrapper extends ConsumerWidget {
       final kata = kataState.katas.firstWhere(
         (k) => k.id == kataId,
       );
-      return EditKataScreen(kata: kata);
+      return withUnifiedTTS(
+        child: EditKataScreen(kata: kata),
+      );
     } catch (e) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Fout')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Kata niet gevonden',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'De kata die je zoekt bestaat niet.',
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => context.goToHome(),
-                child: const Text('Naar Home'),
-              ),
-            ],
+      return withUnifiedTTS(
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Fout')),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Kata niet gevonden',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'De kata die je zoekt bestaat niet.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => context.goToHome(),
+                  child: const Text('Naar Home'),
+                ),
+              ],
+            ),
           ),
         ),
       );

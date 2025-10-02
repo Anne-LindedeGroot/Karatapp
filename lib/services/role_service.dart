@@ -252,7 +252,7 @@ class RoleService {
         usersWithRoles.add({
           'id': userId,
           'email': user['email'] ?? 'Unknown',
-          'full_name': user['full_name'] ?? 'Unknown User',
+          'full_name': user['full_name'] ?? (user['email'] as String?)?.split('@')[0] ?? 'Unknown User',
           'role': latestRole?['role'] ?? 'user',
           'role_granted_at': latestRole?['granted_at'],
           'created_at': user['created_at'],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'global_floating_tts_button.dart';
+import 'unified_tts_button.dart';
 import '../providers/accessibility_provider.dart';
 
 /// Global TTS overlay that provides a floating TTS button on all screens
@@ -40,11 +40,12 @@ class GlobalTTSOverlay extends ConsumerWidget {
         Positioned(
           right: margin?.right ?? 0,
           bottom: margin?.bottom ?? 120, // Position above plus button with spacing
-          child: GlobalFloatingTTSButton(
+          child: UnifiedTTSButton(
             showLabel: showLabel,
             size: size,
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
+            margin: const EdgeInsets.all(16),
           ),
         ),
       ],
@@ -74,7 +75,7 @@ Widget withGlobalTTS({
         return child;
       }
 
-      return GlobalTTSOverlay(
+      return UnifiedTTSOverlay(
         enabled: enabled,
         margin: margin,
         size: size,

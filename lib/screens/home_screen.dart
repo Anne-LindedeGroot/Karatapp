@@ -509,12 +509,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               },
               tooltip: 'Community Forum',
             ),
-            PopupMenuButton(
-              icon: const Icon(Icons.more_vert),
-              tooltip: 'Meer opties',
-              itemBuilder: (context) {
-                return <PopupMenuEntry>[
-                  PopupMenuItem(
+            Semantics(
+              label: 'Hoofdmenu openen',
+              button: true,
+              child: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                tooltip: 'Meer opties',
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
                     // ignore: sort_child_properties_last
                     child: Row(
                       children: [
@@ -531,7 +533,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     enabled: false,
                   ),
                   const PopupMenuDivider(),
-                  PopupMenuItem(
+                  PopupMenuItem<String>(
                     child: Row(
                       children: [
                         const Icon(Icons.person, size: 20),
@@ -548,7 +550,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       });
                     },
                   ),
-                  PopupMenuItem(
+                  PopupMenuItem<String>(
                     child: Row(
                       children: [
                         const Icon(Icons.favorite, size: 20),
@@ -566,8 +568,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     },
                   ),
                   // Only show admin options for hosts
-                  if (isHost) ...[
-                  PopupMenuItem(
+                  if (isHost)
+                    PopupMenuItem<String>(
                     child: Row(
                       children: [
                         const Icon(Icons.admin_panel_settings, size: 20),
@@ -584,7 +586,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       });
                     },
                   ),
-                    PopupMenuItem(
+                  if (isHost)
+                    PopupMenuItem<String>(
                       child: Row(
                         children: [
                           const Icon(Icons.cleaning_services, size: 20),
@@ -601,10 +604,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         });
                       },
                     ),
-                  ],
                   const PopupMenuDivider(),
                   // Theme switcher
-                  PopupMenuItem(
+                  PopupMenuItem<String>(
                     child: Consumer(
                       builder: (context, ref, child) {
                         final themeState = ref.watch(themeNotifierProvider);
@@ -670,7 +672,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     enabled: false, // Disable tap to prevent menu close
                   ),
                   // High contrast toggle
-                  PopupMenuItem(
+                  PopupMenuItem<String>(
                     child: Consumer(
                       builder: (context, ref, child) {
                         final themeState = ref.watch(themeNotifierProvider);
@@ -694,7 +696,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     enabled: false, // Disable tap to prevent menu close
                   ),
                   const PopupMenuDivider(),
-                  PopupMenuItem(
+                  PopupMenuItem<String>(
                     child: Row(
                       children: [
                         const Icon(Icons.logout, size: 20, color: Colors.red),
@@ -706,8 +708,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _showLogoutConfirmationDialog();
                     },
                   ),
-                ];
-              },
+                ],
+            ),
             ),
           ],
         ),
@@ -718,19 +720,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               padding: const EdgeInsets.all(8.0),
               child: Column(
                 children: [
-                  TextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    decoration: const InputDecoration(
-                      hintText: 'Zoek kata\'s...',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(25.0)),
+                  Semantics(
+                    label: 'Zoek kata\'s invoerveld',
+                    textField: true,
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      decoration: const InputDecoration(
+                        hintText: 'Zoek kata\'s...',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(25.0)),
+                        ),
                       ),
+                      onChanged: (value) {
+                        _filterKatas(value);
+                      },
                     ),
-                    onChanged: (value) {
-                      _filterKatas(value);
-                    },
                   ),
                   // Small connection status indicator below search
                   if (!isConnected) ...[
@@ -792,11 +798,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            _showAddKataDialog();
-          },
-          child: const Icon(Icons.add),
+        floatingActionButton: Semantics(
+          label: 'Nieuwe kata toevoegen',
+          button: true,
+          child: FloatingActionButton(
+            onPressed: () {
+              _showAddKataDialog();
+            },
+            child: const Icon(Icons.add),
+          ),
         ),
       ),
     );

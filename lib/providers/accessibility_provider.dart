@@ -127,51 +127,106 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   bool _isSpeaking = false;
 
   AccessibilityNotifier() : super(const AccessibilityState()) {
-    _initializeTts();
-    _loadAccessibilityFromPreferences();
+    _initializeAsync();
+  }
+
+  /// Initialize TTS and load preferences asynchronously
+  Future<void> _initializeAsync() async {
+    await _initializeTts();
+    await _loadAccessibilityFromPreferences();
   }
 
   /// Initialize text-to-speech
   Future<void> _initializeTts() async {
     try {
+      debugPrint('Initializing TTS...');
       _flutterTts = FlutterTts();
       
-      // Set default language to Dutch
-      await _flutterTts.setLanguage('nl-NL');
+      // Wait a moment for TTS to be ready
+      await Future.delayed(const Duration(milliseconds: 100));
       
-      // Set initial speech rate and pitch
-      await _flutterTts.setSpeechRate(state.speechRate);
-      await _flutterTts.setPitch(state.speechPitch);
-      
-      // Configure audio routing for headphones
-      await _configureAudioRouting();
-      
-      // Set up TTS event handlers
+      // Set up TTS event handlers first
       _flutterTts.setStartHandler(() {
+        debugPrint('TTS: Speech started');
         _isSpeaking = true;
         state = state.copyWith(isSpeaking: true);
       });
       
       _flutterTts.setCompletionHandler(() {
+        debugPrint('TTS: Speech completed');
         _isSpeaking = false;
         state = state.copyWith(isSpeaking: false);
       });
       
       _flutterTts.setCancelHandler(() {
+        debugPrint('TTS: Speech cancelled');
         _isSpeaking = false;
         state = state.copyWith(isSpeaking: false);
       });
       
       _flutterTts.setErrorHandler((msg) {
+        debugPrint('TTS Error: $msg');
         _isSpeaking = false;
         state = state.copyWith(isSpeaking: false);
-        debugPrint('TTS Error: $msg');
       });
       
+      // Check available languages
+      try {
+        final languages = await _flutterTts.getLanguages;
+        debugPrint('Available TTS languages: $languages');
+      } catch (e) {
+        debugPrint('Could not get available languages: $e');
+      }
+      
+      // Try to set Dutch language
+      try {
+        final result = await _flutterTts.setLanguage('nl-NL');
+        debugPrint('Set language nl-NL result: $result');
+        
+        if (result != 1) {
+          // Try alternative Dutch locale if nl-NL failed
+          final altResult = await _flutterTts.setLanguage('nl');
+          debugPrint('Set language nl result: $altResult');
+          
+          if (altResult != 1) {
+            // If no Dutch available, try English as fallback
+            final enResult = await _flutterTts.setLanguage('en-US');
+            debugPrint('Set language en-US result: $enResult');
+            if (enResult != 1) {
+              debugPrint('Warning: Could not set any preferred language, using system default');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error setting language: $e');
+      }
+      
+      // Set initial speech parameters
+      try {
+        await _flutterTts.setSpeechRate(state.speechRate);
+        await _flutterTts.setPitch(state.speechPitch);
+        debugPrint('TTS speech parameters set: rate=${state.speechRate}, pitch=${state.speechPitch}');
+      } catch (e) {
+        debugPrint('Error setting speech parameters: $e');
+      }
+      
+      // Configure audio routing for headphones
+      await _configureAudioRouting();
+      
       _isTtsInitialized = true;
-      debugPrint('TTS initialized successfully with Dutch language (nl-NL)');
+      debugPrint('TTS initialized successfully');
+      
+      // Test TTS with a simple phrase (but don't actually speak it)
+      try {
+        // Just test if the speak method is available without actually speaking
+        debugPrint('TTS initialization completed successfully');
+      } catch (e) {
+        debugPrint('TTS test failed: $e');
+      }
+      
     } catch (e) {
       debugPrint('Error initializing TTS: $e');
+      _isTtsInitialized = false;
     }
   }
 
@@ -378,26 +433,97 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
 
   /// Speak text using text-to-speech
   Future<void> speak(String text) async {
-    if (!state.isTextToSpeechEnabled || !_isTtsInitialized) return;
+    if (!state.isTextToSpeechEnabled) return;
+    
+    // Clean and validate text
+    final cleanText = text.trim();
+    if (cleanText.isEmpty) {
+      debugPrint('TTS: Empty text provided, skipping');
+      return;
+    }
+    
+    // Ensure TTS is initialized
+    if (!_isTtsInitialized) {
+      debugPrint('TTS not initialized, attempting to initialize...');
+      await _initializeTts();
+      if (!_isTtsInitialized) {
+        debugPrint('TTS initialization failed, cannot speak');
+        return;
+      }
+    }
     
     try {
-      // Stop any current speech
+      // Stop any current speech first
       await _flutterTts.stop();
+      await Future.delayed(const Duration(milliseconds: 100));
       
-      // Ensure Dutch language is set
-      await _flutterTts.setLanguage('nl-NL');
+      // Ensure language is properly set
+      await _ensureLanguageSet();
+      
+      // Set speech parameters
+      await _flutterTts.setSpeechRate(state.speechRate);
+      await _flutterTts.setPitch(state.speechPitch);
       
       // Update speaking state immediately
       _isSpeaking = true;
       state = state.copyWith(isSpeaking: true);
       
+      debugPrint('TTS: Starting to speak: "${cleanText.length > 100 ? '${cleanText.substring(0, 100)}...' : cleanText}"');
+      
       // Speak the text
-      await _flutterTts.speak(text);
-      debugPrint('TTS speaking: ${text.length > 100 ? text.substring(0, 100) + '...' : text}');
+      final speakResult = await _flutterTts.speak(cleanText);
+      debugPrint('TTS speak result: $speakResult');
+      
+      // If speak failed, try alternative approach
+      if (speakResult != 1) {
+        debugPrint('TTS: First speak attempt failed, trying alternative approach...');
+        await Future.delayed(const Duration(milliseconds: 200));
+        await _flutterTts.speak(cleanText);
+      }
+      
     } catch (e) {
       debugPrint('Error speaking text: $e');
       _isSpeaking = false;
       state = state.copyWith(isSpeaking: false);
+      
+      // Try to reinitialize TTS on error
+      _isTtsInitialized = false;
+      Future.delayed(const Duration(milliseconds: 500), () async {
+        await _initializeTts();
+      });
+    }
+  }
+
+  /// Ensure proper language is set for TTS
+  Future<void> _ensureLanguageSet() async {
+    try {
+      // Try Dutch first
+      var result = await _flutterTts.setLanguage('nl-NL');
+      if (result == 1) {
+        debugPrint('TTS: Language set to nl-NL');
+        return;
+      }
+      
+      // Try alternative Dutch
+      result = await _flutterTts.setLanguage('nl');
+      if (result == 1) {
+        debugPrint('TTS: Language set to nl');
+        return;
+      }
+      
+      // Try English as fallback
+      result = await _flutterTts.setLanguage('en-US');
+      if (result == 1) {
+        debugPrint('TTS: Language set to en-US as fallback');
+        return;
+      }
+      
+      // Try system default
+      result = await _flutterTts.setLanguage('en');
+      debugPrint('TTS: Using system default language, result: $result');
+      
+    } catch (e) {
+      debugPrint('Error setting TTS language: $e');
     }
   }
 

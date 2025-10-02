@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -158,9 +159,21 @@ class MyApp extends ConsumerWidget {
         darkTheme: themeState.isHighContrast ? AppTheme.highContrastDarkTheme : AppTheme.darkTheme,
         themeMode: themeState.flutterThemeMode,
         routerConfig: router,
-      builder: (context, child) {
-        // Global error handling for uncaught exceptions
-        ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
+        builder: (context, child) {
+          // Set system UI overlay style based on current theme
+          final brightness = Theme.of(context).brightness;
+          SystemChrome.setSystemUIOverlayStyle(
+            SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+              statusBarBrightness: brightness,
+              systemNavigationBarColor: Theme.of(context).scaffoldBackgroundColor,
+              systemNavigationBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+            ),
+          );
+
+          // Global error handling for uncaught exceptions
+          ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
           // Log the error for debugging
           debugPrint('ErrorWidget.builder called with: ${errorDetails.exception}');
           debugPrint('Stack trace: ${errorDetails.stack}');

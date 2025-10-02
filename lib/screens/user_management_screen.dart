@@ -211,42 +211,57 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   return [
                     PopupMenuItem<String>(
                       value: 'unmute',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.volume_up, color: Colors.green),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('Gebruiker Ontdempen'),
-                              Text(
-                                'Gedempt tot: ${muteInfo.mutedUntil.day}/${muteInfo.mutedUntil.month}/${muteInfo.mutedUntil.year}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.volume_up, color: Colors.green),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('Gebruiker Ontdempen'),
+                                  Text(
+                                    'Gedempt tot: ${muteInfo.mutedUntil.day}/${muteInfo.mutedUntil.month}/${muteInfo.mutedUntil.year}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Tijd over: ${muteInfo.timeRemainingText}',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
-                              Text(
-                                'Tijd over: ${muteInfo.timeRemainingText}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'view_history',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.history, color: Colors.blue),
-                          SizedBox(width: 12),
-                          Text('Dempgeschiedenis Bekijken'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.history, color: Colors.blue),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempgeschiedenis Bekijken',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ];
@@ -254,92 +269,164 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   return [
                     PopupMenuItem<String>(
                       value: 'mute_1day',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.volume_off, color: Colors.orange),
-                          SizedBox(width: 12),
-                          Text('Dempen voor 1 Dag'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.volume_off, color: Colors.orange),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempen voor 1 Dag',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'mute_3days',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.volume_off, color: Colors.orange),
-                          SizedBox(width: 12),
-                          Text('Dempen voor 3 Dagen'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.volume_off, color: Colors.orange),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempen voor 3 Dagen',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'mute_1week',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.volume_off, color: Colors.red),
-                          SizedBox(width: 12),
-                          Text('Dempen voor 1 Week'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.volume_off, color: Colors.red),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempen voor 1 Week',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'mute_1month',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.volume_off, color: Colors.red),
-                          SizedBox(width: 12),
-                          Text('Dempen voor 1 Maand'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.volume_off, color: Colors.red),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempen voor 1 Maand',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'mute_3months',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.volume_off, color: Colors.red),
-                          SizedBox(width: 12),
-                          Text('Dempen voor 3 Maanden'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.volume_off, color: Colors.red),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempen voor 3 Maanden',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'mute_6months',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.volume_off, color: Colors.red),
-                          SizedBox(width: 12),
-                          Text('Dempen voor 6 Maanden'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.volume_off, color: Colors.red),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempen voor 6 Maanden',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'mute_1year',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.volume_off, color: Colors.red),
-                          SizedBox(width: 12),
-                          Text('Dempen voor 1 Jaar'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.volume_off, color: Colors.red),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempen voor 1 Jaar',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'mute_custom',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.schedule, color: Colors.purple),
-                          SizedBox(width: 12),
-                          Text('Aangepaste Duur'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.schedule, color: Colors.purple),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Aangepaste Duur',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     PopupMenuItem<String>(
                       value: 'view_history',
-                      child: const Row(
-                        children: [
-                          Icon(Icons.history, color: Colors.blue),
-                          SizedBox(width: 12),
-                          Text('Dempgeschiedenis Bekijken'),
-                        ],
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 280),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.history, color: Colors.blue),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Dempgeschiedenis Bekijken',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ];
@@ -948,7 +1035,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                 itemBuilder: (context, index) {
                                   final user = _users[index];
                                   final userId = user['id'] as String;
-                                  final userName = user['name'] as String? ?? 'Onbekende Gebruiker';
+                                  final userName = user['full_name'] as String? ?? user['email']?.split('@')[0] ?? 'Onbekende Gebruiker';
                                   final userEmail = user['email'] as String? ?? '';
                                   final userRole = UserRole.values.firstWhere(
                                     (role) => role.name == user['role'],

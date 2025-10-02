@@ -188,48 +188,60 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     );
     final canModerate = canModerateRole || (currentUser != null && post.authorId == currentUser.id);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ForumPostDetailScreen(postId: post.id),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with category and actions
-              Row(
-                children: [
-                  // Category badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _getCategoryColor(post.category),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      post.category.displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+    return Semantics(
+      label: 'Forum bericht: ${post.title}, categorie: ${post.category.displayName}, door ${post.authorName}',
+      button: true,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ForumPostDetailScreen(postId: post.id),
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with category and actions
+                Row(
+                  children: [
+                    // Category badge
+                    Semantics(
+                      label: 'Categorie: ${post.category.displayName}',
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getCategoryColor(post.category),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          post.category.displayName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
                   const Spacer(),
                   // Pin indicator
                   if (post.isPinned)
-                    const Icon(Icons.push_pin, color: Colors.orange, size: 16),
+                    Semantics(
+                      label: 'Vastgemaakt bericht',
+                      child: const Icon(Icons.push_pin, color: Colors.orange, size: 16),
+                    ),
                   // Lock indicator
                   if (post.isLocked)
-                    const Icon(Icons.lock, color: Colors.red, size: 16),
+                    Semantics(
+                      label: 'Vergrendeld bericht',
+                      child: const Icon(Icons.lock, color: Colors.red, size: 16),
+                    ),
                   // Actions menu
                   if (canModerate)
                     PopupMenuButton<String>(
@@ -284,23 +296,29 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               const SizedBox(height: 12),
               
               // Title
-              Text(
-                post.title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              Semantics(
+                label: 'Bericht titel: ${post.title}',
+                child: Text(
+                  post.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
               
               // Content preview
-              Text(
-                post.content,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  height: 1.4,
+              Semantics(
+                label: 'Bericht inhoud: ${post.content}',
+                child: Text(
+                  post.content,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    height: 1.4,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -309,28 +327,37 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               Row(
                 children: [
                   // Author avatar and name
-                  AvatarWidget(
-                    customAvatarUrl: post.authorAvatar,
-                    userName: post.authorName,
-                    size: 24,
+                  Semantics(
+                    label: 'Auteur avatar voor ${post.authorName}',
+                    child: AvatarWidget(
+                      customAvatarUrl: post.authorAvatar,
+                      userName: post.authorName,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          post.authorName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 14,
+                        Semantics(
+                          label: 'Auteur: ${post.authorName}',
+                          child: Text(
+                            post.authorName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                        Text(
-                          _formatDate(post.createdAt),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
+                        Semantics(
+                          label: 'Geplaatst op: ${_formatDate(post.createdAt)}',
+                          child: Text(
+                            _formatDate(post.createdAt),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       ],
@@ -447,6 +474,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
