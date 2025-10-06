@@ -45,9 +45,8 @@ class FormattedText extends StatelessWidget {
             children: [
               TextSpan(
                 text: '$beforeColon: ',
-                style: headingStyle ?? const TextStyle(
+                style: headingStyle ?? Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  fontSize: 18, // Increased font size for headings
                 ),
               ),
               TextSpan(text: afterColon),

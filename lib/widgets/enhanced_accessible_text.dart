@@ -53,12 +53,9 @@ class EnhancedAccessibleText extends ConsumerWidget {
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     final accessibilityState = ref.watch(accessibilityNotifierProvider);
     
-    // Apply accessibility styling
+    // Use theme-based styling (font scaling is already applied at theme level)
     final baseStyle = style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
-    final scaledStyle = baseStyle.copyWith(
-      fontSize: (baseStyle.fontSize ?? 14) * accessibilityState.fontScaleFactor,
-    );
-    final accessibleStyle = accessibilityNotifier.getDyslexiaFriendlyTextStyle(scaledStyle);
+    final accessibleStyle = accessibilityNotifier.getDyslexiaFriendlyTextStyle(baseStyle);
 
     Widget textWidget = Text(
       text,

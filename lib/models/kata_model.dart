@@ -1,3 +1,28 @@
+enum KataCategory {
+  all('Alle'),
+  wadoRyu('Wado Ryu'),
+  shotokan('Shotokan'),
+  gojuRyu('Goju Ryu'),
+  shitoRyu('Shito Ryu'),
+  kyokushin('Kyokushin'),
+  other('Andere');
+
+  const KataCategory(this.displayName);
+  
+  final String displayName;
+  
+  static KataCategory? fromStyle(String style) {
+    final styleLower = style.toLowerCase();
+    for (final category in KataCategory.values) {
+      if (category == KataCategory.all) continue;
+      if (styleLower.contains(category.displayName.toLowerCase())) {
+        return category;
+      }
+    }
+    return KataCategory.other;
+  }
+}
+
 class Kata {
   final int id;
   final String name;
@@ -104,6 +129,7 @@ class KataState {
   final bool isLoading;
   final String? error;
   final String searchQuery;
+  final KataCategory? selectedCategory;
 
   const KataState({
     this.katas = const [],
@@ -111,6 +137,7 @@ class KataState {
     this.isLoading = false,
     this.error,
     this.searchQuery = '',
+    this.selectedCategory,
   });
 
   KataState.initial()
@@ -118,7 +145,8 @@ class KataState {
         filteredKatas = const [],
         isLoading = false,
         error = null,
-        searchQuery = '';
+        searchQuery = '',
+        selectedCategory = null;
 
   KataState copyWith({
     List<Kata>? katas,
@@ -126,6 +154,7 @@ class KataState {
     bool? isLoading,
     String? error,
     String? searchQuery,
+    KataCategory? selectedCategory,
   }) {
     return KataState(
       katas: katas ?? this.katas,
@@ -133,12 +162,13 @@ class KataState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       searchQuery: searchQuery ?? this.searchQuery,
+      selectedCategory: selectedCategory ?? this.selectedCategory,
     );
   }
 
   @override
   String toString() {
-    return 'KataState(katas: ${katas.length}, filteredKatas: ${filteredKatas.length}, isLoading: $isLoading, error: $error, searchQuery: $searchQuery)';
+    return 'KataState(katas: ${katas.length}, filteredKatas: ${filteredKatas.length}, isLoading: $isLoading, error: $error, searchQuery: $searchQuery, selectedCategory: $selectedCategory)';
   }
 
   @override
@@ -149,7 +179,8 @@ class KataState {
         other.filteredKatas == filteredKatas &&
         other.isLoading == isLoading &&
         other.error == error &&
-        other.searchQuery == searchQuery;
+        other.searchQuery == searchQuery &&
+        other.selectedCategory == selectedCategory;
   }
 
   @override
@@ -158,6 +189,7 @@ class KataState {
         filteredKatas.hashCode ^
         isLoading.hashCode ^
         error.hashCode ^
-        searchQuery.hashCode;
+        searchQuery.hashCode ^
+        selectedCategory.hashCode;
   }
 }

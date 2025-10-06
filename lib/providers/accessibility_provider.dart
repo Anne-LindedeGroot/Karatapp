@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io' show Platform;
+import 'theme_provider.dart';
 
 /// Font size options for accessibility
 enum AccessibilityFontSize {
@@ -568,6 +569,36 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     return getDyslexiaFriendlyTextStyle(scaledStyle);
   }
 
+  /// Get scaled text style that integrates with system dynamic type scaling
+  TextStyle getSystemAwareTextStyle(TextStyle baseStyle, BuildContext context) {
+    // Get system text scale factor
+    final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+    
+    // Combine user preference with system scaling
+    final combinedScaleFactor = state.fontScaleFactor * systemScaleFactor;
+    
+    // Clamp the scale factor to reasonable bounds
+    final clampedScaleFactor = combinedScaleFactor.clamp(0.5, 3.0);
+    
+    TextStyle scaledStyle = baseStyle.copyWith(
+      fontSize: (baseStyle.fontSize ?? 14) * clampedScaleFactor,
+    );
+
+    return getDyslexiaFriendlyTextStyle(scaledStyle);
+  }
+
+  /// Check if system dynamic type is enabled and larger than normal
+  bool isSystemDynamicTypeEnabled(BuildContext context) {
+    final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+    return systemScaleFactor > 1.0;
+  }
+
+  /// Get the effective font scale factor combining user and system settings
+  double getEffectiveFontScaleFactor(BuildContext context) {
+    final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+    return (state.fontScaleFactor * systemScaleFactor).clamp(0.5, 3.0);
+  }
+
   @override
   void dispose() {
     _flutterTts.stop();
@@ -636,3 +667,14 @@ extension AccessibilityFontSizeExtension on AccessibilityFontSize {
     }
   }
 }
+
+/// Provider that syncs dyslexia-friendly setting between accessibility and theme providers
+final dyslexiaFriendlySyncProvider = Provider<void>((ref) {
+  final accessibilityState = ref.watch(accessibilityNotifierProvider);
+  final themeNotifier = ref.read(themeNotifierProvider.notifier);
+  
+  // Sync the dyslexia-friendly setting from accessibility to theme
+  if (accessibilityState.isDyslexiaFriendly != ref.watch(themeNotifierProvider).isDyslexiaFriendly) {
+    themeNotifier.setDyslexiaFriendly(accessibilityState.isDyslexiaFriendly);
+  }
+});

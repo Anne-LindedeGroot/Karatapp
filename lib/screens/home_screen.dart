@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
-import '../widgets/skeleton_kata_card.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/modern_loading_widget.dart';
 import '../providers/auth_provider.dart';
@@ -51,18 +50,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Verweesde afbeeldingen opruimen?',
-                semanticsLabel: 'Afbeeldingen opruimen bevestiging popup',
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
+      builder: (context) => ResponsiveDialog(
+        title: 'Verweesde afbeeldingen opruimen?',
+        child: const Text(
           'Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen. '
           'Dit omvat afbeeldingen in mappen zoals "0" of "temp_" die mogelijk zijn achtergebleven. '
           'Deze actie kan niet ongedaan worden gemaakt.',
@@ -153,13 +143,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Expanded(child: Text('$kataName verwijderen?')),
-          ],
-        ),
-        content: const Text(
+      builder: (context) => ResponsiveDialog(
+        title: '$kataName verwijderen?',
+        child: const Text(
           'Dit zal de kata en alle afbeeldingen permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
         actions: [
@@ -224,21 +210,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.read(kataNotifierProvider.notifier).searchKatas(query);
   }
 
+
   Future<void> _showLogoutConfirmationDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Uitloggen',
-                semanticsLabel: 'Uitloggen bevestiging popup',
-              ),
-            ),
-          ],
-        ),
-        content: const Text(
+      builder: (context) => ResponsiveDialog(
+        title: 'Uitloggen',
+        child: const Text(
           'Weet je/u zeker dat je uit wilt loggen?',
           semanticsLabel: 'Bevestiging bericht: Weet je zeker dat je uit wilt loggen?',
         ),
@@ -309,6 +287,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onDelete: () => _deleteKata(kata.id, kata.name),
           )).toList(),
         ),
+        foldable: ResponsiveGrid(
+          maxColumns: 2,
+          padding: EdgeInsets.only(
+            bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                    context.responsiveSpacing(SpacingSize.lg),
+          ),
+          mainAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
+          crossAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
+          childAspectRatio: 0.85,
+          children: katas.map((kata) => CollapsibleKataCard(
+            kata: kata,
+            onDelete: () => _deleteKata(kata.id, kata.name),
+          )).toList(),
+        ),
+        largeFoldable: ResponsiveGrid(
+          maxColumns: 3,
+          padding: EdgeInsets.only(
+            bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                    context.responsiveSpacing(SpacingSize.lg),
+          ),
+          mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+          crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+          childAspectRatio: 0.9,
+          children: katas.map((kata) => CollapsibleKataCard(
+            kata: kata,
+            onDelete: () => _deleteKata(kata.id, kata.name),
+          )).toList(),
+        ),
         desktop: ResponsiveGrid(
           maxColumns: 3,
           padding: EdgeInsets.only(
@@ -371,6 +377,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // For larger screens, use grid layout without reordering
     return ResponsiveLayout(
+      mobile: ResponsiveGrid(
+        maxColumns: 1,
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+          bottom: 16,
+        ),
+        children: katas.map((kata) => CollapsibleKataCard(
+          kata: kata,
+          onDelete: () => _deleteKata(kata.id, kata.name),
+        )).toList(),
+      ),
       tablet: ResponsiveGrid(
         maxColumns: 2,
         padding: EdgeInsets.only(
@@ -380,6 +399,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         childAspectRatio: 0.8,
+        children: katas.map((kata) => CollapsibleKataCard(
+          kata: kata,
+          onDelete: () => _deleteKata(kata.id, kata.name),
+        )).toList(),
+      ),
+      foldable: ResponsiveGrid(
+        maxColumns: 2,
+        padding: EdgeInsets.only(
+          bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                  context.responsiveSpacing(SpacingSize.lg),
+        ),
+        mainAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
+        crossAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
+        childAspectRatio: 0.85,
+        children: katas.map((kata) => CollapsibleKataCard(
+          kata: kata,
+          onDelete: () => _deleteKata(kata.id, kata.name),
+        )).toList(),
+      ),
+      largeFoldable: ResponsiveGrid(
+        maxColumns: 3,
+        padding: EdgeInsets.only(
+          bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
+                  context.responsiveSpacing(SpacingSize.lg),
+        ),
+        mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+        crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
+        childAspectRatio: 0.9,
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
@@ -446,6 +493,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
     );
   }
+
 
   bool _isNetworkError(String? error) {
     if (error == null) return false;
@@ -586,8 +634,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     : null,
                               ),
                               const SizedBox(width: 12),
-                              const Text('Dyslexie vriendelijk'),
-                              const Spacer(),
+                              Expanded(
+                                child: Text('Dyslexie vriendelijk'),
+                              ),
                               Switch(
                                 value: accessibilityState.isDyslexiaFriendly,
                                 onChanged: (value) {
@@ -941,13 +990,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.sports_martial_arts, color: Colors.blue, size: 28),
-                    const SizedBox(width: 12),
-                    const Expanded(
+                    Icon(Icons.sports_martial_arts, color: Colors.blue, size: 28),
+                    SizedBox(width: 12),
+                    Expanded(
                       child: Text(
                         "Nieuwe Kata Toevoegen",
-                        style: TextStyle(
-                          fontSize: 20,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -962,17 +1010,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8),
                       // Basic Information Section
-                      const Text(
+                      Text(
                         "Basis Informatie",
-                        style: TextStyle(
-                          fontSize: 16,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: Colors.blue,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
                       TextField(
                         controller: nameController,
                         decoration: InputDecoration(
@@ -993,7 +1040,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           });
                         },
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       TextField(
                         controller: styleController,
                         decoration: InputDecoration(
@@ -1009,7 +1056,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       TextField(
                         controller: descriptionController,
                         decoration: InputDecoration(
@@ -1027,7 +1074,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         maxLines: 3,
                         keyboardType: TextInputType.multiline,
                       ),
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20),
 
                       // Images section
                       Row(
@@ -1036,15 +1083,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(width: 8),
                           Text(
                             "Afbeeldingen (${selectedImages.length})",
-                            style: const TextStyle(
-                              fontSize: 16,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: Colors.blue,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
 
                       // Image picker buttons
                       Row(
@@ -1111,7 +1157,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       // Selected images preview with reordering
                       if (selectedImages.isNotEmpty) ...[
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -1126,13 +1172,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             children: [
                               Text(
                                 '${selectedImages.length} afbeelding(en) geselecteerd',
-                                style: const TextStyle(
-                                  fontSize: 14,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w500,
                                   color: Colors.blue,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               SizedBox(
                                 height: 100,
                                 child: ReorderableListView.builder(
@@ -1190,9 +1235,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                               ),
                                               child: Text(
                                                 '${index + 1}',
-                                                style: const TextStyle(
+                                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                                   color: Colors.white,
-                                                  fontSize: 10,
                                                   fontWeight: FontWeight.bold,
                                                 ),
                                               ),
@@ -1251,11 +1295,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   },
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              const Text(
+                              SizedBox(height: 4),
+                              Text(
                                 'Houd ingedrukt en sleep om te herordenen',
-                                style: TextStyle(
-                                  fontSize: 11,
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                   color: Colors.grey,
                                   fontStyle: FontStyle.italic,
                                 ),
@@ -1266,22 +1309,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
 
                       // Video URLs section
-                      const SizedBox(height: 20),
+                      SizedBox(height: 20),
                       Row(
                         children: [
                           const Icon(Icons.video_library, color: Colors.purple, size: 24),
                           const SizedBox(width: 8),
                           Text(
                             "Video URLs (${videoUrls.length})",
-                            style: const TextStyle(
-                              fontSize: 16,
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
                               color: Colors.purple,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 12),
 
                       // Video URL input field
                       TextField(
@@ -1309,7 +1351,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                       // Video URLs list
                       if (videoUrls.isNotEmpty) ...[
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -1324,13 +1366,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             children: [
                               Text(
                                 '${videoUrls.length} video URL(s) toegevoegd',
-                                style: const TextStyle(
-                                  fontSize: 14,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w500,
                                   color: Colors.purple,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8),
                               ...videoUrls.asMap().entries.map((entry) {
                                 final index = entry.key;
                                 final url = entry.value;
@@ -1351,9 +1392,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         radius: 12,
                                         child: Text(
                                           '${index + 1}',
-                                          style: const TextStyle(
+                                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                             color: Colors.white,
-                                            fontSize: 10,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -1362,8 +1402,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       Expanded(
                                         child: Text(
                                           url,
-                                          style: TextStyle(
-                                            fontSize: 12,
+                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                             color: Theme.of(context).brightness == Brightness.dark
                                                 ? Colors.white
                                                 : Colors.black,
@@ -1411,10 +1450,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           side: const BorderSide(color: Colors.grey, width: 1.5),
                         ),
-                        child: const Text(
+                        child: Text(
                           "Annuleren",
-                          style: TextStyle(
-                            fontSize: 16,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1440,7 +1478,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     const CircularProgressIndicator(),
-                                    const SizedBox(height: 16),
+                                    SizedBox(height: 16),
                                     Text(
                                       selectedImages.isNotEmpty
                                           ? 'Creating kata and uploading ${selectedImages.length} image(s)...'
@@ -1519,10 +1557,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           ),
                         )
-                      : const Text(
+                      : Text(
                           "Kata\nToevoegen",
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                             height: 1.2,
                           ),

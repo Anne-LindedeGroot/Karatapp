@@ -129,13 +129,33 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
           _hasError = true;
           _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
           
-          // Only show error after a delay to prevent flashing errors
+          // Only show error after a longer delay to prevent startup errors from showing
+          // and only if the error persists for a significant time
           _errorDelayTimer?.cancel();
-          _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+          _errorDelayTimer = Timer(const Duration(seconds: 5), () {
             if (mounted && _hasError && !_isInitialized) {
-              setState(() {
-                _showError = true;
-              });
+              // Check if this is a temporary network error that might resolve itself
+              final errorStr = error?.toLowerCase() ?? '';
+              final isTemporaryError = errorStr.contains('network') || 
+                                     errorStr.contains('connection') ||
+                                     errorStr.contains('timeout') ||
+                                     errorStr.contains('exoplaybackexception') ||
+                                     errorStr.contains('sourceerror');
+              
+              // For temporary errors, wait even longer before showing
+              if (isTemporaryError) {
+                _errorDelayTimer = Timer(const Duration(seconds: 3), () {
+                  if (mounted && _hasError && !_isInitialized) {
+                    setState(() {
+                      _showError = true;
+                    });
+                  }
+                });
+              } else {
+                setState(() {
+                  _showError = true;
+                });
+              }
             }
           });
         }
@@ -181,13 +201,32 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       _hasError = true;
       _errorMessage = _getReadableErrorMessage(e.toString());
       
-      // Only show error after a delay to prevent flashing errors
+      // Only show error after a longer delay to prevent startup errors from showing
       _errorDelayTimer?.cancel();
-      _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+      _errorDelayTimer = Timer(const Duration(seconds: 5), () {
         if (mounted && _hasError && !_isInitialized) {
-          setState(() {
-            _showError = true;
-          });
+          // Check if this is a temporary network error that might resolve itself
+          final errorStr = e.toString().toLowerCase();
+          final isTemporaryError = errorStr.contains('network') || 
+                                 errorStr.contains('connection') ||
+                                 errorStr.contains('timeout') ||
+                                 errorStr.contains('exoplaybackexception') ||
+                                 errorStr.contains('sourceerror');
+          
+          // For temporary errors, wait even longer before showing
+          if (isTemporaryError) {
+            _errorDelayTimer = Timer(const Duration(seconds: 3), () {
+              if (mounted && _hasError && !_isInitialized) {
+                setState(() {
+                  _showError = true;
+                });
+              }
+            });
+          } else {
+            setState(() {
+              _showError = true;
+            });
+          }
         }
       });
       throw Exception('Failed to load video: ${e.toString()}');

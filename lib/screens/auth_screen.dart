@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../utils/responsive_utils.dart';
+import '../widgets/responsive_layout.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -131,22 +133,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     return Form(
       key: _loginFormKey,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: context.responsivePadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 40),
+            SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 60.0, desktop: 80.0)),
             
             // App Logo/Title
-            const Text(
+            Text(
               'Welkom Terug',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: context.responsiveValue(mobile: 28.0, tablet: 32.0, desktop: 36.0),
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
             Text(
               'Log in op je account',
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -154,16 +156,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 40),
+            SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 50.0, desktop: 60.0)),
             
             // Error message
             if (_loginError != null)
               Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 16),
+                padding: context.responsivePadding,
+                margin: EdgeInsets.only(bottom: context.responsiveSpacing(SpacingSize.md)),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: context.responsiveBorderRadius,
                 ),
                 child: Row(
                   children: [
@@ -205,7 +207,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Password field
             TextFormField(
@@ -228,7 +230,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
             
             // Login button
             SizedBox(
@@ -244,7 +246,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     : const Text('Inloggen'),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Switch to signup
             Row(
@@ -270,11 +272,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     return Form(
       key: _signupFormKey,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: context.responsivePadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 40),
+            SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 50.0, desktop: 60.0)),
             
             // App Logo/Title
             const Text(
@@ -293,7 +295,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 40),
+            SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 50.0, desktop: 60.0)),
             
             // Error message
             if (_signupError != null)
@@ -343,7 +345,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Email field
             TextFormField(
@@ -365,7 +367,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Password field
             TextFormField(
@@ -388,7 +390,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Confirm password field
             TextFormField(
@@ -411,7 +413,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
             
             // Signup button
             SizedBox(
@@ -427,7 +429,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     : const Text('Account Aanmaken'),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Switch to login
             Row(
@@ -466,7 +468,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     size: 64,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
                   Text(
                     'Karatapp',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(

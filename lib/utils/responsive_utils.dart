@@ -9,6 +9,10 @@ class ResponsiveUtils {
   static const double mobileBreakpoint = 600;
   static const double tabletBreakpoint = 1024;
   static const double desktopBreakpoint = 1440;
+  
+  // Foldable device breakpoints
+  static const double foldableBreakpoint = 840;
+  static const double largeFoldableBreakpoint = 1000;
 
   // Screen size categories
   static bool isMobile(BuildContext context) {
@@ -28,11 +32,30 @@ class ResponsiveUtils {
     return MediaQuery.of(context).size.width >= desktopBreakpoint;
   }
 
+  // Foldable device detection
+  static bool isFoldable(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    return width >= foldableBreakpoint && width < largeFoldableBreakpoint;
+  }
+
+  static bool isLargeFoldable(BuildContext context) {
+    return MediaQuery.of(context).size.width >= largeFoldableBreakpoint;
+  }
+
+  // Check if device is in dual-screen mode (foldable unfolded)
+  static bool isDualScreen(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    return mediaQuery.size.width >= foldableBreakpoint && 
+           mediaQuery.size.width > 600; // Simplified check for dual screen
+  }
+
   // Screen size enum for easier handling
   static ScreenSize getScreenSize(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width < mobileBreakpoint) return ScreenSize.mobile;
-    if (width < tabletBreakpoint) return ScreenSize.tablet;
+    if (width < foldableBreakpoint) return ScreenSize.tablet;
+    if (width < largeFoldableBreakpoint) return ScreenSize.foldable;
+    if (width < tabletBreakpoint) return ScreenSize.largeFoldable;
     if (width < desktopBreakpoint) return ScreenSize.desktop;
     return ScreenSize.largeDesktop;
   }
@@ -42,6 +65,8 @@ class ResponsiveUtils {
     BuildContext context, {
     required T mobile,
     T? tablet,
+    T? foldable,
+    T? largeFoldable,
     T? desktop,
     T? largeDesktop,
   }) {
@@ -51,27 +76,38 @@ class ResponsiveUtils {
         return mobile;
       case ScreenSize.tablet:
         return tablet ?? mobile;
+      case ScreenSize.foldable:
+        return foldable ?? tablet ?? mobile;
+      case ScreenSize.largeFoldable:
+        return largeFoldable ?? foldable ?? tablet ?? mobile;
       case ScreenSize.desktop:
-        return desktop ?? tablet ?? mobile;
+        return desktop ?? largeFoldable ?? foldable ?? tablet ?? mobile;
       case ScreenSize.largeDesktop:
-        return largeDesktop ?? desktop ?? tablet ?? mobile;
+        return largeDesktop ?? desktop ?? largeFoldable ?? foldable ?? tablet ?? mobile;
     }
   }
 
-  // Responsive padding
+  // Responsive padding with landscape optimization
   static EdgeInsets responsivePadding(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isMobileLandscape = isMobile(context) && isLandscape;
+    
     return EdgeInsets.symmetric(
       horizontal: responsiveValue(
         context,
-        mobile: 16.0,
+        mobile: isMobileLandscape ? 12.0 : 16.0,
         tablet: 24.0,
+        foldable: 20.0,
+        largeFoldable: 28.0,
         desktop: 32.0,
         largeDesktop: 48.0,
       ),
       vertical: responsiveValue(
         context,
-        mobile: 8.0,
+        mobile: isMobileLandscape ? 4.0 : 8.0,
         tablet: 12.0,
+        foldable: 8.0,
+        largeFoldable: 12.0,
         desktop: 16.0,
         largeDesktop: 20.0,
       ),
@@ -116,41 +152,55 @@ class ResponsiveUtils {
     return baseFontSize * scale;
   }
 
-  // Grid column count based on screen size
+  // Grid column count based on screen size with landscape optimization
   static int getGridColumns(BuildContext context, {int? maxColumns}) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isMobileLandscape = isMobile(context) && isLandscape;
+    
     final columns = responsiveValue(
       context,
-      mobile: 1,
-      tablet: 2,
+      mobile: isMobileLandscape ? 2 : 1,
+      tablet: isLandscape ? 3 : 2,
+      foldable: 2,
+      largeFoldable: 3,
       desktop: 3,
       largeDesktop: 4,
     );
     return maxColumns != null ? columns.clamp(1, maxColumns) : columns;
   }
 
-  // Maximum content width for better readability
+  // Maximum content width for better readability with foldable support
   static double getMaxContentWidth(BuildContext context) {
+    final isDualScreenDevice = isDualScreen(context);
+    
     return responsiveValue(
       context,
       mobile: double.infinity,
       tablet: 800.0,
+      foldable: isDualScreenDevice ? 600.0 : 700.0,
+      largeFoldable: isDualScreenDevice ? 800.0 : 900.0,
       desktop: 1000.0,
       largeDesktop: 1200.0,
     );
   }
 
-  // Responsive card width
+  // Responsive card width with landscape optimization
   static double getCardWidth(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isMobileLandscape = isMobile(context) && isLandscape;
+    
     return responsiveValue(
       context,
-      mobile: double.infinity,
-      tablet: 350.0,
+      mobile: isMobileLandscape ? 200.0 : double.infinity,
+      tablet: isLandscape ? 300.0 : 350.0,
+      foldable: 320.0,
+      largeFoldable: 380.0,
       desktop: 400.0,
       largeDesktop: 450.0,
     );
   }
 
-  // Responsive spacing
+  // Responsive spacing with landscape optimization
   static double getSpacing(BuildContext context, SpacingSize size) {
     final multiplier = switch (size) {
       SpacingSize.xs => 0.25,
@@ -161,10 +211,15 @@ class ResponsiveUtils {
       SpacingSize.xxl => 3.0,
     };
 
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final isMobileLandscape = isMobile(context) && isLandscape;
+
     final baseSpacing = responsiveValue(
       context,
-      mobile: 16.0,
-      tablet: 20.0,
+      mobile: isMobileLandscape ? 12.0 : 16.0,
+      tablet: isLandscape ? 16.0 : 20.0,
+      foldable: 18.0,
+      largeFoldable: 22.0,
       desktop: 24.0,
       largeDesktop: 28.0,
     );
@@ -276,9 +331,106 @@ class ResponsiveUtils {
       context,
       mobile: 56.0,
       tablet: 64.0,
+      foldable: 60.0,
+      largeFoldable: 68.0,
       desktop: 72.0,
       largeDesktop: 80.0,
     );
+  }
+
+  // Dynamic type scaling integration with system settings
+  static double getSystemTextScaleFactor(BuildContext context) {
+    return MediaQuery.of(context).textScaleFactor;
+  }
+
+  // Get device pixel ratio for responsive images
+  static double getDevicePixelRatio(BuildContext context) {
+    return MediaQuery.of(context).devicePixelRatio;
+  }
+
+  // Get screen density category
+  static ScreenDensity getScreenDensity(BuildContext context) {
+    final pixelRatio = getDevicePixelRatio(context);
+    if (pixelRatio <= 1.0) return ScreenDensity.low;
+    if (pixelRatio <= 2.0) return ScreenDensity.medium;
+    if (pixelRatio <= 3.0) return ScreenDensity.high;
+    return ScreenDensity.extraHigh;
+  }
+
+  // Get appropriate image size based on screen density
+  static String getImageSizeSuffix(BuildContext context) {
+    final density = getScreenDensity(context);
+    switch (density) {
+      case ScreenDensity.low:
+        return '1x';
+      case ScreenDensity.medium:
+        return '2x';
+      case ScreenDensity.high:
+        return '3x';
+      case ScreenDensity.extraHigh:
+        return '4x';
+    }
+  }
+
+  // Get responsive image dimensions based on screen size and density
+  static Size getResponsiveImageSize(BuildContext context, {Size? baseSize}) {
+    final base = baseSize ?? const Size(200, 200);
+    final density = getScreenDensity(context);
+    final isLandscapeMode = isLandscape(context);
+    
+    double widthMultiplier = 1.0;
+    double heightMultiplier = 1.0;
+    
+    // Adjust for screen density
+    switch (density) {
+      case ScreenDensity.low:
+        widthMultiplier = 0.8;
+        heightMultiplier = 0.8;
+        break;
+      case ScreenDensity.medium:
+        widthMultiplier = 1.0;
+        heightMultiplier = 1.0;
+        break;
+      case ScreenDensity.high:
+        widthMultiplier = 1.2;
+        heightMultiplier = 1.2;
+        break;
+      case ScreenDensity.extraHigh:
+        widthMultiplier = 1.5;
+        heightMultiplier = 1.5;
+        break;
+    }
+    
+    // Adjust for landscape orientation
+    if (isLandscapeMode && isMobile(context)) {
+      widthMultiplier *= 0.8;
+      heightMultiplier *= 0.6;
+    }
+    
+    return Size(
+      base.width * widthMultiplier,
+      base.height * heightMultiplier,
+    );
+  }
+
+  // Get foldable hinge information (simplified)
+  static HingeInfo? getHingeInfo(BuildContext context) {
+    // Simplified implementation - just check if device is foldable
+    if (isFoldable(context) || isLargeFoldable(context)) {
+      return HingeInfo(
+        bounds: Rect.zero,
+        state: HingeState.unknown,
+      );
+    }
+    return null;
+  }
+
+  // Check if content should be split across foldable screens
+  static bool shouldSplitContent(BuildContext context) {
+    // Simplified implementation - split content on large foldable devices in landscape
+    return isLandscape(context) && 
+           MediaQuery.of(context).size.width > foldableBreakpoint &&
+           (isFoldable(context) || isLargeFoldable(context));
   }
 }
 
@@ -286,6 +438,8 @@ class ResponsiveUtils {
 enum ScreenSize {
   mobile,
   tablet,
+  foldable,
+  largeFoldable,
   desktop,
   largeDesktop,
 }
@@ -299,17 +453,53 @@ enum SpacingSize {
   xxl,
 }
 
+enum ScreenDensity {
+  low,
+  medium,
+  high,
+  extraHigh,
+}
+
+// Hinge information for foldable devices
+class HingeInfo {
+  final Rect bounds;
+  final HingeState state;
+
+  const HingeInfo({
+    required this.bounds,
+    required this.state,
+  });
+}
+
+// Simplified hinge state enum
+enum HingeState {
+  unknown,
+  closed,
+  halfOpened,
+  opened,
+}
+
 // Extension methods for easier usage
 extension ResponsiveContext on BuildContext {
   bool get isMobile => ResponsiveUtils.isMobile(this);
   bool get isTablet => ResponsiveUtils.isTablet(this);
   bool get isDesktop => ResponsiveUtils.isDesktop(this);
   bool get isLargeDesktop => ResponsiveUtils.isLargeDesktop(this);
+  bool get isFoldable => ResponsiveUtils.isFoldable(this);
+  bool get isLargeFoldable => ResponsiveUtils.isLargeFoldable(this);
+  bool get isDualScreen => ResponsiveUtils.isDualScreen(this);
   bool get isLandscape => ResponsiveUtils.isLandscape(this);
   bool get isPortrait => ResponsiveUtils.isPortrait(this);
   bool get isKeyboardVisible => ResponsiveUtils.isKeyboardVisible(this);
+  bool get shouldSplitContent => ResponsiveUtils.shouldSplitContent(this);
   
   ScreenSize get screenSize => ResponsiveUtils.getScreenSize(this);
+  ScreenDensity get screenDensity => ResponsiveUtils.getScreenDensity(this);
+  double get systemTextScaleFactor => ResponsiveUtils.getSystemTextScaleFactor(this);
+  double get devicePixelRatio => ResponsiveUtils.getDevicePixelRatio(this);
+  String get imageSizeSuffix => ResponsiveUtils.getImageSizeSuffix(this);
+  HingeInfo? get hingeInfo => ResponsiveUtils.getHingeInfo(this);
+  
   EdgeInsets get responsivePadding => ResponsiveUtils.responsivePadding(this);
   EdgeInsets get responsiveMargin => ResponsiveUtils.responsiveMargin(this);
   EdgeInsets get safeAreaPadding => ResponsiveUtils.getSafeAreaPadding(this);
@@ -319,16 +509,21 @@ extension ResponsiveContext on BuildContext {
   double get cardWidth => ResponsiveUtils.getCardWidth(this);
   BorderRadius get responsiveBorderRadius => ResponsiveUtils.responsiveBorderRadius(this);
   BoxConstraints get dialogConstraints => ResponsiveUtils.getDialogConstraints(this);
+  Size getResponsiveImageSize({Size? baseSize}) => ResponsiveUtils.getResponsiveImageSize(this, baseSize: baseSize);
   
   T responsiveValue<T>({
     required T mobile,
     T? tablet,
+    T? foldable,
+    T? largeFoldable,
     T? desktop,
     T? largeDesktop,
   }) => ResponsiveUtils.responsiveValue(
     this,
     mobile: mobile,
     tablet: tablet,
+    foldable: foldable,
+    largeFoldable: largeFoldable,
     desktop: desktop,
     largeDesktop: largeDesktop,
   );

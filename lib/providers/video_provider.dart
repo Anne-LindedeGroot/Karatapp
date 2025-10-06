@@ -101,14 +101,21 @@ class VideoNotifier extends StateNotifier<VideoState> {
       return videoUrls;
     } catch (e) {
       final errorMessage = 'Failed to load videos for kata $kataId: ${e.toString()}';
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
       
-      // Only report non-network errors to global error boundary
-      if (!_isNetworkError(e)) {
+      // Only show error to users if it's not a temporary network issue
+      // and if we don't have any cached videos to fall back to
+      if (!_isNetworkError(e) && (cachedVideos == null || cachedVideos.isEmpty)) {
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+        );
         _errorBoundary.reportNetworkError(errorMessage);
+      } else {
+        // For network errors or when we have cached videos, don't show error to user
+        state = state.copyWith(
+          isLoading: false,
+          error: null, // Don't show error to user
+        );
       }
       
       // Return empty list but keep any cached videos if available
@@ -332,6 +339,13 @@ class VideoNotifier extends StateNotifier<VideoState> {
   }
 
   void clearError() {
+    state = state.copyWith(error: null);
+  }
+
+  /// Clear error state for a specific kata (useful for temporary errors)
+  void clearKataError(int kataId) {
+    // This method can be used to clear errors for specific katas
+    // when we know the error was temporary
     state = state.copyWith(error: null);
   }
 

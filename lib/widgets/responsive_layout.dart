@@ -5,6 +5,8 @@ import '../utils/responsive_utils.dart';
 class ResponsiveLayout extends StatelessWidget {
   final Widget mobile;
   final Widget? tablet;
+  final Widget? foldable;
+  final Widget? largeFoldable;
   final Widget? desktop;
   final Widget? largeDesktop;
 
@@ -12,6 +14,8 @@ class ResponsiveLayout extends StatelessWidget {
     super.key,
     required this.mobile,
     this.tablet,
+    this.foldable,
+    this.largeFoldable,
     this.desktop,
     this.largeDesktop,
   });
@@ -21,8 +25,10 @@ class ResponsiveLayout extends StatelessWidget {
     return context.responsiveValue(
       mobile: mobile,
       tablet: tablet ?? mobile,
-      desktop: desktop ?? tablet ?? mobile,
-      largeDesktop: largeDesktop ?? desktop ?? tablet ?? mobile,
+      foldable: foldable ?? tablet ?? mobile,
+      largeFoldable: largeFoldable ?? foldable ?? tablet ?? mobile,
+      desktop: desktop ?? largeFoldable ?? foldable ?? tablet ?? mobile,
+      largeDesktop: largeDesktop ?? desktop ?? largeFoldable ?? foldable ?? tablet ?? mobile,
     );
   }
 }
@@ -398,6 +404,131 @@ class ResponsiveButton extends StatelessWidget {
       onPressed: onPressed,
       style: combinedStyle,
       child: child,
+    );
+  }
+}
+
+/// A foldable-aware layout that handles dual-screen scenarios
+class FoldableLayout extends StatelessWidget {
+  final Widget child;
+  final Widget? leftPane;
+  final Widget? rightPane;
+  final double? leftPaneWidth;
+  final double? rightPaneWidth;
+  final bool enableSplitView;
+
+  const FoldableLayout({
+    super.key,
+    required this.child,
+    this.leftPane,
+    this.rightPane,
+    this.leftPaneWidth,
+    this.rightPaneWidth,
+    this.enableSplitView = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Check if we should use split view
+    if (enableSplitView && 
+        context.isDualScreen && 
+        context.shouldSplitContent &&
+        leftPane != null && 
+        rightPane != null) {
+      return _buildSplitView(context);
+    }
+
+    // Check if we have a hinge and should adjust layout
+    final hingeInfo = context.hingeInfo;
+    if (hingeInfo != null && context.isLandscape) {
+      return _buildHingeAwareLayout(context, hingeInfo);
+    }
+
+    // Default single-screen layout
+    return child;
+  }
+
+  Widget _buildSplitView(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final leftWidth = leftPaneWidth ?? screenWidth * 0.5;
+    final rightWidth = rightPaneWidth ?? screenWidth * 0.5;
+
+    return Row(
+      children: [
+        SizedBox(
+          width: leftWidth,
+          child: leftPane!,
+        ),
+        SizedBox(
+          width: rightWidth,
+          child: rightPane!,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHingeAwareLayout(BuildContext context, HingeInfo hingeInfo) {
+    // Adjust layout to account for hinge
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final hingeBounds = hingeInfo.bounds;
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+
+        // If hinge is vertical (portrait fold)
+        if (hingeBounds.width < hingeBounds.height) {
+          return Column(
+            children: [
+              // Top section
+              SizedBox(
+                height: hingeBounds.top,
+                child: child,
+              ),
+              // Hinge area (could be used for navigation or status)
+              Container(
+                height: hingeBounds.height,
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                child: Center(
+                  child: Icon(
+                    Icons.swipe_up,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              // Bottom section
+              Expanded(
+                child: child,
+              ),
+            ],
+          );
+        } else {
+          // Horizontal hinge (landscape fold)
+          return Row(
+            children: [
+              // Left section
+              SizedBox(
+                width: hingeBounds.left,
+                child: child,
+              ),
+              // Hinge area
+              Container(
+                width: hingeBounds.width,
+                color: Theme.of(context).colorScheme.surfaceVariant,
+                child: Center(
+                  child: Icon(
+                    Icons.swipe,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              // Right section
+              Expanded(
+                child: child,
+              ),
+            ],
+          );
+        }
+      },
     );
   }
 }

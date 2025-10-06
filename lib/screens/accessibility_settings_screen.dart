@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/accessible_text.dart';
+import '../utils/responsive_utils.dart';
 
 class AccessibilitySettingsScreen extends ConsumerWidget {
   const AccessibilitySettingsScreen({super.key});
@@ -13,9 +14,12 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const AccessibleText(
+        title: AccessibleText(
           'Toegankelijkheid',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: context.responsiveValue(mobile: 20.0, tablet: 22.0, desktop: 24.0),
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -31,15 +35,20 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AccessibleText(
+                    AccessibleText(
                       'Toegankelijkheidsinstellingen',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 18.0, tablet: 20.0, desktop: 22.0),
+                        fontWeight: FontWeight.bold,
+                      ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 8),
-                    const AccessibleText(
+                    AccessibleText(
                       'Pas de app aan voor betere leesbaarheid en toegankelijkheid.',
-                      style: TextStyle(fontSize: 14),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                      ),
                       enableTextToSpeech: true,
                     ),
                   ],
@@ -64,10 +73,13 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                           size: 24,
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: AccessibleText(
                             'Lettergrootte',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                        fontWeight: FontWeight.w600,
+                      ),
                             enableTextToSpeech: true,
                           ),
                         ),
@@ -137,19 +149,24 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                           size: 24,
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: AccessibleText(
                             'Dyslexie-vriendelijke tekst',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                        fontWeight: FontWeight.w600,
+                      ),
                             enableTextToSpeech: true,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const AccessibleText(
+                    AccessibleText(
                       'Verbetert de leesbaarheid voor mensen met dyslexie door extra ruimte tussen letters en regels.',
-                      style: TextStyle(fontSize: 14),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                      ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 16),
@@ -216,19 +233,24 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                           size: 24,
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: AccessibleText(
                             'Tekst voorlezen',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                        fontWeight: FontWeight.w600,
+                      ),
                             enableTextToSpeech: true,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const AccessibleText(
+                    AccessibleText(
                       'Laat de app tekst hardop voorlezen. Tik op tekst met een speaker-icoon om het te laten voorlezen.',
-                      style: TextStyle(fontSize: 14),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                      ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 16),
@@ -339,10 +361,13 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                           size: 24,
                         ),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        Expanded(
                           child: AccessibleText(
                             'Snelle toegang',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                        fontWeight: FontWeight.w600,
+                      ),
                             enableTextToSpeech: true,
                           ),
                         ),

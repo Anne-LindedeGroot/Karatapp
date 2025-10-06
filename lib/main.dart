@@ -10,6 +10,7 @@ import 'core/navigation/app_router.dart';
 import 'core/storage/local_storage.dart' as app_storage;
 import 'providers/error_boundary_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/accessibility_provider.dart';
 import 'widgets/global_tts_overlay.dart';
 
 void main() async {
@@ -142,12 +143,35 @@ class MyApp extends ConsumerWidget {
     try {
       final router = ref.watch(routerProvider);
       final themeState = ref.watch(themeNotifierProvider);
+      final accessibilityState = ref.watch(accessibilityNotifierProvider);
+      
+      // Sync dyslexia-friendly setting between providers
+      ref.watch(dyslexiaFriendlySyncProvider);
+      
+      // Get the current system brightness
+      final systemBrightness = MediaQuery.of(context).platformBrightness;
       
       return MaterialApp.router(
         title: 'Karatapp',
         debugShowCheckedModeBanner: false,
-        theme: themeState.isHighContrast ? AppTheme.highContrastLightTheme : AppTheme.lightTheme,
-        darkTheme: themeState.isHighContrast ? AppTheme.highContrastDarkTheme : AppTheme.darkTheme,
+        theme: AppTheme.getThemeData(
+          themeMode: themeState.themeMode,
+          colorScheme: themeState.colorScheme,
+          isHighContrast: themeState.isHighContrast,
+          glowEffects: themeState.glowEffects,
+          systemBrightness: systemBrightness,
+          fontScaleFactor: accessibilityState.fontScaleFactor,
+          isDyslexiaFriendly: themeState.isDyslexiaFriendly,
+        ),
+        darkTheme: AppTheme.getThemeData(
+          themeMode: AppThemeMode.dark,
+          colorScheme: themeState.colorScheme,
+          isHighContrast: themeState.isHighContrast,
+          glowEffects: themeState.glowEffects,
+          systemBrightness: Brightness.dark,
+          fontScaleFactor: accessibilityState.fontScaleFactor,
+          isDyslexiaFriendly: themeState.isDyslexiaFriendly,
+        ),
         themeMode: themeState.flutterThemeMode,
         routerConfig: router,
         builder: (context, child) {

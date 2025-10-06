@@ -65,13 +65,33 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           _hasError = true;
           _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
           
-          // Only show error after a delay to prevent flashing errors
+          // Only show error after a longer delay to prevent startup errors from showing
+          // and only if the error persists for a significant time
           _errorDelayTimer?.cancel();
-          _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+          _errorDelayTimer = Timer(const Duration(seconds: 5), () {
             if (mounted && _hasError && !_isInitialized) {
-              setState(() {
-                _showError = true;
-              });
+              // Check if this is a temporary network error that might resolve itself
+              final errorStr = error?.toLowerCase() ?? '';
+              final isTemporaryError = errorStr.contains('network') || 
+                                     errorStr.contains('connection') ||
+                                     errorStr.contains('timeout') ||
+                                     errorStr.contains('exoplaybackexception') ||
+                                     errorStr.contains('sourceerror');
+              
+              // For temporary errors, wait even longer before showing
+              if (isTemporaryError) {
+                _errorDelayTimer = Timer(const Duration(seconds: 3), () {
+                  if (mounted && _hasError && !_isInitialized) {
+                    setState(() {
+                      _showError = true;
+                    });
+                  }
+                });
+              } else {
+                setState(() {
+                  _showError = true;
+                });
+              }
             }
           });
         }
@@ -138,13 +158,32 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         _hasError = true;
         _errorMessage = _getReadableErrorMessage(e.toString());
         
-        // Only show error after a delay to prevent flashing errors
+        // Only show error after a longer delay to prevent startup errors from showing
         _errorDelayTimer?.cancel();
-        _errorDelayTimer = Timer(const Duration(seconds: 2), () {
+        _errorDelayTimer = Timer(const Duration(seconds: 5), () {
           if (mounted && _hasError && !_isInitialized) {
-            setState(() {
-              _showError = true;
-            });
+            // Check if this is a temporary network error that might resolve itself
+            final errorStr = e.toString().toLowerCase();
+            final isTemporaryError = errorStr.contains('network') || 
+                                   errorStr.contains('connection') ||
+                                   errorStr.contains('timeout') ||
+                                   errorStr.contains('exoplaybackexception') ||
+                                   errorStr.contains('sourceerror');
+            
+            // For temporary errors, wait even longer before showing
+            if (isTemporaryError) {
+              _errorDelayTimer = Timer(const Duration(seconds: 3), () {
+                if (mounted && _hasError && !_isInitialized) {
+                  setState(() {
+                    _showError = true;
+                  });
+                }
+              });
+            } else {
+              setState(() {
+                _showError = true;
+              });
+            }
           }
         });
       }
@@ -276,6 +315,31 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     }
 
     if (!_isInitialized || _chewieController == null) {
+      // Show loading indicator instead of error for the first few seconds
+      if (!_hasError || !_showError) {
+        return Container(
+          height: 200,
+          color: Colors.black,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(
+                  color: Colors.white,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Loading video...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       return Container(
         height: 200,
         color: isDark ? theme.colorScheme.surface : Colors.black,

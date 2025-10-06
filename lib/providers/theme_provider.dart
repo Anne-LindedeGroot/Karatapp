@@ -27,12 +27,14 @@ class ThemeState {
   final AppColorScheme colorScheme;
   final bool isHighContrast;
   final bool glowEffects;
+  final bool isDyslexiaFriendly;
 
   const ThemeState({
     this.themeMode = AppThemeMode.system,
     this.colorScheme = AppColorScheme.defaultGreen,
     this.isHighContrast = false,
     this.glowEffects = false,
+    this.isDyslexiaFriendly = false,
   });
 
   ThemeState copyWith({
@@ -40,12 +42,14 @@ class ThemeState {
     AppColorScheme? colorScheme,
     bool? isHighContrast,
     bool? glowEffects,
+    bool? isDyslexiaFriendly,
   }) {
     return ThemeState(
       themeMode: themeMode ?? this.themeMode,
       colorScheme: colorScheme ?? this.colorScheme,
       isHighContrast: isHighContrast ?? this.isHighContrast,
       glowEffects: glowEffects ?? this.glowEffects,
+      isDyslexiaFriendly: isDyslexiaFriendly ?? this.isDyslexiaFriendly,
     );
   }
 
@@ -68,15 +72,16 @@ class ThemeState {
         other.themeMode == themeMode &&
         other.colorScheme == colorScheme &&
         other.isHighContrast == isHighContrast &&
-        other.glowEffects == glowEffects;
+        other.glowEffects == glowEffects &&
+        other.isDyslexiaFriendly == isDyslexiaFriendly;
   }
 
   @override
-  int get hashCode => themeMode.hashCode ^ colorScheme.hashCode ^ isHighContrast.hashCode ^ glowEffects.hashCode;
+  int get hashCode => themeMode.hashCode ^ colorScheme.hashCode ^ isHighContrast.hashCode ^ glowEffects.hashCode ^ isDyslexiaFriendly.hashCode;
 
   @override
   String toString() {
-    return 'ThemeState(themeMode: $themeMode, colorScheme: $colorScheme, isHighContrast: $isHighContrast, glowEffects: $glowEffects)';
+    return 'ThemeState(themeMode: $themeMode, colorScheme: $colorScheme, isHighContrast: $isHighContrast, glowEffects: $glowEffects, isDyslexiaFriendly: $isDyslexiaFriendly)';
   }
 }
 
@@ -86,6 +91,7 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   static const String _colorSchemeKey = 'color_scheme';
   static const String _highContrastKey = 'high_contrast';
   static const String _glowEffectsKey = 'glow_effects';
+  static const String _dyslexiaFriendlyKey = 'dyslexia_friendly';
 
   ThemeNotifier() : super(const ThemeState()) {
     _loadThemeFromPreferences();
@@ -122,11 +128,15 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
       // Load glow effects setting
       final glowEffects = prefs.getBool(_glowEffectsKey) ?? false;
 
+      // Load dyslexia-friendly setting
+      final isDyslexiaFriendly = prefs.getBool(_dyslexiaFriendlyKey) ?? false;
+
       state = ThemeState(
         themeMode: themeMode,
         colorScheme: colorScheme,
         isHighContrast: isHighContrast,
         glowEffects: glowEffects,
+        isDyslexiaFriendly: isDyslexiaFriendly,
       );
     } catch (e) {
       // If there's an error loading preferences, use defaults
@@ -142,6 +152,7 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
       await prefs.setString(_colorSchemeKey, state.colorScheme.toString());
       await prefs.setBool(_highContrastKey, state.isHighContrast);
       await prefs.setBool(_glowEffectsKey, state.glowEffects);
+      await prefs.setBool(_dyslexiaFriendlyKey, state.isDyslexiaFriendly);
     } catch (e) {
       debugPrint('Error saving theme preferences: $e');
     }
@@ -187,6 +198,17 @@ class ThemeNotifier extends StateNotifier<ThemeState> {
   /// Toggle glow effects
   Future<void> toggleGlowEffects() async {
     await setGlowEffects(!state.glowEffects);
+  }
+
+  /// Set dyslexia-friendly mode
+  Future<void> setDyslexiaFriendly(bool isDyslexiaFriendly) async {
+    state = state.copyWith(isDyslexiaFriendly: isDyslexiaFriendly);
+    await _saveThemeToPreferences();
+  }
+
+  /// Toggle dyslexia-friendly mode
+  Future<void> toggleDyslexiaFriendly() async {
+    await setDyslexiaFriendly(!state.isDyslexiaFriendly);
   }
 
   /// Reset to system theme

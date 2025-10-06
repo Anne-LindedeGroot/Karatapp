@@ -6,6 +6,8 @@ import '../providers/role_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
+import '../widgets/responsive_layout.dart';
+import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
 import 'avatar_selection_screen.dart';
 
@@ -138,7 +140,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         },
         behavior: HitTestBehavior.opaque,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: context.responsivePadding,
           child: ConstrainedBox(
             constraints: BoxConstraints(
               minHeight:
@@ -150,12 +152,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const AccessibleText(
+                AccessibleText(
                   'Gebruikersprofiel',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: context.responsiveValue(mobile: 24.0, tablet: 28.0, desktop: 32.0),
+                    fontWeight: FontWeight.bold,
+                  ),
                   enableTextToSpeech: true,
                 ),
-                const SizedBox(height: 30),
+                SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
                 // Avatar Section
                 Center(
                   child: AvatarWidget(
@@ -166,7 +171,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     userName:
                         currentUser?.userMetadata?['full_name']?.toString() ??
                         currentUser?.email,
-                    size: 120,
+                    size: context.responsiveValue(mobile: 120.0, tablet: 140.0, desktop: 160.0),
                     showEditIcon: true,
                     onTap: () {
                       Navigator.push(
@@ -178,14 +183,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 30),
+                SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
                 if (errorMessage != null)
                   Container(
                     padding: const EdgeInsets.all(8),
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       color: Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: context.responsiveBorderRadius,
                     ),
                     child: Text(
                       errorMessage,
@@ -198,7 +203,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: context.responsiveBorderRadius,
                     ),
                     child: Text(
                       _successMessage!,
@@ -215,7 +220,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: const TextStyle(fontSize: 16),
                   enableTextToSpeech: true,
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
                 // Role Section
                 const AccessibleText(
                   'Rol',
@@ -253,7 +258,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: roleColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(context.responsiveValue(mobile: 20.0, tablet: 24.0, desktop: 28.0)),
                             border: Border.all(
                               color: roleColor.withValues(alpha: 0.3),
                             ),
@@ -283,7 +288,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.grey.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(context.responsiveValue(mobile: 20.0, tablet: 24.0, desktop: 28.0)),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
@@ -308,7 +313,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(context.responsiveValue(mobile: 20.0, tablet: 24.0, desktop: 28.0)),
                           border: Border.all(
                             color: Colors.red.withValues(alpha: 0.3),
                           ),
@@ -333,7 +338,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
                 // Role description
                 Consumer(
                   builder: (context, ref, child) {
@@ -354,7 +359,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
                 const AccessibleText(
                   'Volledige naam',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -382,7 +387,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
                 // Show update button only when:
                 // 1. Field is focused (editing), OR
                 // 2. There's no name in the text field
@@ -402,7 +407,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
 
-                const SizedBox(height: 30),
+                SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
                 
                 // TTS Button Visibility Toggle
                 const AccessibleText(
@@ -410,7 +415,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   enableTextToSpeech: true,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
                 
                 // TTS Button Visibility Toggle
                 Consumer(
@@ -445,7 +450,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 ),
                 
-                const SizedBox(height: 30),
+                SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
               ],
             ),
           ),

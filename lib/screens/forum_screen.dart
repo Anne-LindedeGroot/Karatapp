@@ -24,7 +24,22 @@ class ForumScreen extends ConsumerStatefulWidget {
 class _ForumScreenState extends ConsumerState<ForumScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
-  String? _selectedPostId;
+  int? _selectedPostId;
+  ForumCategory? _localSelectedCategory; // Local state for category selection
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize local state with provider state
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final providerCategory = ref.read(forumSelectedCategoryProvider);
+      if (mounted) {
+        setState(() {
+          _localSelectedCategory = providerCategory;
+        });
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -42,15 +57,18 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
   }
 
   void _filterByCategory(ForumCategory? category) {
+    setState(() {
+      _localSelectedCategory = category;
+    });
     ref.read(forumNotifierProvider.notifier).filterByCategory(category);
   }
 
   Future<void> _deletePost(ForumPost post) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Verwijder "${post.title}"?'),
-        content: const Text(
+      builder: (context) => ResponsiveDialog(
+        title: 'Verwijder "${post.title}"?',
+        child: const Text(
           'Dit zal het bericht en alle reacties permanent verwijderen. Dit kan niet ongedaan worden gemaakt.',
         ),
         actions: [
@@ -146,37 +164,141 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
   }
 
   Widget _buildCategoryFilter() {
-    final selectedCategory = ref.watch(forumSelectedCategoryProvider);
+    // Use local state instead of provider state for immediate UI updates
+    final selectedCategory = _localSelectedCategory;
+    
+    // Debug print to track selection state
+    print('Category Filter - selectedCategory: $selectedCategory');
+    print('Category Filter - "Alle Berichten" isSelected: ${selectedCategory == null}');
     
     return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        children: [
-          _buildCategoryChip(null, 'Alle', selectedCategory),
-          const SizedBox(width: 8),
-          ...ForumCategory.values.map((category) => 
-            _buildCategoryChip(category, category.displayName, selectedCategory)
-          ),
-        ],
+        child: Row(
+          children: [
+            _buildCategoryButton(
+              category: null,
+              label: 'Alle Berichten',
+              isSelected: selectedCategory == null,
+              onTap: () {
+                print('Tapping "Alle Berichten" button');
+                _filterByCategory(null);
+              },
+            ),
+            const SizedBox(width: 8),
+            ...ForumCategory.values.map((category) => 
+              _buildCategoryButton(
+                category: category,
+                label: category.displayName,
+                isSelected: selectedCategory == category,
+                onTap: () {
+                  print('Tapping category button: ${category.displayName}');
+                  _filterByCategory(category);
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildCategoryChip(ForumCategory? category, String label, ForumCategory? selectedCategory) {
-    final isSelected = category == selectedCategory;
+  Widget _buildCategoryButton({
+    required ForumCategory? category,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    // Debug print for each button
+    print('Building button "$label" - isSelected: $isSelected');
     
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
+      child: Semantics(
+        label: isSelected ? '$label (geselecteerd)' : label,
+        button: true,
         selected: isSelected,
-        onSelected: (selected) {
-          _filterByCategory(selected ? category : null);
-        },
-        selectedColor: Colors.blue.withValues(alpha: 0.2),
-        checkmarkColor: Colors.blue,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                gradient: isSelected 
+                    ? const LinearGradient(
+                        colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : null,
+                color: isSelected 
+                    ? null
+                    : Colors.grey[800]?.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected 
+                      ? const Color(0xFF4CAF50)
+                      : Colors.grey[600]!.withValues(alpha: 0.5),
+                  width: isSelected ? 2 : 1,
+                ),
+                boxShadow: isSelected ? [
+                  BoxShadow(
+                    color: const Color(0xFF4CAF50).withValues(alpha: 0.6),
+                    blurRadius: 15,
+                    offset: const Offset(0, 6),
+                    spreadRadius: 2,
+                  ),
+                ] : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isSelected) ...[
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check,
+                        size: 14,
+                        color: const Color(0xFF4CAF50),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected 
+                          ? Colors.white
+                          : Colors.grey[300],
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontSize: 15,
+                      shadows: isSelected ? [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          offset: const Offset(0, 1),
+                          blurRadius: 2,
+                        ),
+                      ] : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -715,9 +837,30 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       );
     }
 
-    return ForumPostDetailScreen(
-      postId: _selectedPostId!,
-      isEmbedded: true,
+    // For now, show a simple placeholder. In a full implementation,
+    // you would create an embedded version of the detail screen
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Post Details',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Post ID: $_selectedPostId',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'This is a placeholder for the embedded post detail view. '
+            'In a full implementation, this would show the complete post content, '
+            'comments, and interaction options.',
+          ),
+        ],
+      ),
     );
   }
 

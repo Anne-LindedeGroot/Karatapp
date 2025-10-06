@@ -133,9 +133,10 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                     ),
                   ),
                 // Action buttons with flexible width to prevent overflow
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     // Edit button - Responsive
                     Semantics(
                       label: 'Bewerk kata ${kata.name}',
@@ -185,6 +186,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       ),
                     ),
                   ],
+                    ),
                 ),
               ],
             ),
@@ -290,12 +292,12 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
               borderRadius: context.responsiveBorderRadius,
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: const Center(
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 12),
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 12),
                   Text(
                     'Media laden...',
                     style: TextStyle(
@@ -1350,9 +1352,9 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Bewerk Reactie'),
-          content: TextField(
+        return ResponsiveDialog(
+          title: 'Bewerk Reactie',
+          child: TextField(
             controller: editController,
             decoration: const InputDecoration(
               hintText: 'Bewerk je reactie...',
@@ -1362,7 +1364,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
             minLines: 1,
             maxLength: 500,
           ),
-          actions: <Widget>[
+          actions: [
             TextButton(
               child: const Text('Annuleren'),
               onPressed: () {
@@ -1416,10 +1418,10 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Verwijder Reactie'),
-          content: const Text('Weet je zeker dat je deze reactie wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'),
-          actions: <Widget>[
+        return ResponsiveDialog(
+          title: 'Verwijder Reactie',
+          child: const Text('Weet je zeker dat je deze reactie wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.'),
+          actions: [
             TextButton(
               child: const Text('Annuleren'),
               onPressed: () {

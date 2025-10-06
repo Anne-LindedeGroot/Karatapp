@@ -182,7 +182,7 @@ class KataNotifier extends StateNotifier<KataState> {
           final updatedKatas = [...state.katas, newKata];
           state = state.copyWith(
             katas: updatedKatas,
-            filteredKatas: _filterKatas(updatedKatas, state.searchQuery),
+            filteredKatas: _filterKatas(updatedKatas, state.searchQuery, state.selectedCategory),
             isLoading: false,
             error: null,
           );
@@ -229,7 +229,7 @@ class KataNotifier extends StateNotifier<KataState> {
           final updatedKatas = state.katas.where((kata) => kata.id != kataId).toList();
           state = state.copyWith(
             katas: updatedKatas,
-            filteredKatas: _filterKatas(updatedKatas, state.searchQuery),
+            filteredKatas: _filterKatas(updatedKatas, state.searchQuery, state.selectedCategory),
             isLoading: false,
             error: null,
           );
@@ -255,62 +255,78 @@ class KataNotifier extends StateNotifier<KataState> {
   }
 
   void searchKatas(String query) {
-    final filteredKatas = _filterKatas(state.katas, query);
+    final filteredKatas = _filterKatas(state.katas, query, state.selectedCategory);
     state = state.copyWith(
       searchQuery: query,
       filteredKatas: filteredKatas,
     );
   }
 
-  List<Kata> _filterKatas(List<Kata> katas, String query) {
-    if (query.isEmpty) {
-      return katas;
+  void filterByCategory(KataCategory? category) {
+    final filteredKatas = _filterKatas(state.katas, state.searchQuery, category);
+    state = state.copyWith(
+      selectedCategory: category,
+      filteredKatas: filteredKatas,
+    );
+  }
+
+  List<Kata> _filterKatas(List<Kata> katas, String query, KataCategory? category) {
+    var filtered = katas;
+    
+    // Filter by category first
+    if (category != null && category != KataCategory.all) {
+      filtered = filtered.where((kata) {
+        final kataCategory = KataCategory.fromStyle(kata.style);
+        return kataCategory == category;
+      }).toList();
     }
     
-    final queryLower = query.toLowerCase();
-    
-    // Filter katas based on name and description
-    final filtered = katas.where((kata) {
-      final nameMatch = kata.name.toLowerCase().contains(queryLower);
-      final descMatch = kata.description.toLowerCase().contains(queryLower);
-      return nameMatch || descMatch;
-    }).toList();
-    
-    // Sort results to prioritize exact matches and name matches over description matches
-    filtered.sort((a, b) {
-      final aNameLower = a.name.toLowerCase();
-      final bNameLower = b.name.toLowerCase();
-      final aDescLower = a.description.toLowerCase();
-      final bDescLower = b.description.toLowerCase();
+    // Then filter by search query
+    if (query.isNotEmpty) {
+      final queryLower = query.toLowerCase();
       
-      // Exact name matches first
-      final aExactName = aNameLower == queryLower;
-      final bExactName = bNameLower == queryLower;
-      if (aExactName && !bExactName) return -1;
-      if (!aExactName && bExactName) return 1;
+      // Filter katas based on name and description
+      filtered = filtered.where((kata) {
+        final nameMatch = kata.name.toLowerCase().contains(queryLower);
+        final descMatch = kata.description.toLowerCase().contains(queryLower);
+        return nameMatch || descMatch;
+      }).toList();
       
-      // Name starts with query
-      final aStartsWithName = aNameLower.startsWith(queryLower);
-      final bStartsWithName = bNameLower.startsWith(queryLower);
-      if (aStartsWithName && !bStartsWithName) return -1;
-      if (!aStartsWithName && bStartsWithName) return 1;
-      
-      // Name contains query (already filtered, so both contain it)
-      final aNameMatch = aNameLower.contains(queryLower);
-      final bNameMatch = bNameLower.contains(queryLower);
-      final aDescMatch = aDescLower.contains(queryLower);
-      final bDescMatch = bDescLower.contains(queryLower);
-      
-      // Prioritize name matches over description matches
-      if (aNameMatch && !bNameMatch) return -1;
-      if (!aNameMatch && bNameMatch) return 1;
-      if (aDescMatch && !bDescMatch) return -1;
-      if (!aDescMatch && bDescMatch) return 1;
-      
-      // Finally, sort alphabetically by name
-      return aNameLower.compareTo(bNameLower);
-    });
-    
+      // Sort results to prioritize exact matches and name matches over description matches
+      filtered.sort((a, b) {
+        final aNameLower = a.name.toLowerCase();
+        final bNameLower = b.name.toLowerCase();
+        final aDescLower = a.description.toLowerCase();
+        final bDescLower = b.description.toLowerCase();
+        
+        // Exact name matches first
+        final aExactName = aNameLower == queryLower;
+        final bExactName = bNameLower == queryLower;
+        if (aExactName && !bExactName) return -1;
+        if (!aExactName && bExactName) return 1;
+        
+        // Name starts with query
+        final aStartsWithName = aNameLower.startsWith(queryLower);
+        final bStartsWithName = bNameLower.startsWith(queryLower);
+        if (aStartsWithName && !bStartsWithName) return -1;
+        if (!aStartsWithName && bStartsWithName) return 1;
+        
+        // Name contains query (already filtered, so both contain it)
+        final aNameMatch = aNameLower.contains(queryLower);
+        final bNameMatch = bNameLower.contains(queryLower);
+        final aDescMatch = aDescLower.contains(queryLower);
+        final bDescMatch = bDescLower.contains(queryLower);
+        
+        // Prioritize name matches over description matches
+        if (aNameMatch && !bNameMatch) return -1;
+        if (!aNameMatch && bNameMatch) return 1;
+        if (aDescMatch && !bDescMatch) return -1;
+        if (!aDescMatch && bDescMatch) return 1;
+        
+        // Finally, sort alphabetically by name
+        return aNameLower.compareTo(bNameLower);
+      });
+    }
     
     return filtered;
   }
@@ -356,7 +372,7 @@ class KataNotifier extends StateNotifier<KataState> {
 
           state = state.copyWith(
             katas: updatedKatas,
-            filteredKatas: _filterKatas(updatedKatas, state.searchQuery),
+            filteredKatas: _filterKatas(updatedKatas, state.searchQuery, state.selectedCategory),
             isLoading: false,
             error: null,
           );
@@ -391,7 +407,7 @@ class KataNotifier extends StateNotifier<KataState> {
 
     state = state.copyWith(
       katas: updatedKatas,
-      filteredKatas: _filterKatas(updatedKatas, state.searchQuery),
+      filteredKatas: _filterKatas(updatedKatas, state.searchQuery, state.selectedCategory),
     );
   }
 
@@ -502,6 +518,10 @@ final kataErrorProvider = Provider<String?>((ref) {
 
 final kataSearchQueryProvider = Provider<String>((ref) {
   return ref.watch(kataNotifierProvider).searchQuery;
+});
+
+final kataSelectedCategoryProvider = Provider<KataCategory?>((ref) {
+  return ref.watch(kataNotifierProvider).selectedCategory;
 });
 
 // Family provider for individual kata by ID

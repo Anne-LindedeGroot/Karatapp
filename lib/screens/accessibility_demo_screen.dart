@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/accessible_text.dart';
 import '../providers/accessibility_provider.dart';
+import '../utils/responsive_utils.dart';
 
 class AccessibilityDemoScreen extends ConsumerWidget {
   const AccessibilityDemoScreen({super.key});
@@ -10,9 +11,12 @@ class AccessibilityDemoScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const AccessibleText(
+        title: AccessibleText(
           'Toegankelijkheid Demo',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: context.responsiveValue(mobile: 20.0, tablet: 22.0, desktop: 24.0),
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -28,15 +32,20 @@ class AccessibilityDemoScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AccessibleText(
+                    AccessibleText(
                       'Welkom bij de Karate App!',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 24.0, tablet: 28.0, desktop: 32.0),
+                        fontWeight: FontWeight.bold,
+                      ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 8),
-                    const AccessibleText(
+                    AccessibleText(
                       'Deze app is ontworpen om toegankelijk te zijn voor iedereen, inclusief mensen met dyslexie en andere leesmoeilijkheden.',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                      ),
                       enableTextToSpeech: true,
                     ),
                   ],
@@ -53,9 +62,12 @@ class AccessibilityDemoScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AccessibleText(
+                    AccessibleText(
                       'Toegankelijkheidsfuncties:',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 18.0, tablet: 20.0, desktop: 22.0),
+                        fontWeight: FontWeight.w600,
+                      ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 12),
@@ -91,24 +103,32 @@ class AccessibilityDemoScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AccessibleText(
+                    AccessibleText(
                       'Voorbeeld inhoud',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 18.0, tablet: 20.0, desktop: 22.0),
+                        fontWeight: FontWeight.w600,
+                      ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 12),
                     
-                    const AccessibleText(
+                    AccessibleText(
                       'Karate is een traditionele Japanse vechtsport die zich richt op zelfverdediging, discipline en persoonlijke ontwikkeling. Het woord "karate" betekent letterlijk "lege hand", wat verwijst naar het feit dat karateka\'s geen wapens gebruiken.',
-                      style: TextStyle(fontSize: 14),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                      ),
                       enableTextToSpeech: true,
                     ),
                     
                     const SizedBox(height: 16),
                     
-                    const AccessibleText(
+                    AccessibleText(
                       'Belangrijke principes:',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                        fontWeight: FontWeight.w500,
+                      ),
                       enableTextToSpeech: true,
                     ),
                     
@@ -132,9 +152,12 @@ class AccessibilityDemoScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const AccessibleText(
+                    AccessibleText(
                       'Probeer de knoppen:',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 18.0, tablet: 20.0, desktop: 22.0),
+                        fontWeight: FontWeight.w600,
+                      ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 12),
@@ -210,13 +233,18 @@ class _FeatureItem extends StatelessWidget {
               children: [
                 AccessibleText(
                   title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                        fontWeight: FontWeight.w500,
+                      ),
                   enableTextToSpeech: true,
                 ),
                 const SizedBox(height: 4),
                 AccessibleText(
                   description,
-                  style: const TextStyle(fontSize: 14),
+                  style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                      ),
                   enableTextToSpeech: true,
                 ),
               ],
@@ -252,7 +280,9 @@ class _PrincipleItem extends StatelessWidget {
           Expanded(
             child: AccessibleText(
               text,
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                      ),
               enableTextToSpeech: true,
             ),
           ),
