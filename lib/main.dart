@@ -11,7 +11,6 @@ import 'core/storage/local_storage.dart' as app_storage;
 import 'providers/error_boundary_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/accessibility_provider.dart';
-import 'widgets/global_tts_overlay.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -131,12 +130,6 @@ class OptimizedRiverpodObserver extends ProviderObserver {
   }
 }
 
-/// Helper function to determine if global TTS overlay should be shown
-bool _shouldShowGlobalTTS(BuildContext context) {
-  // Show the global floating TTS button on all screens
-  // The user wants TTS to work everywhere, so we enable it globally
-  return true;
-}
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});

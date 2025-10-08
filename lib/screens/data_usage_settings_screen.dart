@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
-import '../core/theme/app_theme.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class DataUsageSettingsScreen extends ConsumerStatefulWidget {
   const DataUsageSettingsScreen({super.key});
@@ -18,7 +18,8 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
     final networkState = ref.watch(networkProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Dataverbruik & Offline'),
         backgroundColor: theme.colorScheme.primary,
@@ -67,6 +68,7 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
           ],
         ),
       ),
+    ),
     );
   }
 

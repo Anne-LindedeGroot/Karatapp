@@ -4,7 +4,10 @@ import '../services/role_service.dart';
 import '../services/mute_service.dart';
 import '../providers/role_provider.dart';
 import '../providers/mute_provider.dart';
+import '../providers/accessibility_provider.dart';
+import '../services/unified_tts_service.dart';
 import '../widgets/connection_error_widget.dart';
+import '../widgets/global_tts_overlay.dart';
 import '../core/navigation/app_router.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
@@ -25,6 +28,47 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   void initState() {
     super.initState();
     _loadUsers();
+    // Announce page load with TTS
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _announcePageLoad();
+    });
+  }
+
+  Future<void> _announcePageLoad() async {
+    try {
+      // Use the unified TTS service to read actual screen content
+      await UnifiedTTSService.readCurrentScreen(context, ref);
+    } catch (e) {
+      debugPrint('Error announcing page load: $e');
+    }
+  }
+
+  Future<void> _speakUserContent(Map<String, dynamic> user, int index) async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      
+      final userName = user['full_name'] as String? ?? user['email']?.split('@')[0] ?? 'Onbekende Gebruiker';
+      final userEmail = user['email'] as String? ?? '';
+      final userRole = UserRole.values.firstWhere(
+        (role) => role.name == user['role'],
+        orElse: () => UserRole.user,
+      );
+      
+      // Build comprehensive content for TTS
+      final content = StringBuffer();
+      content.write('User $index: $userName. ');
+      
+      if (userEmail.isNotEmpty) {
+        content.write('Email: $userEmail. ');
+      }
+      
+      content.write('Role: ${userRole.displayName}. ');
+      content.write('${userRole.description}. ');
+      
+      await accessibilityNotifier.speak(content.toString());
+    } catch (e) {
+      debugPrint('Error speaking user content: $e');
+    }
   }
 
   Future<void> _loadUsers() async {
@@ -837,7 +881,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     // Check if current user is host
     final userRoleAsync = ref.watch(currentUserRoleProvider);
 
-    return userRoleAsync.when(
+    return GlobalTTSOverlay(
+      child: userRoleAsync.when(
       data: (userRole) {
         if (userRole != UserRole.host && userRole != UserRole.mediator) {
           return Scaffold(
@@ -1044,8 +1089,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
                                   return Card(
                                     margin: const EdgeInsets.only(bottom: 12),
-                                    child: ListTile(
-                                      contentPadding: const EdgeInsets.all(16),
+                                    child: InkWell(
+                                      onTap: () => _speakUserContent(user, index + 1),
+                                      child: ListTile(
+                                        contentPadding: const EdgeInsets.all(16),
                                       leading: CircleAvatar(
                                         backgroundColor: _getRoleColor(userRole),
                                         child: Icon(
@@ -1091,6 +1138,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                           _buildMuteButton(userId, userName),
                                         ],
                                       ),
+                                    ),
                                     ),
                                   );
                                 },
@@ -1156,6 +1204,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

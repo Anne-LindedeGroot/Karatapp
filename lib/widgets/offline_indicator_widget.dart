@@ -25,7 +25,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
       return _buildCompactIndicator(context, networkState, dataUsageState, syncState);
     }
 
-    return _buildFullIndicator(context, networkState, dataUsageState, syncState);
+    return _buildFullIndicator(context, ref, networkState, dataUsageState, syncState);
   }
 
   Widget _buildCompactIndicator(
@@ -72,6 +72,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
 
   Widget _buildFullIndicator(
     BuildContext context,
+    WidgetRef ref,
     networkState,
     dataUsageState,
     syncState,
@@ -212,7 +213,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () => ref.read(offlineSyncProvider.notifier).startFullSync(ref),
+                        onPressed: () => ref.read(offlineSyncProvider.notifier).startFullSync(ref as Ref),
                         icon: const Icon(Icons.sync, size: 16),
                         label: const Text('Sync Now'),
                         style: ElevatedButton.styleFrom(

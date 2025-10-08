@@ -5,10 +5,12 @@ import '../models/forum_models.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/forum_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
+import '../widgets/global_tts_overlay.dart';
 import '../core/navigation/app_router.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
@@ -40,6 +42,71 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     ref.invalidate(userFavoriteForumPostsProvider);
   }
 
+  Future<void> _speakKataContent(Kata kata, int index) async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      
+      // Build comprehensive content for TTS
+      final content = StringBuffer();
+      content.write('Kata $index: ${kata.name}. ');
+      
+      if (kata.style.isNotEmpty && kata.style != 'Unknown') {
+        content.write('Stijl: ${kata.style}. ');
+      }
+      
+      if (kata.description.isNotEmpty) {
+        content.write('Beschrijving: ${kata.description}. ');
+      }
+      
+      if (kata.imageUrls?.isNotEmpty == true) {
+        content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
+      }
+      
+      if (kata.videoUrls?.isNotEmpty == true) {
+        content.write('Deze kata heeft ${kata.videoUrls?.length} video\'s. ');
+      }
+      
+      await accessibilityNotifier.speak(content.toString());
+    } catch (e) {
+      debugPrint('Error speaking kata content: $e');
+    }
+  }
+
+  Future<void> _speakForumPostContent(ForumPost post, int index) async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      
+      // Build comprehensive content for TTS
+      final content = StringBuffer();
+      content.write('Forum Post $index: ${post.title}. ');
+      content.write('Categorie: ${post.category.displayName}. ');
+      
+      if (post.content.isNotEmpty) {
+        content.write('Inhoud: ${post.content}. ');
+      }
+      
+      content.write('Geschreven door: ${post.authorName}. ');
+      
+      if (post.commentCount > 0) {
+        content.write('Dit bericht heeft ${post.commentCount} reacties. ');
+      }
+      
+      if (post.isPinned) {
+        content.write('Dit bericht is vastgepind. ');
+      }
+      
+      if (post.isLocked) {
+        content.write('Dit bericht is gesloten. ');
+      }
+      
+      content.write('Gepost ${_formatDate(post.createdAt)}. ');
+      
+      await accessibilityNotifier.speak(content.toString());
+    } catch (e) {
+      debugPrint('Error speaking forum post content: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final kataState = ref.watch(kataNotifierProvider);
@@ -47,9 +114,13 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     final favoriteKatasAsync = ref.watch(userFavoriteKatasProvider);
     final favoriteForumPostsAsync = ref.watch(userFavoriteForumPostsProvider);
 
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       appBar: AppBar(
-        title: const Text('Mijn Favorieten'),
+        title: Semantics(
+          label: 'Mijn Favorieten pagina. Gebruik de tabbladen om tussen favoriete kata\'s en forumberichten te wisselen.',
+          child: const Text('Mijn Favorieten'),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
@@ -163,6 +234,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -176,24 +248,27 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       return RefreshIndicator(
         onRefresh: _refreshFavorites,
         child: ListView(
-          children: const [
-            SizedBox(height: 100),
-            Center(
-              child: Column(
-                children: [
-                  Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Nog geen favoriete kata\'s',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Tik op het hartje bij een kata om deze toe te voegen aan je favorieten',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+          children: [
+            const SizedBox(height: 100),
+            Semantics(
+              label: 'Nog geen favoriete kata\'s. Tik op het hartje bij een kata om deze toe te voegen aan je favorieten.',
+              child: const Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Nog geen favoriete kata\'s',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Tik op het hartje bij een kata om deze toe te voegen aan je favorieten',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -226,24 +301,27 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       return RefreshIndicator(
         onRefresh: _refreshFavorites,
         child: ListView(
-          children: const [
-            SizedBox(height: 100),
-            Center(
-              child: Column(
-                children: [
-                  Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Nog geen favoriete forumberichten',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Tik op het hartje bij een forumbericht om deze toe te voegen aan je favorieten',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+          children: [
+            const SizedBox(height: 100),
+            Semantics(
+              label: 'Nog geen favoriete forumberichten. Tik op het hartje bij een forumbericht om deze toe te voegen aan je favorieten.',
+              child: const Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Nog geen favoriete forumberichten',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Tik op het hartje bij een forumbericht om deze toe te voegen aan je favorieten',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -265,204 +343,224 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   }
 
   Widget _buildKataCard(Kata kata, int index) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Column(
-        children: [
-          // Card header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.sports_martial_arts,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Kata $index',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+    return Semantics(
+      label: 'Favoriete kata $index van ${kata.name}. ${kata.style.isNotEmpty && kata.style != 'Unknown' ? 'Stijl: ${kata.style}.' : ''} ${kata.description.isNotEmpty ? 'Beschrijving: ${kata.description.length > 100 ? '${kata.description.substring(0, 100)}...' : kata.description}.' : ''} ${kata.imageUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.imageUrls?.length} afbeeldingen.' : ''} ${kata.videoUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.videoUrls?.length} video\'s.' : ''} Tik om te bekijken.',
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: InkWell(
+          onTap: () => _speakKataContent(kata, index),
+          child: Column(
+            children: [
+              // Card header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
                   ),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sports_martial_arts,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Kata $index',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Kata card content
+              CollapsibleKataCard(
+                kata: kata,
+                onDelete: () {}, // Empty callback instead of null
+              ),
+            ],
           ),
-          // Kata card content
-          CollapsibleKataCard(
-            kata: kata,
-            onDelete: () {}, // Empty callback instead of null
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildForumPostCard(ForumPost post, int index) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Column(
-        children: [
-          // Card header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.forum,
-                  size: 20,
-                  color: Theme.of(context).colorScheme.primary,
+    final semanticLabel = 'Favoriet forumbericht $index: ${post.title}. '
+        'Categorie: ${post.category.displayName}. '
+        '${post.content.isNotEmpty ? 'Inhoud: ${post.content.length > 100 ? '${post.content.substring(0, 100)}...' : post.content}.' : ''} '
+        'Geschreven door: ${post.authorName}. '
+        '${post.commentCount > 0 ? 'Dit bericht heeft ${post.commentCount} reacties.' : ''} '
+        '${post.isPinned ? 'Dit bericht is vastgepind.' : ''} '
+        '${post.isLocked ? 'Dit bericht is gesloten.' : ''} '
+        'Gepost ${_formatDate(post.createdAt)}. '
+        'Tik om het volledige bericht te bekijken.';
+
+    return Semantics(
+      label: semanticLabel,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          children: [
+            // Card header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Forumbericht $index',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.forum,
+                    size: 20,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Text(
+                    'Forumbericht $index',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          // Forum post card content
-          InkWell(
-            onTap: () {
-              Navigator.pushNamed(
-                context,
-                '/forum_post_detail',
-                arguments: post.id,
-              );
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header with category and pin status
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+            // Forum post card content
+            InkWell(
+              onTap: () {
+                _speakForumPostContent(post, index);
+                Navigator.pushNamed(
+                  context,
+                  '/forum_post_detail',
+                  arguments: post.id,
+                );
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header with category and pin status
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getCategoryColor(post.category),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              post.category.displayName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            color: _getCategoryColor(post.category),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                        ),
+                        if (post.isPinned) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.push_pin, size: 14, color: Colors.orange),
+                        ],
+                        if (post.isLocked) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.lock, size: 14, color: Colors.red),
+                        ],
+                        const Spacer(),
+                        Flexible(
                           child: Text(
-                            post.category.displayName,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            _formatDate(post.createdAt),
+                            style: TextStyle(color: Colors.grey[600], fontSize: 11),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Title
+                    Text(
+                      post.title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Content preview
+                    Text(
+                      post.content,
+                      style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Footer with author and stats
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundImage: post.authorAvatar != null
+                              ? NetworkImage(post.authorAvatar!)
+                              : null,
+                          child: post.authorAvatar == null
+                              ? Text(
+                                  post.authorName.isNotEmpty
+                                      ? post.authorName[0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(fontSize: 10),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            post.authorName,
+                            style: TextStyle(
+                              color: Colors.grey[600],
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
-                      if (post.isPinned) ...[
-                        const SizedBox(width: 6),
-                        const Icon(Icons.push_pin, size: 14, color: Colors.orange),
-                      ],
-                      if (post.isLocked) ...[
-                        const SizedBox(width: 6),
-                        const Icon(Icons.lock, size: 14, color: Colors.red),
-                      ],
-                      const Spacer(),
-                      Flexible(
-                        child: Text(
-                          _formatDate(post.createdAt),
-                          style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Title
-                  Text(
-                    post.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Content preview
-                  Text(
-                    post.content,
-                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Footer with author and stats
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundImage: post.authorAvatar != null
-                            ? NetworkImage(post.authorAvatar!)
-                            : null,
-                        child: post.authorAvatar == null
-                            ? Text(
-                                post.authorName.isNotEmpty
-                                    ? post.authorName[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(fontSize: 10),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          post.authorName,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                        if (post.commentCount > 0) ...[
+                          Icon(Icons.comment, size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${post.commentCount}',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (post.commentCount > 0) ...[
-                        Icon(Icons.comment, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${post.commentCount}',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                        ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

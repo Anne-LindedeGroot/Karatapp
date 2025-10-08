@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/avatar_model.dart';
 import '../widgets/avatar_widget.dart';
+import '../widgets/global_tts_overlay.dart';
 import '../providers/auth_provider.dart';
 import '../utils/image_utils.dart';
 import 'dart:io';
@@ -42,7 +43,8 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
     final authState = ref.watch(authNotifierProvider);
     final isLoading = authState.isLoading || _isUploading;
 
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Kies Avatar'),
         leading: IconButton(
@@ -89,6 +91,7 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
           _buildCategoryTab(AvatarCategory.karateItems),
         ],
       ),
+    ),
     );
   }
 

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,10 +14,10 @@ import '../providers/network_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../services/role_service.dart';
+import '../services/unified_tts_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/responsive_utils.dart';
 import '../core/theme/app_theme.dart';
-import '../core/navigation/app_router.dart';
 import '../widgets/global_tts_overlay.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -33,10 +32,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final FocusNode _searchFocusNode = FocusNode();
 
   @override
+  void initState() {
+    super.initState();
+    // Announce page load with TTS
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _announcePageLoad();
+    });
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _announcePageLoad() async {
+    try {
+      // Use the unified TTS service to read actual screen content
+      await UnifiedTTSService.readCurrentScreen(context, ref);
+    } catch (e) {
+      debugPrint('Error announcing page load: $e');
+    }
   }
 
 
@@ -569,7 +586,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     return GlobalTTSOverlay(
-      child: GestureDetector(
+        child: GestureDetector(
         onTap: () {
           // Remove focus from search field when tapping outside
           _searchFocusNode.unfocus();

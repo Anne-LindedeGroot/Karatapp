@@ -329,7 +329,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'Loading video...',
+                  'Laden video...',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -352,7 +352,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Loading video...',
+                'Laden video...',
                 style: TextStyle(
                   color: isDark ? theme.colorScheme.onSurface : Colors.white,
                   fontSize: 14,

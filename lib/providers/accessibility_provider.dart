@@ -13,6 +13,7 @@ enum AccessibilityFontSize {
   extraLarge,
 }
 
+
 /// Accessibility state class
 class AccessibilityState {
   final AccessibilityFontSize fontSize;
@@ -137,6 +138,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     await _loadAccessibilityFromPreferences();
   }
 
+
   /// Initialize text-to-speech
   Future<void> _initializeTts() async {
     try {
@@ -253,8 +255,8 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   /// Set optimal language for TTS
   Future<void> _setOptimalLanguage() async {
     try {
-      // Try Dutch variants in order of preference
-      final dutchVariants = ['nl-NL', 'nl-BE', 'nl'];
+      // Try Dutch variants in order of preference - be more aggressive
+      final dutchVariants = ['nl-NL', 'nl-BE', 'nl', 'nl_NL', 'nl_BE'];
       
       for (final variant in dutchVariants) {
         final result = await _flutterTts.setLanguage(variant);
@@ -266,17 +268,9 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
         }
       }
       
-      // If no Dutch available, try English variants
-      final englishVariants = ['en-US', 'en-GB', 'en'];
-      for (final variant in englishVariants) {
-        final result = await _flutterTts.setLanguage(variant);
-        debugPrint('Set language $variant result: $result');
-        
-        if (result == 1) {
-          debugPrint('Successfully set language to $variant as fallback');
-          return;
-        }
-      }
+      // If no Dutch available, keep trying with default language
+      // Don't fall back to English - force Dutch or fail
+      debugPrint('No Dutch language variant available - TTS may not work properly');
       
       debugPrint('Warning: Could not set any preferred language, using system default');
     } catch (e) {
@@ -484,7 +478,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     await setShowTTSButton(newValue);
   }
 
-  /// Speak text using text-to-speech
+  /// Speak text using text-to-speech with improved error handling
   Future<void> speak(String text) async {
     if (!state.isTextToSpeechEnabled) {
       debugPrint('TTS: Text-to-speech is disabled');
@@ -500,10 +494,10 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     
     // Ensure TTS is initialized
     if (!_isTtsInitialized) {
-      debugPrint('TTS not initialized, attempting to initialize...');
+      debugPrint('TTS: Not initialized, attempting initialization...');
       await _initializeTts();
       if (!_isTtsInitialized) {
-        debugPrint('TTS initialization failed, cannot speak');
+        debugPrint('TTS: Initialization failed, cannot speak');
         return;
       }
     }
@@ -511,10 +505,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     try {
       // Stop any current speech first
       await _flutterTts.stop();
-      await Future.delayed(const Duration(milliseconds: 200));
-      
-      // Ensure language is properly set
-      await _ensureLanguageSet();
+      await Future.delayed(const Duration(milliseconds: 100));
       
       // Set speech parameters
       await _flutterTts.setSpeechRate(state.speechRate);
@@ -527,40 +518,19 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       debugPrint('TTS: Starting to speak: "${cleanText.length > 100 ? '${cleanText.substring(0, 100)}...' : cleanText}"');
       print('🗣️ TTS: Starting to speak: "${cleanText.length > 100 ? '${cleanText.substring(0, 100)}...' : cleanText}"');
       
-      // Speak the text with retry logic
-      int attempts = 0;
-      const maxAttempts = 3;
+      // Speak with timeout and retry logic
+      final result = await _speakWithTimeout(cleanText);
       
-      while (attempts < maxAttempts) {
-        try {
-          final speakResult = await _flutterTts.speak(cleanText);
-          debugPrint('TTS speak result (attempt ${attempts + 1}): $speakResult');
-          
-          if (speakResult == 1) {
-            debugPrint('TTS: Successfully started speaking');
-            return;
-          }
-          
-          attempts++;
-          if (attempts < maxAttempts) {
-            debugPrint('TTS: Speak attempt $attempts failed, retrying...');
-            await Future.delayed(Duration(milliseconds: 300 * attempts));
-          }
-        } catch (e) {
-          debugPrint('TTS: Speak attempt ${attempts + 1} threw error: $e');
-          attempts++;
-          if (attempts < maxAttempts) {
-            await Future.delayed(Duration(milliseconds: 300 * attempts));
-          }
-        }
+      if (result) {
+        debugPrint('TTS: Speech started successfully');
+      } else {
+        debugPrint('TTS: Speech failed to start');
+        _isSpeaking = false;
+        state = state.copyWith(isSpeaking: false);
       }
       
-      debugPrint('TTS: All speak attempts failed');
-      _isSpeaking = false;
-      state = state.copyWith(isSpeaking: false);
-      
     } catch (e) {
-      debugPrint('Error speaking text: $e');
+      debugPrint('TTS Error: $e');
       _isSpeaking = false;
       state = state.copyWith(isSpeaking: false);
       
@@ -572,10 +542,44 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     }
   }
 
-  /// Ensure proper language is set for TTS
-  Future<void> _ensureLanguageSet() async {
-    await _setOptimalLanguage();
+  /// Speak text with timeout and retry logic
+  Future<bool> _speakWithTimeout(String text) async {
+    int attempts = 0;
+    const maxAttempts = 2; // Reduced attempts for faster response
+    
+    while (attempts < maxAttempts) {
+      try {
+        final result = await _flutterTts.speak(text).timeout(
+          const Duration(seconds: 5),
+          onTimeout: () {
+            debugPrint('TTS: Speech timeout on attempt ${attempts + 1}');
+            return 0;
+          },
+        );
+        
+        debugPrint('TTS speak result (attempt ${attempts + 1}): $result');
+        
+        if (result == 1) {
+          return true;
+        }
+        
+        attempts++;
+        if (attempts < maxAttempts) {
+          debugPrint('TTS: Speak attempt $attempts failed, retrying...');
+          await Future.delayed(Duration(milliseconds: 200 * attempts));
+        }
+      } catch (e) {
+        debugPrint('TTS: Speak attempt ${attempts + 1} threw error: $e');
+        attempts++;
+        if (attempts < maxAttempts) {
+          await Future.delayed(Duration(milliseconds: 200 * attempts));
+        }
+      }
+    }
+    
+    return false;
   }
+
 
   /// Stop text-to-speech
   Future<void> stopSpeaking() async {
@@ -648,6 +652,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     return (state.fontScaleFactor * systemScaleFactor).clamp(0.5, 3.0);
   }
 
+
   @override
   void dispose() {
     _flutterTts.stop();
@@ -700,6 +705,7 @@ final showTTSButtonProvider = Provider<bool>((ref) {
 final fontSizeDescriptionProvider = Provider<String>((ref) {
   return ref.watch(accessibilityNotifierProvider).fontSizeDescription;
 });
+
 
 /// Extension to get font size description
 extension AccessibilityFontSizeExtension on AccessibilityFontSize {

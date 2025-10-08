@@ -378,7 +378,7 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
               ),
               SizedBox(height: 16),
               Text(
-                'Loading video...',
+                'Laden video...',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,

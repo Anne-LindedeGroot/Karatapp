@@ -175,6 +175,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       
       
+      
     ],
     
     // Error handling
@@ -255,6 +256,8 @@ extension AppRouterExtension on GoRouter {
   /// Navigate to user management
   void goToUserManagement() => go(AppRoutes.userManagement);
   
+  /// Navigate to one-on-one TTS demo
+  
 }
 
 /// Context extension for easy navigation
@@ -295,6 +298,7 @@ extension BuildContextExtension on BuildContext {
   /// Navigate to user management
   void goToUserManagement() => go(AppRoutes.userManagement);
   
+  /// Navigate to one-on-one TTS demo
   
   /// Navigate back with fallback to home
   void goBackOrHome() {

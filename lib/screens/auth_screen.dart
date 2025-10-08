@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../utils/responsive_utils.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -452,7 +453,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       body: SafeArea(
         child: Column(
           children: [
@@ -515,6 +517,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           ],
         ),
       ),
+    ),
     );
   }
 }

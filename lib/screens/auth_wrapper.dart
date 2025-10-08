@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -12,7 +13,8 @@ class AuthWrapper extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     if (authState.isLoading) {
-      return Scaffold(
+      return GlobalTTSOverlay(
+        child: Scaffold(
         backgroundColor: Theme.of(context).primaryColor,
         body: const Center(
           child: Column(
@@ -39,11 +41,13 @@ class AuthWrapper extends ConsumerWidget {
             ],
           ),
         ),
-      );
+      ),
+    );
     }
 
     if (authState.error != null) {
-      return Scaffold(
+      return GlobalTTSOverlay(
+        child: Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -75,7 +79,8 @@ class AuthWrapper extends ConsumerWidget {
             ],
           ),
         ),
-      );
+      ),
+    );
     }
 
     if (authState.isAuthenticated) {

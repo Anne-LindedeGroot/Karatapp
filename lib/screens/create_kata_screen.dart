@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/kata_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/video_url_input_widget.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class CreateKataScreen extends ConsumerStatefulWidget {
   const CreateKataScreen({super.key});
@@ -201,7 +202,8 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Nieuwe Kata Maken'),
         actions: [
@@ -692,6 +694,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 

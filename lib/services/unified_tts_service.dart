@@ -10,6 +10,11 @@ class UnifiedTTSService {
   factory UnifiedTTSService() => _instance;
   UnifiedTTSService._internal();
 
+  // Content caching for performance optimization
+  static final Map<String, String> _contentCache = {};
+  static final Map<String, DateTime> _cacheTimestamps = {};
+  static const Duration _cacheValidityDuration = Duration(minutes: 2);
+
   /// Read the current screen content out loud in Dutch
   static Future<void> readCurrentScreen(BuildContext context, WidgetRef ref) async {
     final accessibilityState = ref.read(accessibilityNotifierProvider);
@@ -48,7 +53,18 @@ class UnifiedTTSService {
         return;
       }
       
-      final screenContent = _extractScreenContentByType(context, screenType);
+      // Try to get cached content first
+      final cacheKey = _generateCacheKey(context, screenType);
+      String screenContent = _getCachedContent(cacheKey);
+      
+      if (screenContent.isEmpty) {
+        // Extract content if not cached or cache expired
+        screenContent = _extractScreenContentByType(context, screenType);
+        _cacheContent(cacheKey, screenContent);
+      } else {
+        debugPrint('TTS: Using cached content for $screenType');
+        print('💾 TTS: Using cached content for $screenType');
+      }
       
       debugPrint('TTS: Extracted content length: ${screenContent.length}');
       debugPrint('TTS: Content preview: ${screenContent.length > 100 ? '${screenContent.substring(0, 100)}...' : screenContent}');
@@ -883,7 +899,435 @@ class UnifiedTTSService {
     }
   }
 
+  /// Comprehensive webpage scanning - reads ALL content including cards, forms, menus, popups, etc.
+  /// This is the main method for complete page scanning functionality
+  static Future<void> scanAndReadEntireWebpage(BuildContext context, WidgetRef ref) async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+    
+    // Ensure TTS is enabled
+    if (!accessibilityState.isTextToSpeechEnabled) {
+      await accessibilityNotifier.setTextToSpeechEnabled(true);
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
 
+    try {
+      debugPrint('TTS: Starting comprehensive webpage scanning...');
+      print('🔍 TTS: Starting comprehensive webpage scanning...');
+      
+      // Stop any current speech
+      await accessibilityNotifier.stopSpeaking();
+      await Future.delayed(const Duration(milliseconds: 200));
+      
+      // Check if context is still mounted
+      if (!context.mounted) {
+        debugPrint('TTS: Context no longer mounted, aborting webpage scanning');
+        print('❌ TTS: Context no longer mounted, aborting webpage scanning');
+        return;
+      }
+      
+      // Announce the start of comprehensive scanning
+      await accessibilityNotifier.speak('Start met scannen van de hele pagina. Dit kan even duren.');
+      await Future.delayed(const Duration(milliseconds: 1000));
+      
+      // Extract comprehensive content in organized sections
+      final comprehensiveContent = _extractComprehensiveWebpageContent(context);
+      
+      debugPrint('TTS: Comprehensive webpage extraction found ${comprehensiveContent.length} characters');
+      print('📊 TTS: Comprehensive webpage extraction found ${comprehensiveContent.length} characters');
+      
+      if (comprehensiveContent.isNotEmpty && comprehensiveContent.length > 10) {
+        // Process and speak the comprehensive content with proper pacing
+        final processedContent = _processContentForDutchSpeech(comprehensiveContent);
+        print('🗣️ TTS: Speaking comprehensive webpage content (${processedContent.length} chars)');
+        
+        // Add introduction
+        final fullContent = 'Hier is alle inhoud van de pagina: $processedContent';
+        await accessibilityNotifier.speak(fullContent);
+      } else {
+        // Fallback to regular screen reading
+        debugPrint('TTS: Comprehensive webpage extraction found little content, falling back to regular screen reading');
+        print('⚠️ TTS: Comprehensive webpage extraction found little content, falling back to regular screen reading');
+        await readCurrentScreen(context, ref);
+      }
+      
+    } catch (e) {
+      debugPrint('TTS Error in comprehensive webpage scanning: $e');
+      print('❌ TTS Error in comprehensive webpage scanning: $e');
+      await accessibilityNotifier.speak('Er was een probleem bij het scannen van de hele pagina. Ik probeer een alternatieve methode.');
+      
+      // Try fallback method
+      try {
+        await readEverythingOnScreen(context, ref);
+      } catch (fallbackError) {
+        debugPrint('TTS: Fallback method also failed: $fallbackError');
+        await accessibilityNotifier.speak('Het scannen van de pagina is mislukt. Probeer het opnieuw.');
+      }
+    }
+  }
+
+
+
+  /// Extract comprehensive webpage content in organized sections
+  static String _extractComprehensiveWebpageContent(BuildContext context) {
+    final List<String> contentSections = [];
+    
+    try {
+      debugPrint('TTS: Starting comprehensive webpage content extraction...');
+      print('🔍 TTS: Starting comprehensive webpage content extraction...');
+      
+      // 1. Page header and navigation
+      final pageHeader = _extractPageHeaderAndNavigation(context);
+      if (pageHeader.isNotEmpty) {
+        contentSections.add('PAGINA KOP: $pageHeader');
+        print('📄 TTS: Found page header: ${pageHeader.length} chars');
+      }
+      
+      // 2. Search bars and filters
+      final searchContent = _extractSearchBarsAndFilters(context);
+      if (searchContent.isNotEmpty) {
+        contentSections.add('ZOEK EN FILTERS: $searchContent');
+        print('🔍 TTS: Found search content: ${searchContent.length} chars');
+      }
+      
+      // 3. Main content cards and items
+      final mainContent = _extractMainContentCards(context);
+      if (mainContent.isNotEmpty) {
+        contentSections.add('HOOFDINHOUD: $mainContent');
+        print('📋 TTS: Found main content: ${mainContent.length} chars');
+      }
+      
+      // 4. Interactive elements (buttons, links, menus)
+      final interactiveElements = _extractInteractiveElementsComprehensive(context);
+      if (interactiveElements.isNotEmpty) {
+        contentSections.add('INTERACTIEVE ELEMENTEN: $interactiveElements');
+        print('🔘 TTS: Found interactive elements: ${interactiveElements.length} chars');
+      }
+      
+      // 5. Forms and input fields
+      final formContent = _extractFormsAndInputFields(context);
+      if (formContent.isNotEmpty) {
+        contentSections.add('FORMULIEREN: $formContent');
+        print('📝 TTS: Found form content: ${formContent.length} chars');
+      }
+      
+      // 6. Comments and discussions
+      final commentContent = _extractCommentsAndDiscussions(context);
+      if (commentContent.isNotEmpty) {
+        contentSections.add('REACTIES EN DISCUSSIES: $commentContent');
+        print('💬 TTS: Found comment content: ${commentContent.length} chars');
+      }
+      
+      // 7. Pop-ups, dialogs, and overlays
+      final overlayContent = _extractPopupsAndOverlays(context);
+      if (overlayContent.isNotEmpty) {
+        contentSections.add('POP-UPS EN DIALOGEN: $overlayContent');
+        print('🪟 TTS: Found overlay content: ${overlayContent.length} chars');
+      }
+      
+      // 8. Footer and additional information
+      final footerContent = _extractFooterAndAdditionalInfo(context);
+      if (footerContent.isNotEmpty) {
+        contentSections.add('ONDERKANT EN EXTRA INFO: $footerContent');
+        print('📄 TTS: Found footer content: ${footerContent.length} chars');
+      }
+      
+      // Combine all sections with clear separators
+      final combinedContent = contentSections.join('. ');
+      print('📊 TTS: Combined comprehensive content: ${combinedContent.length} total chars');
+      
+      return combinedContent;
+      
+    } catch (e) {
+      debugPrint('TTS: Error in comprehensive webpage extraction: $e');
+      print('❌ TTS: Error in comprehensive webpage extraction: $e');
+      return _extractEverythingFromScreen(context); // Fallback to existing method
+    }
+  }
+
+  /// Extract page header and navigation elements
+  static String _extractPageHeaderAndNavigation(BuildContext context) {
+    final List<String> headerParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Get page title from AppBar
+      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+      if (scaffold?.appBar != null) {
+        final appBar = scaffold!.appBar!;
+        if (appBar is AppBar) {
+          // Extract title
+          if (appBar.title != null) {
+            final titleText = _extractTextFromWidgetSingle(appBar.title!);
+            if (titleText.isNotEmpty) {
+              headerParts.add('Pagina titel: $titleText');
+            }
+          }
+          
+          // Extract actions
+          if (appBar.actions != null && appBar.actions!.isNotEmpty) {
+            final actionTexts = <String>[];
+            for (final action in appBar.actions!) {
+              final actionText = _extractTextFromWidgetSingle(action);
+              if (actionText.isNotEmpty) {
+                actionTexts.add(actionText);
+              }
+            }
+            if (actionTexts.isNotEmpty) {
+              headerParts.add('Navigatie knoppen: ${actionTexts.join(', ')}');
+            }
+          }
+        }
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting page header: $e');
+    }
+    
+    return headerParts.join('. ');
+  }
+
+  /// Extract search bars and filter elements
+  static String _extractSearchBarsAndFilters(BuildContext context) {
+    final List<String> searchParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Use element tree traversal to find search-related elements
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      // Filter for search-related content
+      final searchTexts = elementTexts
+          .where((text) => text.toLowerCase().contains('zoek') ||
+                          text.toLowerCase().contains('search') ||
+                          text.toLowerCase().contains('filter') ||
+                          text.startsWith('Invoerveld:') ||
+                          text.contains('Zoek kata'))
+          .toList();
+      
+      if (searchTexts.isNotEmpty) {
+        searchParts.addAll(searchTexts);
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting search content: $e');
+    }
+    
+    return searchParts.join('. ');
+  }
+
+  /// Extract main content cards and items
+  static String _extractMainContentCards(BuildContext context) {
+    final List<String> contentParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Use element tree traversal to find main content
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      // Filter for main content (exclude navigation, buttons, etc.)
+      final mainTexts = elementTexts
+          .where((text) => !text.startsWith('Knop:') &&
+                          !text.startsWith('Zwevende knop:') &&
+                          !text.startsWith('Filter:') &&
+                          !text.startsWith('Invoerveld:') &&
+                          !text.startsWith('Pagina:') &&
+                          text.length > 5 &&
+                          !text.toLowerCase().contains('loading') &&
+                          !text.toLowerCase().contains('laden'))
+          .toList();
+      
+      if (mainTexts.isNotEmpty) {
+        contentParts.addAll(mainTexts);
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting main content: $e');
+    }
+    
+    return contentParts.join('. ');
+  }
+
+  /// Extract interactive elements comprehensively
+  static String _extractInteractiveElementsComprehensive(BuildContext context) {
+    final List<String> interactiveParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Use element tree traversal to find interactive elements
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      // Filter for interactive elements
+      final interactiveTexts = elementTexts
+          .where((text) => text.startsWith('Knop:') || 
+                          text.startsWith('Zwevende knop:') ||
+                          text.startsWith('Filter:') ||
+                          text.toLowerCase().contains('klik') ||
+                          text.toLowerCase().contains('tap'))
+          .toList();
+      
+      if (interactiveTexts.isNotEmpty) {
+        interactiveParts.add('Beschikbare knoppen en opties:');
+        interactiveParts.addAll(interactiveTexts);
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting interactive elements: $e');
+    }
+    
+    return interactiveParts.join('. ');
+  }
+
+  /// Extract forms and input fields
+  static String _extractFormsAndInputFields(BuildContext context) {
+    final List<String> formParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Use element tree traversal to find form elements
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      // Filter for form-related content
+      final formTexts = elementTexts
+          .where((text) => text.startsWith('Invoerveld:') || 
+                          text.startsWith('Ingevoerde tekst:') ||
+                          text.toLowerCase().contains('formulier') ||
+                          text.toLowerCase().contains('email') ||
+                          text.toLowerCase().contains('wachtwoord'))
+          .toList();
+      
+      if (formTexts.isNotEmpty) {
+        formParts.add('Formulier velden en invoer:');
+        formParts.addAll(formTexts);
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting form content: $e');
+    }
+    
+    return formParts.join('. ');
+  }
+
+  /// Extract comments and discussions
+  static String _extractCommentsAndDiscussions(BuildContext context) {
+    final List<String> commentParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Use element tree traversal to find comment elements
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      // Filter for comment-related content
+      final commentTexts = elementTexts
+          .where((text) => text.toLowerCase().contains('reactie') ||
+                          text.toLowerCase().contains('comment') ||
+                          text.toLowerCase().contains('discussie') ||
+                          text.toLowerCase().contains('bericht'))
+          .toList();
+      
+      if (commentTexts.isNotEmpty) {
+        commentParts.add('Reacties en discussies:');
+        commentParts.addAll(commentTexts);
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting comment content: $e');
+    }
+    
+    return commentParts.join('. ');
+  }
+
+  /// Extract pop-ups, dialogs, and overlays
+  static String _extractPopupsAndOverlays(BuildContext context) {
+    final List<String> overlayParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Check for various overlay types
+      final alertDialog = context.findAncestorWidgetOfExactType<AlertDialog>();
+      if (alertDialog != null) {
+        overlayParts.add('Waarschuwingsdialoog geopend');
+        final dialogContent = _extractTextFromWidgetSingle(alertDialog);
+        if (dialogContent.isNotEmpty) {
+          overlayParts.add('Dialoog inhoud: $dialogContent');
+        }
+      }
+      
+      final dialog = context.findAncestorWidgetOfExactType<Dialog>();
+      if (dialog != null) {
+        overlayParts.add('Dialoog geopend');
+        final dialogContent = _extractTextFromWidgetSingle(dialog);
+        if (dialogContent.isNotEmpty) {
+          overlayParts.add('Dialoog inhoud: $dialogContent');
+        }
+      }
+      
+      final bottomSheet = context.findAncestorWidgetOfExactType<BottomSheet>();
+      if (bottomSheet != null) {
+        overlayParts.add('Onderste menu geopend');
+        final sheetContent = _extractTextFromWidgetSingle(bottomSheet);
+        if (sheetContent.isNotEmpty) {
+          overlayParts.add('Menu inhoud: $sheetContent');
+        }
+      }
+      
+      final snackBar = context.findAncestorWidgetOfExactType<SnackBar>();
+      if (snackBar != null) {
+        overlayParts.add('Melding getoond');
+        final snackContent = _extractTextFromWidgetSingle(snackBar);
+        if (snackContent.isNotEmpty) {
+          overlayParts.add('Melding: $snackContent');
+        }
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting overlay content: $e');
+    }
+    
+    return overlayParts.join('. ');
+  }
+
+  /// Extract footer and additional information
+  static String _extractFooterAndAdditionalInfo(BuildContext context) {
+    final List<String> footerParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Look for floating action buttons and bottom elements
+      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+      if (scaffold?.floatingActionButton != null) {
+        final fabText = _extractTextFromWidgetSingle(scaffold!.floatingActionButton!);
+        if (fabText.isNotEmpty) {
+          footerParts.add('Zwevende actie knop: $fabText');
+        }
+      }
+      
+      if (scaffold?.bottomNavigationBar != null) {
+        final bottomNavText = _extractTextFromWidgetSingle(scaffold!.bottomNavigationBar!);
+        if (bottomNavText.isNotEmpty) {
+          footerParts.add('Onderste navigatie: $bottomNavText');
+        }
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting footer content: $e');
+    }
+    
+    return footerParts.join('. ');
+  }
 
   /// Extract everything visible on screen using multiple extraction strategies
   static String _extractEverythingFromScreen(BuildContext context) {
@@ -1488,8 +1932,6 @@ class UnifiedTTSService {
         return 'Forum bericht details';
       case '/accessibility-settings':
         return 'Toegankelijkheidsinstellingen';
-      case '/test-tts':
-        return 'Onbekende pagina';
       default:
         return '';
     }
@@ -1624,8 +2066,6 @@ class UnifiedTTSService {
         return 'Dit is de detail pagina van een forum bericht waar je het volledige bericht kunt lezen en reageren.';
       case 'toegankelijkheidsinstellingen':
         return 'Dit is de toegankelijkheidsinstellingen pagina waar je spraak, lettergrootte en andere toegankelijkheidsopties kunt aanpassen.';
-      case 'tts test':
-        return 'Dit is de TTS test pagina om de spraakfunctionaliteit te testen.';
       case 'kata formulier':
         return 'Dit is het kata formulier waar je nieuwe kata technieken kunt toevoegen.';
       case 'avatar selectie':
@@ -1853,16 +2293,28 @@ class UnifiedTTSService {
     return contentParts.join('. ');
   }
 
-  /// Extract content from home screen
+  /// Extract content from home screen with enhanced kata-specific content
   static String _extractHomeScreenContent(BuildContext context) {
     final List<String> contentParts = [];
     
     try {
       contentParts.add('Hoofdpagina van de Karate app');
       
-      // Extract main content
+      // Extract search functionality
+      final searchContent = _extractSearchBarsAndFilters(context);
+      if (searchContent.isNotEmpty) {
+        contentParts.add('Zoek functionaliteit: $searchContent');
+      }
+      
+      // Extract kata cards with enhanced information
+      final kataContent = _extractKataCardsContent(context);
+      if (kataContent.isNotEmpty) {
+        contentParts.add('Kata technieken: $kataContent');
+      }
+      
+      // Extract main content as fallback
       final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
+      if (mainContent.isNotEmpty && kataContent.isEmpty) {
         contentParts.add(mainContent);
       }
       
@@ -1877,6 +2329,43 @@ class UnifiedTTSService {
     }
     
     return contentParts.join('. ');
+  }
+
+  /// Extract content specifically from kata cards
+  static String _extractKataCardsContent(BuildContext context) {
+    final List<String> kataParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Use element tree traversal to find kata-specific content
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      // Filter for kata-related content
+      final kataTexts = elementTexts
+          .where((text) => text.toLowerCase().contains('kata') ||
+                          text.toLowerCase().contains('techniek') ||
+                          text.toLowerCase().contains('beweging') ||
+                          text.toLowerCase().contains('karate') ||
+                          text.length > 10) // Include longer descriptive text
+          .toList();
+      
+      if (kataTexts.isNotEmpty) {
+        // Limit to first 5 kata items to avoid overwhelming speech
+        final limitedKataTexts = kataTexts.take(5).toList();
+        kataParts.addAll(limitedKataTexts);
+        
+        if (kataTexts.length > 5) {
+          kataParts.add('En nog ${kataTexts.length - 5} meer kata technieken');
+        }
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting kata cards content: $e');
+    }
+    
+    return kataParts.join('. ');
   }
 
   /// Extract content from profile screen
@@ -1905,16 +2394,22 @@ class UnifiedTTSService {
     return contentParts.join('. ');
   }
 
-  /// Extract content from forum screen
+  /// Extract content from forum screen with enhanced post-specific content
   static String _extractForumScreenContent(BuildContext context) {
     final List<String> contentParts = [];
     
     try {
       contentParts.add('Forum pagina met berichten');
       
-      // Extract forum posts
+      // Extract forum posts with enhanced information
+      final forumPosts = _extractForumPostsContent(context);
+      if (forumPosts.isNotEmpty) {
+        contentParts.add('Forum berichten: $forumPosts');
+      }
+      
+      // Extract main content as fallback
       final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
+      if (mainContent.isNotEmpty && forumPosts.isEmpty) {
         contentParts.add(mainContent);
       }
       
@@ -1929,6 +2424,44 @@ class UnifiedTTSService {
     }
     
     return contentParts.join('. ');
+  }
+
+  /// Extract content specifically from forum posts
+  static String _extractForumPostsContent(BuildContext context) {
+    final List<String> postParts = [];
+    
+    try {
+      if (!context.mounted) return '';
+      
+      // Use element tree traversal to find forum-specific content
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      // Filter for forum-related content
+      final forumTexts = elementTexts
+          .where((text) => text.toLowerCase().contains('bericht') ||
+                          text.toLowerCase().contains('post') ||
+                          text.toLowerCase().contains('reactie') ||
+                          text.toLowerCase().contains('discussie') ||
+                          text.toLowerCase().contains('forum') ||
+                          text.length > 15) // Include longer descriptive text
+          .toList();
+      
+      if (forumTexts.isNotEmpty) {
+        // Limit to first 3 forum posts to avoid overwhelming speech
+        final limitedForumTexts = forumTexts.take(3).toList();
+        postParts.addAll(limitedForumTexts);
+        
+        if (forumTexts.length > 3) {
+          postParts.add('En nog ${forumTexts.length - 3} meer forum berichten');
+        }
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error extracting forum posts content: $e');
+    }
+    
+    return postParts.join('. ');
   }
 
   /// Extract content from forum detail screen
@@ -2085,6 +2618,70 @@ class UnifiedTTSService {
     }
     
     return contentParts.join('. ');
+  }
+
+  /// Generate cache key for content caching
+  static String _generateCacheKey(BuildContext context, ScreenType screenType) {
+    try {
+      final route = ModalRoute.of(context);
+      final routeName = route?.settings.name ?? 'unknown';
+      return '${screenType.name}_$routeName';
+    } catch (e) {
+      return '${screenType.name}_unknown';
+    }
+  }
+
+  /// Get cached content if available and not expired
+  static String _getCachedContent(String cacheKey) {
+    try {
+      final timestamp = _cacheTimestamps[cacheKey];
+      if (timestamp == null) return '';
+      
+      final now = DateTime.now();
+      if (now.difference(timestamp) > _cacheValidityDuration) {
+        // Cache expired, remove it
+        _contentCache.remove(cacheKey);
+        _cacheTimestamps.remove(cacheKey);
+        return '';
+      }
+      
+      return _contentCache[cacheKey] ?? '';
+    } catch (e) {
+      debugPrint('TTS: Error getting cached content: $e');
+      return '';
+    }
+  }
+
+  /// Cache content with timestamp
+  static void _cacheContent(String cacheKey, String content) {
+    try {
+      _contentCache[cacheKey] = content;
+      _cacheTimestamps[cacheKey] = DateTime.now();
+      debugPrint('TTS: Cached content for key: $cacheKey');
+    } catch (e) {
+      debugPrint('TTS: Error caching content: $e');
+    }
+  }
+
+  /// Clear all cached content (useful for memory management)
+  static void clearCache() {
+    _contentCache.clear();
+    _cacheTimestamps.clear();
+    debugPrint('TTS: Cache cleared');
+  }
+
+  /// Get cache statistics for debugging
+  static Map<String, dynamic> getCacheStats() {
+    return {
+      'cachedItems': _contentCache.length,
+      'cacheKeys': _contentCache.keys.toList(),
+      'oldestCache': _cacheTimestamps.values.isNotEmpty 
+          ? _cacheTimestamps.values.reduce((a, b) => a.isBefore(b) ? a : b)
+          : null,
+      'newestCache': _cacheTimestamps.values.isNotEmpty 
+          ? _cacheTimestamps.values.reduce((a, b) => a.isAfter(b) ? a : b)
+          : null,
+    };
   }
 }
 

@@ -286,6 +286,8 @@ class OptimizedImageService {
         return fileSize <= 1 * 1024 * 1024; // 1MB limit
       case DataUsageMode.wifiOnly:
         return dataUsageState.connectionType == ConnectionType.wifi;
+      default:
+        return false; // Default to false for unknown modes
     }
   }
   

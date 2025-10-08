@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/accessible_text.dart';
+import '../widgets/global_tts_overlay.dart';
 import '../providers/accessibility_provider.dart';
 import '../utils/responsive_utils.dart';
 
@@ -9,7 +10,8 @@ class AccessibilityDemoScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       appBar: AppBar(
         title: AccessibleText(
           'Toegankelijkheid Demo',
@@ -199,6 +201,7 @@ class AccessibilityDemoScreen extends ConsumerWidget {
         ),
       ),
       // TTS functionality is now handled by the global floating button
+    ),
     );
   }
 }

@@ -5,14 +5,11 @@ import '../core/storage/local_storage.dart';
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
 import '../services/enhanced_video_service.dart';
-import '../services/optimized_image_service.dart';
-import '../models/kata_model.dart';
 
 /// Smart preloading service for favorite content and frequently accessed data
 class SmartPreloadService {
   Timer? _preloadTimer;
   static const Duration _preloadInterval = Duration(hours: 6); // Preload every 6 hours
-  static const Duration _retryInterval = Duration(minutes: 30); // Retry failed preloads every 30 minutes
   
   /// Start smart preloading
   void startSmartPreloading(Ref ref) {
@@ -242,7 +239,7 @@ class SmartPreloadService {
       final weekAgo = now.subtract(const Duration(days: 7));
       
       return allKatas.where((kata) {
-        return kata.lastViewed.isAfter(weekAgo);
+        return kata.lastSynced.isAfter(weekAgo);
       }).toList();
     } catch (e) {
       debugPrint('Error getting recently viewed katas: $e');

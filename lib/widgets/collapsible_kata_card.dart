@@ -8,6 +8,7 @@ import '../providers/image_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/role_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../screens/edit_kata_screen.dart';
 import '../utils/responsive_utils.dart';
 import '../core/theme/app_theme.dart';
@@ -57,6 +58,37 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     return lines.length > _maxCollapsedLines;
   }
 
+  Future<void> _speakKataContent() async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final kata = widget.kata;
+      
+      // Build comprehensive content for TTS
+      final content = StringBuffer();
+      content.write('Kata: ${kata.name}. ');
+      
+      if (kata.style.isNotEmpty && kata.style != 'Unknown') {
+        content.write('Stijl: ${kata.style}. ');
+      }
+      
+      if (kata.description.isNotEmpty) {
+        content.write('Beschrijving: ${kata.description}. ');
+      }
+      
+      if (kata.imageUrls?.isNotEmpty == true) {
+        content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
+      }
+      
+      if (kata.videoUrls?.isNotEmpty == true) {
+        content.write('Deze kata heeft ${kata.videoUrls?.length} video\'s. ');
+      }
+      
+      await accessibilityNotifier.speak(content.toString());
+    } catch (e) {
+      debugPrint('Error speaking kata content: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final kata = widget.kata;
@@ -67,14 +99,16 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
 
     return Semantics(
       label: 'Kata kaart: ${kata.name}, stijl: ${kata.style}',
-      child: ResponsiveCard(
-        margin: AppTheme.getResponsiveMargin(context),
-        padding: AppTheme.getResponsivePadding(context),
-        elevation: AppTheme.getResponsiveElevation(context),
-        adaptiveWidth: widget.useAdaptiveWidth,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: GestureDetector(
+        onTap: _speakKataContent,
+        child: ResponsiveCard(
+          margin: AppTheme.getResponsiveMargin(context),
+          padding: AppTheme.getResponsivePadding(context),
+          elevation: AppTheme.getResponsiveElevation(context),
+          adaptiveWidth: widget.useAdaptiveWidth,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Header row with drag handle, name and action buttons
             Row(
               children: [
@@ -262,6 +296,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
             _buildInteractionSection(kata),
           ],
         ),
+      ),
       ),
     );
   }

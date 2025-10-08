@@ -7,7 +7,6 @@ import '../utils/retry_utils.dart';
 import '../utils/video_utils.dart';
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
-import '../core/storage/local_storage.dart';
 
 /// Enhanced video service with data usage controls and offline support
 class EnhancedVideoService {
@@ -366,6 +365,8 @@ class EnhancedVideoService {
         return fileSize <= 10 * 1024 * 1024; // 10MB limit
       case DataUsageMode.wifiOnly:
         return dataUsageState.connectionType == ConnectionType.wifi;
+      default:
+        return false; // Default to false for unknown modes
     }
   }
   
@@ -393,7 +394,6 @@ class EnhancedVideoService {
   
   /// Estimate data usage for video streaming
   static int estimateVideoDataUsage(int durationSeconds, Ref ref) {
-    final dataUsageState = ref.read(dataUsageProvider);
     final quality = getVideoQuality(ref);
     
     // Estimate based on quality (bytes per second)

@@ -1,14 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../core/storage/local_storage.dart';
-import '../models/kata_model.dart';
-import '../models/forum_models.dart';
+import '../core/storage/local_storage.dart' as app_storage;
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
-import '../utils/retry_utils.dart';
 
 /// Offline sync status
 enum SyncStatus {
@@ -102,7 +98,6 @@ class OfflineSyncService {
   static final SupabaseClient _supabase = Supabase.instance.client;
   Timer? _backgroundSyncTimer;
   static const Duration _backgroundSyncInterval = Duration(minutes: 15);
-  static const Duration _retryInterval = Duration(minutes: 5);
 
   /// Start background sync if enabled
   void startBackgroundSync(Ref ref) {
@@ -141,7 +136,6 @@ class OfflineSyncService {
 
   /// Sync katas from server to local storage
   Future<SyncResult> syncKatas(Ref ref, {bool background = false}) async {
-    final completer = Completer<SyncResult>();
     int processed = 0;
     int failed = 0;
     String? error;
@@ -172,21 +166,20 @@ class OfflineSyncService {
         );
       }
 
-      final List<CachedKata> katasToCache = [];
+      final List<app_storage.CachedKata> katasToCache = [];
       
       for (int i = 0; i < response.length; i++) {
         try {
           final kataData = response[i];
-          final kata = CachedKata(
+          final kata = app_storage.CachedKata(
             id: kataData['id'],
             name: kataData['name'],
             description: kataData['description'] ?? '',
-            beltLevel: kataData['belt_level'] ?? '',
-            difficulty: kataData['difficulty'] ?? 1,
-            steps: List<String>.from(kataData['steps'] ?? []),
-            tips: List<String>.from(kataData['tips'] ?? []),
+            createdAt: DateTime.tryParse(kataData['created_at'] ?? '') ?? DateTime.now(),
+            lastSynced: DateTime.now(),
+            imageUrls: List<String>.from(kataData['image_urls'] ?? []),
+            style: kataData['style'] ?? '',
             isFavorite: kataData['is_favorite'] ?? false,
-            lastViewed: DateTime.tryParse(kataData['last_viewed'] ?? '') ?? DateTime.now(),
             needsSync: false,
           );
           
@@ -205,7 +198,7 @@ class OfflineSyncService {
       }
 
       // Save to local storage
-      await LocalStorage.saveKatas(katasToCache);
+      await app_storage.LocalStorage.saveKatas(katasToCache);
       
       // Record data usage
       final estimatedBytes = response.length * 1024; // ~1KB per kata
@@ -290,23 +283,21 @@ class OfflineSyncService {
         );
       }
 
-      final List<CachedForumPost> postsToCache = [];
+      final List<app_storage.CachedForumPost> postsToCache = [];
       
       for (int i = 0; i < response.length; i++) {
         try {
           final postData = response[i];
-          final post = CachedForumPost(
+          final post = app_storage.CachedForumPost(
             id: postData['id'],
             title: postData['title'],
             content: postData['content'],
             authorId: postData['author_id'],
             authorName: postData['author_name'] ?? 'Unknown',
             createdAt: DateTime.parse(postData['created_at']),
-            updatedAt: DateTime.tryParse(postData['updated_at'] ?? '') ?? DateTime.now(),
-            likes: postData['likes'] ?? 0,
-            replies: postData['replies'] ?? 0,
-            category: postData['category'] ?? 'General',
-            isLiked: postData['is_liked'] ?? false,
+            lastSynced: DateTime.now(),
+            likesCount: postData['likes'] ?? 0,
+            commentsCount: postData['replies'] ?? 0,
             needsSync: false,
           );
           
@@ -325,7 +316,7 @@ class OfflineSyncService {
       }
 
       // Save to local storage
-      await LocalStorage.saveForumPosts(postsToCache);
+      await app_storage.LocalStorage.saveForumPosts(postsToCache);
       
       // Record data usage
       final estimatedBytes = response.length * 2048; // ~2KB per post
@@ -393,7 +384,7 @@ class OfflineSyncService {
       debugPrint('🔄 Starting favorite content preload...');
       
       // Get favorite katas
-      final favoriteKatas = LocalStorage.getFavoriteKatas();
+      final favoriteKatas = app_storage.LocalStorage.getFavoriteKatas();
       
       for (final kata in favoriteKatas) {
         try {

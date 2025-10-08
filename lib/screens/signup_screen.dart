@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../core/navigation/app_router.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -69,7 +70,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     final isLoading = authState.isLoading;
     final errorMessage = authState.error;
 
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       appBar: AppBar(title: const Text('Registreren')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -193,6 +195,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -64,6 +64,58 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     ref.read(forumNotifierProvider.notifier).filterByCategory(category);
   }
 
+  Future<void> _speakForumPostContent(ForumPost post) async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      
+      // Build comprehensive content for TTS
+      final content = StringBuffer();
+      content.write('Forum Post: ${post.title}. ');
+      content.write('Categorie: ${post.category.displayName}. ');
+      
+      if (post.content.isNotEmpty) {
+        content.write('Inhoud: ${post.content}. ');
+      }
+      
+      content.write('Geschreven door: ${post.authorName}. ');
+      
+      if (post.commentCount > 0) {
+        content.write('Dit bericht heeft ${post.commentCount} reacties. ');
+      }
+      
+      if (post.isPinned) {
+        content.write('Dit bericht is vastgepind. ');
+      }
+      
+      if (post.isLocked) {
+        content.write('Dit bericht is gesloten. ');
+      }
+      
+      content.write('Gepost ${_formatDate(post.createdAt)}. ');
+      
+      await accessibilityNotifier.speak(content.toString());
+    } catch (e) {
+      debugPrint('Error speaking forum post content: $e');
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays > 7) {
+      return '${date.day}/${date.month}/${date.year}';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays}d ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes}m ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
   Future<void> _deletePost(ForumPost post) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -334,6 +386,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
+            _speakForumPostContent(post);
             if (context.isDesktop) {
               // Master-detail mode: select post for detail view
               setState(() {
@@ -715,20 +768,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     }
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d geleden';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}u geleden';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m geleden';
-    } else {
-      return 'Zojuist';
-    }
-  }
 
 
   /// Get appropriate icon for font size
