@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/role_provider.dart';
+import '../providers/data_usage_provider.dart';
+import '../providers/network_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
@@ -10,6 +12,7 @@ import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
 import '../widgets/global_tts_overlay.dart';
 import 'avatar_selection_screen.dart';
+import 'data_usage_settings_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -452,6 +455,190 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 
                 SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
+                
+                // Data Usage Settings Section
+                const AccessibleText(
+                  'Dataverbruik & Offline',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  enableTextToSpeech: true,
+                ),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
+                
+                // Data Usage Status Card
+                Consumer(
+                  builder: (context, ref, child) {
+                    final dataUsageState = ref.watch(dataUsageProvider);
+                    final networkState = ref.watch(networkProvider);
+                    
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  networkState.isConnected ? Icons.wifi : Icons.wifi_off,
+                                  color: networkState.isConnected ? Colors.green : Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                const AccessibleText(
+                                  'Netwerkstatus',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  enableTextToSpeech: true,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            
+                            // Connection Status
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const AccessibleText(
+                                  'Status:',
+                                  enableTextToSpeech: true,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: networkState.isConnected 
+                                        ? Colors.green.withOpacity(0.1) 
+                                        : Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: AccessibleText(
+                                    networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
+                                    style: TextStyle(
+                                      color: networkState.isConnected ? Colors.green : Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                    enableTextToSpeech: true,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            // Data Usage Mode
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const AccessibleText(
+                                  'Dataverbruik modus:',
+                                  enableTextToSpeech: true,
+                                ),
+                                AccessibleText(
+                                  _getDataUsageModeText(dataUsageState.mode),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                  enableTextToSpeech: true,
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            // Monthly Usage
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const AccessibleText(
+                                  'Maandelijks verbruik:',
+                                  enableTextToSpeech: true,
+                                ),
+                                AccessibleText(
+                                  '${dataUsageState.stats.formattedTotalUsage} / ${dataUsageState.monthlyDataLimit} MB',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                  enableTextToSpeech: true,
+                                ),
+                              ],
+                            ),
+                            
+                            // Usage Progress Bar
+                            if (dataUsageState.monthlyDataLimit > 0) ...[
+                              const SizedBox(height: 8),
+                              LinearProgressIndicator(
+                                value: (dataUsageState.stats.totalBytesUsed / (1024 * 1024)) / dataUsageState.monthlyDataLimit,
+                                backgroundColor: Colors.grey.withOpacity(0.3),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  dataUsageState.shouldShowDataWarning ? Colors.red : Colors.green,
+                                ),
+                              ),
+                            ],
+                            
+                            // Data Warning
+                            if (dataUsageState.shouldShowDataWarning) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.warning, color: Colors.orange, size: 16),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: AccessibleText(
+                                        'Nadert maandelijks dataverbruik limiet',
+                                        style: TextStyle(
+                                          color: Colors.orange,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        enableTextToSpeech: true,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Settings Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const DataUsageSettingsScreen(),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.settings, size: 18),
+                                label: const AccessibleText(
+                                  'Dataverbruik instellingen',
+                                  enableTextToSpeech: true,
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                  minimumSize: const Size(double.infinity, 48),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                
+                SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
               ],
             ),
           ),
@@ -459,5 +646,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     ),
     );
+  }
+  
+  /// Get Dutch text for data usage mode
+  String _getDataUsageModeText(DataUsageMode mode) {
+    switch (mode) {
+      case DataUsageMode.unlimited:
+        return 'Onbeperkt';
+      case DataUsageMode.moderate:
+        return 'Gematigd';
+      case DataUsageMode.strict:
+        return 'Strikt';
+      case DataUsageMode.wifiOnly:
+        return 'Alleen Wi-Fi';
+    }
   }
 }
