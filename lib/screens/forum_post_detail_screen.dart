@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../widgets/avatar_widget.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class ForumPostDetailScreen extends ConsumerStatefulWidget {
   final int postId;
@@ -418,6 +419,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     Text(
                       _formatDate(post.createdAt),
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ),
@@ -736,6 +739,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     Text(
                       _formatDate(comment.createdAt),
                       style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ],
                 ),
@@ -1154,10 +1159,11 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Forum Post'),
-      ),
+    return GlobalTTSOverlay(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Forum Post'),
+        ),
       body: Column(
         children: [
           // Main content
@@ -1246,6 +1252,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
             ),
         ],
       ),
+    ),
     );
   }
 }

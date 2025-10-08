@@ -340,7 +340,7 @@ class ResponsiveUtils {
 
   // Dynamic type scaling integration with system settings
   static double getSystemTextScaleFactor(BuildContext context) {
-    return MediaQuery.of(context).textScaleFactor;
+    return MediaQuery.textScalerOf(context).scale(1.0);
   }
 
   // Get device pixel ratio for responsive images

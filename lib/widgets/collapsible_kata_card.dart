@@ -22,12 +22,14 @@ class CollapsibleKataCard extends ConsumerStatefulWidget {
   final Kata kata;
   final VoidCallback onDelete;
   final bool isDragging;
+  final bool useAdaptiveWidth;
 
   const CollapsibleKataCard({
     super.key,
     required this.kata,
     required this.onDelete,
     this.isDragging = false,
+    this.useAdaptiveWidth = true,
   });
 
   @override
@@ -69,6 +71,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         margin: AppTheme.getResponsiveMargin(context),
         padding: AppTheme.getResponsivePadding(context),
         elevation: AppTheme.getResponsiveElevation(context),
+        adaptiveWidth: widget.useAdaptiveWidth,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

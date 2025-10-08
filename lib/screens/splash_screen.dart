@@ -135,9 +135,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return GlobalTTSOverlay(
-      enabled: true,
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color(0xFF4CAF50), // Use a fixed green color
         body: Center(
           child: FadeTransition(
@@ -208,7 +206,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ),
           ),
         ),
-      ),
     );
   }
 }

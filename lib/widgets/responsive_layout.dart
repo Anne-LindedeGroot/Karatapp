@@ -334,8 +334,10 @@ class ResponsiveDialog extends StatelessWidget {
             if (actions != null)
               Padding(
                 padding: context.responsivePadding,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: 8.0,
+                  runSpacing: 8.0,
                   children: actions!,
                 ),
               ),

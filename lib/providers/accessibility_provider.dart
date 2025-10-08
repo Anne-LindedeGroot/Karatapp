@@ -144,32 +144,41 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       _flutterTts = FlutterTts();
       
       // Wait a moment for TTS to be ready
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 200));
       
       // Set up TTS event handlers first
       _flutterTts.setStartHandler(() {
         debugPrint('TTS: Speech started');
+        print('▶️ TTS: Speech started');
         _isSpeaking = true;
         state = state.copyWith(isSpeaking: true);
       });
       
       _flutterTts.setCompletionHandler(() {
         debugPrint('TTS: Speech completed');
+        print('✅ TTS: Speech completed');
         _isSpeaking = false;
         state = state.copyWith(isSpeaking: false);
       });
       
       _flutterTts.setCancelHandler(() {
         debugPrint('TTS: Speech cancelled');
+        print('⏹️ TTS: Speech cancelled');
         _isSpeaking = false;
         state = state.copyWith(isSpeaking: false);
       });
       
       _flutterTts.setErrorHandler((msg) {
         debugPrint('TTS Error: $msg');
+        print('❌ TTS Error: $msg');
         _isSpeaking = false;
         state = state.copyWith(isSpeaking: false);
       });
+      
+      // Configure TTS engine for Android
+      if (Platform.isAndroid) {
+        await _configureAndroidTTS();
+      }
       
       // Check available languages
       try {
@@ -179,28 +188,8 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
         debugPrint('Could not get available languages: $e');
       }
       
-      // Try to set Dutch language
-      try {
-        final result = await _flutterTts.setLanguage('nl-NL');
-        debugPrint('Set language nl-NL result: $result');
-        
-        if (result != 1) {
-          // Try alternative Dutch locale if nl-NL failed
-          final altResult = await _flutterTts.setLanguage('nl');
-          debugPrint('Set language nl result: $altResult');
-          
-          if (altResult != 1) {
-            // If no Dutch available, try English as fallback
-            final enResult = await _flutterTts.setLanguage('en-US');
-            debugPrint('Set language en-US result: $enResult');
-            if (enResult != 1) {
-              debugPrint('Warning: Could not set any preferred language, using system default');
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('Error setting language: $e');
-      }
+      // Try to set Dutch language with better fallback logic
+      await _setOptimalLanguage();
       
       // Set initial speech parameters
       try {
@@ -217,17 +206,81 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       _isTtsInitialized = true;
       debugPrint('TTS initialized successfully');
       
-      // Test TTS with a simple phrase (but don't actually speak it)
-      try {
-        // Just test if the speak method is available without actually speaking
-        debugPrint('TTS initialization completed successfully');
-      } catch (e) {
-        debugPrint('TTS test failed: $e');
-      }
-      
     } catch (e) {
       debugPrint('Error initializing TTS: $e');
       _isTtsInitialized = false;
+    }
+  }
+
+  /// Configure Android TTS engine
+  Future<void> _configureAndroidTTS() async {
+    try {
+      // Get available engines
+      final engines = await _flutterTts.getEngines;
+      debugPrint('Available TTS engines: $engines');
+      
+      // Try to use Samsung TTS if available (common on Samsung devices)
+      final samsungEngine = engines.firstWhere(
+        (engine) => engine['name'].toString().contains('samsung') || 
+                   engine['name'].toString().contains('Samsung'),
+        orElse: () => <String, dynamic>{},
+      );
+      
+      if (samsungEngine.isNotEmpty) {
+        debugPrint('Using Samsung TTS engine: ${samsungEngine['name']}');
+        await _flutterTts.setEngine(samsungEngine['name']);
+      } else {
+        // Try Google TTS as fallback
+        final googleEngine = engines.firstWhere(
+          (engine) => engine['name'].toString().contains('google') || 
+                     engine['name'].toString().contains('Google'),
+          orElse: () => <String, dynamic>{},
+        );
+        
+        if (googleEngine.isNotEmpty) {
+          debugPrint('Using Google TTS engine: ${googleEngine['name']}');
+          await _flutterTts.setEngine(googleEngine['name']);
+        } else {
+          // Use default engine
+          debugPrint('Using default TTS engine');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error configuring Android TTS: $e');
+    }
+  }
+
+  /// Set optimal language for TTS
+  Future<void> _setOptimalLanguage() async {
+    try {
+      // Try Dutch variants in order of preference
+      final dutchVariants = ['nl-NL', 'nl-BE', 'nl'];
+      
+      for (final variant in dutchVariants) {
+        final result = await _flutterTts.setLanguage(variant);
+        debugPrint('Set language $variant result: $result');
+        
+        if (result == 1) {
+          debugPrint('Successfully set language to $variant');
+          return;
+        }
+      }
+      
+      // If no Dutch available, try English variants
+      final englishVariants = ['en-US', 'en-GB', 'en'];
+      for (final variant in englishVariants) {
+        final result = await _flutterTts.setLanguage(variant);
+        debugPrint('Set language $variant result: $result');
+        
+        if (result == 1) {
+          debugPrint('Successfully set language to $variant as fallback');
+          return;
+        }
+      }
+      
+      debugPrint('Warning: Could not set any preferred language, using system default');
+    } catch (e) {
+      debugPrint('Error setting optimal language: $e');
     }
   }
 
@@ -250,9 +303,8 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
             IosTextToSpeechAudioMode.spokenAudio,
           );
         } else if (Platform.isAndroid) {
-          // Android specific configuration
-          await _flutterTts.setEngine("com.google.android.tts");
-          // Set audio stream to music to route through headphones
+          // Android specific configuration - don't set specific engine here
+          // as it's already configured in _configureAndroidTTS
           await _flutterTts.setSilence(0);
         }
       } else {
@@ -434,7 +486,10 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
 
   /// Speak text using text-to-speech
   Future<void> speak(String text) async {
-    if (!state.isTextToSpeechEnabled) return;
+    if (!state.isTextToSpeechEnabled) {
+      debugPrint('TTS: Text-to-speech is disabled');
+      return;
+    }
     
     // Clean and validate text
     final cleanText = text.trim();
@@ -456,7 +511,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     try {
       // Stop any current speech first
       await _flutterTts.stop();
-      await Future.delayed(const Duration(milliseconds: 100));
+      await Future.delayed(const Duration(milliseconds: 200));
       
       // Ensure language is properly set
       await _ensureLanguageSet();
@@ -470,17 +525,39 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       state = state.copyWith(isSpeaking: true);
       
       debugPrint('TTS: Starting to speak: "${cleanText.length > 100 ? '${cleanText.substring(0, 100)}...' : cleanText}"');
+      print('🗣️ TTS: Starting to speak: "${cleanText.length > 100 ? '${cleanText.substring(0, 100)}...' : cleanText}"');
       
-      // Speak the text
-      final speakResult = await _flutterTts.speak(cleanText);
-      debugPrint('TTS speak result: $speakResult');
+      // Speak the text with retry logic
+      int attempts = 0;
+      const maxAttempts = 3;
       
-      // If speak failed, try alternative approach
-      if (speakResult != 1) {
-        debugPrint('TTS: First speak attempt failed, trying alternative approach...');
-        await Future.delayed(const Duration(milliseconds: 200));
-        await _flutterTts.speak(cleanText);
+      while (attempts < maxAttempts) {
+        try {
+          final speakResult = await _flutterTts.speak(cleanText);
+          debugPrint('TTS speak result (attempt ${attempts + 1}): $speakResult');
+          
+          if (speakResult == 1) {
+            debugPrint('TTS: Successfully started speaking');
+            return;
+          }
+          
+          attempts++;
+          if (attempts < maxAttempts) {
+            debugPrint('TTS: Speak attempt $attempts failed, retrying...');
+            await Future.delayed(Duration(milliseconds: 300 * attempts));
+          }
+        } catch (e) {
+          debugPrint('TTS: Speak attempt ${attempts + 1} threw error: $e');
+          attempts++;
+          if (attempts < maxAttempts) {
+            await Future.delayed(Duration(milliseconds: 300 * attempts));
+          }
+        }
       }
+      
+      debugPrint('TTS: All speak attempts failed');
+      _isSpeaking = false;
+      state = state.copyWith(isSpeaking: false);
       
     } catch (e) {
       debugPrint('Error speaking text: $e');
@@ -489,7 +566,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       
       // Try to reinitialize TTS on error
       _isTtsInitialized = false;
-      Future.delayed(const Duration(milliseconds: 500), () async {
+      Future.delayed(const Duration(milliseconds: 1000), () async {
         await _initializeTts();
       });
     }
@@ -497,35 +574,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
 
   /// Ensure proper language is set for TTS
   Future<void> _ensureLanguageSet() async {
-    try {
-      // Try Dutch first
-      var result = await _flutterTts.setLanguage('nl-NL');
-      if (result == 1) {
-        debugPrint('TTS: Language set to nl-NL');
-        return;
-      }
-      
-      // Try alternative Dutch
-      result = await _flutterTts.setLanguage('nl');
-      if (result == 1) {
-        debugPrint('TTS: Language set to nl');
-        return;
-      }
-      
-      // Try English as fallback
-      result = await _flutterTts.setLanguage('en-US');
-      if (result == 1) {
-        debugPrint('TTS: Language set to en-US as fallback');
-        return;
-      }
-      
-      // Try system default
-      result = await _flutterTts.setLanguage('en');
-      debugPrint('TTS: Using system default language, result: $result');
-      
-    } catch (e) {
-      debugPrint('Error setting TTS language: $e');
-    }
+    await _setOptimalLanguage();
   }
 
   /// Stop text-to-speech
@@ -572,7 +621,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   /// Get scaled text style that integrates with system dynamic type scaling
   TextStyle getSystemAwareTextStyle(TextStyle baseStyle, BuildContext context) {
     // Get system text scale factor
-    final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+    final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
     
     // Combine user preference with system scaling
     final combinedScaleFactor = state.fontScaleFactor * systemScaleFactor;
@@ -589,13 +638,13 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
 
   /// Check if system dynamic type is enabled and larger than normal
   bool isSystemDynamicTypeEnabled(BuildContext context) {
-    final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+    final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
     return systemScaleFactor > 1.0;
   }
 
   /// Get the effective font scale factor combining user and system settings
   double getEffectiveFontScaleFactor(BuildContext context) {
-    final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+    final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
     return (state.fontScaleFactor * systemScaleFactor).clamp(0.5, 3.0);
   }
 

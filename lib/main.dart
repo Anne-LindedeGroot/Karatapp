@@ -270,11 +270,8 @@ class MyApp extends ConsumerWidget {
           );
         };
 
-        // Add global TTS overlay to all screens
-        return GlobalTTSOverlay(
-          enabled: _shouldShowGlobalTTS(context),
-          child: child ?? const SizedBox.shrink(),
-        );
+        // Return child directly - GlobalTTSOverlay will be added at the screen level
+        return child ?? const SizedBox.shrink();
       },
     );
     } catch (e, stackTrace) {

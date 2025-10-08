@@ -34,21 +34,24 @@ class GlobalTTSOverlay extends ConsumerWidget {
       return child;
     }
 
-    return Stack(
-      children: [
-        child,
-        Positioned(
-          right: margin?.right ?? 0,
-          bottom: margin?.bottom ?? 120, // Position above plus button with spacing
-          child: UnifiedTTSButton(
-            showLabel: showLabel,
-            size: size,
-            backgroundColor: backgroundColor,
-            foregroundColor: foregroundColor,
-            margin: const EdgeInsets.all(16),
+    return Directionality(
+      textDirection: TextDirection.ltr, // Explicitly set text direction
+      child: Stack(
+        children: [
+          child,
+          Positioned(
+            right: margin?.right ?? 0,
+            bottom: margin?.bottom ?? 120, // Position above plus button with spacing
+            child: UnifiedTTSButton(
+              showLabel: showLabel,
+              size: size,
+              backgroundColor: backgroundColor,
+              foregroundColor: foregroundColor,
+              margin: const EdgeInsets.all(16),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

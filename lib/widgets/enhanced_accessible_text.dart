@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
+import '../services/unified_tts_service.dart';
 
 /// Enhanced accessible text widget that automatically applies TTS and accessibility features
 class EnhancedAccessibleText extends ConsumerWidget {
@@ -73,7 +74,22 @@ class EnhancedAccessibleText extends ConsumerWidget {
       selectionColor: selectionColor,
     );
 
-    // TTS functionality is now handled by the global floating button
+    // Add TTS functionality if enabled
+    if (enableTTS) {
+      textWidget = GestureDetector(
+        onTap: speakOnTap ? () {
+          // Use the enhanced TTS service for better Dutch pronunciation
+          final textToSpeak = customTTSText ?? text;
+          UnifiedTTSService.readText(context, ref, textToSpeak);
+        } : null,
+        onLongPress: speakOnLongPress ? () {
+          // Use the enhanced TTS service for better Dutch pronunciation
+          final textToSpeak = customTTSText ?? text;
+          UnifiedTTSService.readText(context, ref, textToSpeak);
+        } : null,
+        child: textWidget,
+      );
+    }
 
     return textWidget;
   }

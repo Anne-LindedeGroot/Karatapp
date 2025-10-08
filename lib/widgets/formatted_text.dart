@@ -52,14 +52,26 @@ class FormattedText extends StatelessWidget {
               TextSpan(text: afterColon),
             ],
           ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 10, // Allow multiple lines but prevent excessive overflow
         );
       } else {
         // For other text with colons, just display normally
-        return Text(paragraph, style: baseStyle ?? Theme.of(context).textTheme.bodyMedium);
+        return Text(
+          paragraph, 
+          style: baseStyle ?? Theme.of(context).textTheme.bodyMedium,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 10, // Allow multiple lines but prevent excessive overflow
+        );
       }
     } else {
       // No colon, display normally
-      return Text(paragraph, style: baseStyle ?? Theme.of(context).textTheme.bodyMedium);
+      return Text(
+        paragraph, 
+        style: baseStyle ?? Theme.of(context).textTheme.bodyMedium,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 10, // Allow multiple lines but prevent excessive overflow
+      );
     }
   }
 }

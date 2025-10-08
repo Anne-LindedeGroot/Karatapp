@@ -6,9 +6,9 @@ import '../providers/role_provider.dart';
 import '../services/role_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/responsive_layout.dart';
 import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
+import '../widgets/global_tts_overlay.dart';
 import 'avatar_selection_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -119,7 +119,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isLoading = authState.isLoading;
     final errorMessage = authState.error;
 
-    return Scaffold(
+    return GlobalTTSOverlay(
+      child: Scaffold(
       appBar: AppBar(
         title: const AccessibleText(
           'Profiel',
@@ -456,6 +457,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

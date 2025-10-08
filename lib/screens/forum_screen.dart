@@ -11,6 +11,7 @@ import '../widgets/skeleton_forum_post.dart';
 import '../widgets/responsive_layout.dart';
 import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
+import '../widgets/global_tts_overlay.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
 
@@ -431,7 +432,13 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                             children: [
                               const Icon(Icons.delete, color: Colors.red),
                               const SizedBox(width: 8),
-                              Text('Verwijderen', style: TextStyle(color: Colors.red)),
+                              Expanded(
+                                child: Text(
+                                  'Verwijderen', 
+                                  style: TextStyle(color: Colors.red),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -451,6 +458,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                     fontWeight: FontWeight.w700,
                     height: 1.3,
                   ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(height: 10),
@@ -511,6 +520,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   color: Colors.grey[600],
                                   fontSize: 13,
                                 ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                               ),
                             ),
                           ],
@@ -870,11 +881,12 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final isLoading = ref.watch(forumLoadingProvider);
     final error = ref.watch(forumErrorProvider);
 
-    return GestureDetector(
-      onTap: () {
-        _searchFocusNode.unfocus();
-      },
-      child: Scaffold(
+    return GlobalTTSOverlay(
+      child: GestureDetector(
+        onTap: () {
+          _searchFocusNode.unfocus();
+        },
+        child: Scaffold(
       appBar: AppBar(
         title: const Text('Forum'),
         leading: IconButton(
@@ -1032,6 +1044,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
           ),
         ),
         floatingActionButton: FloatingActionButton(
+          heroTag: "forum_fab",
           onPressed: () {
             Navigator.push(
               context,
@@ -1043,7 +1056,9 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
           child: const Icon(Icons.add),
           tooltip: 'Nieuw bericht maken',
         ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
+    ),
     );
   }
 }

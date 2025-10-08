@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +18,8 @@ import '../services/role_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/responsive_utils.dart';
 import '../core/theme/app_theme.dart';
+import '../core/navigation/app_router.dart';
+import '../widgets/global_tts_overlay.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -221,24 +224,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           semanticsLabel: 'Bevestiging bericht: Weet je zeker dat je uit wilt loggen?',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            style: TextButton.styleFrom(
-              backgroundColor: Colors.lightGreenAccent,
-            ),
-            child: const Text(
-              'Nee dankje makker!',
-              semanticsLabel: 'Nee dankje makker! Knop om uitloggen te annuleren en in de app te blijven',
+          Flexible(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.lightGreenAccent,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: const Text(
+                'Nee dankje makker!',
+                semanticsLabel: 'Nee dankje makker! Knop om uitloggen te annuleren en in de app te blijven',
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.lightBlueAccent,
-            ),
-            child: const Text(
-              'Ja tuurlijk!',
-              semanticsLabel: 'Ja tuurlijk! Knop om te bevestigen en uit te loggen van de applicatie',
+          Flexible(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.lightBlueAccent,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: const Text(
+                'Ja tuurlijk!',
+                semanticsLabel: 'Ja tuurlijk! Knop om te bevestigen en uit te loggen van de applicatie',
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
           ),
         ],
@@ -285,6 +300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
+            useAdaptiveWidth: false,
           )).toList(),
         ),
         foldable: ResponsiveGrid(
@@ -299,6 +315,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
+            useAdaptiveWidth: false,
           )).toList(),
         ),
         largeFoldable: ResponsiveGrid(
@@ -313,6 +330,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
+            useAdaptiveWidth: false,
           )).toList(),
         ),
         desktop: ResponsiveGrid(
@@ -327,6 +345,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
+            useAdaptiveWidth: false,
           )).toList(),
         ),
       );
@@ -402,6 +421,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
+          useAdaptiveWidth: false,
         )).toList(),
       ),
       foldable: ResponsiveGrid(
@@ -416,6 +436,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
+          useAdaptiveWidth: false,
         )).toList(),
       ),
       largeFoldable: ResponsiveGrid(
@@ -430,6 +451,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
+          useAdaptiveWidth: false,
         )).toList(),
       ),
       desktop: ResponsiveGrid(
@@ -444,6 +466,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
+          useAdaptiveWidth: false,
         )).toList(),
       ),
     );
@@ -545,13 +568,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
 
-    return GestureDetector(
-      onTap: () {
-        // Remove focus from search field when tapping outside
-        _searchFocusNode.unfocus();
-      },
-      child: Scaffold(
-        appBar: AppBar(
+    return GlobalTTSOverlay(
+      child: GestureDetector(
+        onTap: () {
+          // Remove focus from search field when tapping outside
+          _searchFocusNode.unfocus();
+        },
+        child: Scaffold(
+          appBar: AppBar(
           title: const Text("Karatapp"),
           actions: [
             // Accessibility quick actions in app bar
@@ -694,6 +718,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 currentUser?.email ??
                                 'User',
                             style: const TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
                         ),
                       ],
@@ -706,7 +732,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         const Icon(Icons.person, size: 20),
                         const SizedBox(width: 12),
-                        const Expanded(child: Text('Profiel')),
+                        const Expanded(
+                          child: Text(
+                            'Profiel',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -723,7 +755,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         const Icon(Icons.favorite, size: 20),
                         const SizedBox(width: 12),
-                        const Expanded(child: Text('Mijn Favorieten')),
+                        const Expanded(
+                          child: Text(
+                            'Mijn Favorieten',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -742,7 +780,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         const Icon(Icons.admin_panel_settings, size: 20),
                         const SizedBox(width: 12),
-                        const Expanded(child: Text('Gebruikersbeheer')),
+                        const Expanded(
+                          child: Text(
+                            'Gebruikersbeheer',
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -760,7 +804,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         children: [
                           const Icon(Icons.cleaning_services, size: 20),
                           const SizedBox(width: 12),
-                          const Expanded(child: Text('Afbeeldingen opruimen')),
+                          const Expanded(
+                            child: Text(
+                              'Afbeeldingen opruimen',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
                         ],
                       ),
                       onTap: () {
@@ -850,7 +900,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           children: [
                             const Icon(Icons.contrast, size: 20),
                             const SizedBox(width: 12),
-                            const Expanded(child: Text('Hoog Contrast')),
+                            const Expanded(
+                              child: Text(
+                                'Hoog Contrast',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                              ),
+                            ),
                             Switch(
                               value: themeState.isHighContrast,
                               onChanged: (value) {
@@ -869,7 +925,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         const Icon(Icons.logout, size: 20, color: Colors.red),
                         const SizedBox(width: 12),
-                        const Expanded(child: Text('Uitloggen', style: TextStyle(color: Colors.red))),
+                        const Expanded(
+                          child: Text(
+                            'Uitloggen', 
+                            style: TextStyle(color: Colors.red),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
                       ],
                     ),
                     onTap: () {
@@ -949,18 +1012,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           label: 'Nieuwe kata toevoegen',
           button: true,
           child: FloatingActionButton(
+            heroTag: "home_fab",
             onPressed: () {
               _showAddKataDialog();
             },
             child: const Icon(Icons.add),
           ),
         ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        persistentFooterButtons: [
+          // Test button for enhanced TTS (only in debug mode)
+          if (kDebugMode)
+            TextButton.icon(
+              onPressed: () => context.goToTestEnhancedTTS(),
+              icon: const Icon(Icons.record_voice_over),
+              label: const Text('Test Enhanced TTS'),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+        ],
       ),
+    ),
     );
   }
 
-
-  void _showAddKataDialog() async {
+  Future<void> _showAddKataDialog() async {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final styleController = TextEditingController();
@@ -971,7 +1048,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 
     // Create a stateful widget for the dialog content to handle image picking
-    showDialog(
+    await showDialog(
       // ignore: use_build_context_synchronously
       context: context,
       builder: (context) {
@@ -1469,26 +1546,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           });
 
                           try {
-                            // Show loading indicator
-                            showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) => AlertDialog(
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const CircularProgressIndicator(),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      selectedImages.isNotEmpty
-                                          ? 'Creating kata and uploading ${selectedImages.length} image(s)...'
-                                          : 'Creating kata...',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-
                             // Use the kata provider to create the kata
                             await ref.read(kataNotifierProvider.notifier).addKata(
                               name: nameController.text.trim(),
@@ -1501,7 +1558,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             );
 
                             if (context.mounted) {
-                              Navigator.pop(context); // Close loading dialog
                               Navigator.pop(context); // Close add kata dialog
 
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -1522,7 +1578,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 .refreshKatas();
                           } catch (e) {
                             if (context.mounted) {
-                              Navigator.pop(context); // Close loading dialog
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('Error creating kata: $e'),
@@ -1547,15 +1602,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     elevation: 3,
                   ),
                   child: isProcessing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Text(
+                              selectedImages.isNotEmpty
+                                  ? 'Uploading ${selectedImages.length} image(s)...'
+                                  : 'Creating...',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         )
                       : Text(
                           "Kata\nToevoegen",

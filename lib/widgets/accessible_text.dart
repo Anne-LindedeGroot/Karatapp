@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
+import '../services/unified_tts_service.dart';
 
 /// A text widget that automatically applies accessibility settings
 class AccessibleText extends ConsumerWidget {
@@ -55,16 +56,8 @@ class AccessibleText extends ConsumerWidget {
     if (enableTextToSpeech) {
       textWidget = GestureDetector(
         onTap: onTap ?? () {
-          if (isTextToSpeechEnabled) {
-            accessibilityNotifier.speak(text);
-          } else {
-            // Enable TTS first, then speak
-            accessibilityNotifier.setTextToSpeechEnabled(true).then((_) {
-              Future.delayed(const Duration(milliseconds: 300), () {
-                accessibilityNotifier.speak(text);
-              });
-            });
-          }
+          // Use the enhanced TTS service for better Dutch pronunciation
+          UnifiedTTSService.readText(context, ref, text);
         },
         child: textWidget,
       );

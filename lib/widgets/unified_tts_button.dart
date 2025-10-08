@@ -93,12 +93,12 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
             onPressed: () => _handleTTSAction(context, ref),
             backgroundColor: effectiveBackgroundColor,
             foregroundColor: effectiveForegroundColor,
-            // Remove tooltip to avoid overlay issues
-            // tooltip: isSpeaking 
-            //   ? 'Stop voorlezen' 
-            //   : (isEnabled 
-            //     ? 'Lees pagina voor' 
-            //     : 'Schakel spraak in en lees voor'),
+            elevation: isSpeaking ? 8 : 4,
+            tooltip: isSpeaking 
+              ? 'Stop voorlezen' 
+              : (isEnabled 
+                ? 'Lees hele pagina voor' 
+                : 'Schakel spraak in en lees voor'),
             child: Icon(
               isSpeaking 
                 ? Icons.volume_up 
@@ -148,18 +148,118 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       // Stop speaking if currently speaking
       debugPrint('UnifiedTTS: Stopping speech');
       await accessibilityNotifier.stopSpeaking();
+      
+      // Provide feedback - use safe method that works in any context
+      if (context.mounted) {
+        _showSafeFeedback(context, 'Voorlezen gestopt');
+      }
     } else if (accessibilityState.isTextToSpeechEnabled) {
       // Read all text from current screen
       debugPrint('UnifiedTTS: Reading current screen');
-      await UnifiedTTSService.readCurrentScreen(context, ref);
+      
+      // Provide feedback - use safe method that works in any context
+      if (context.mounted) {
+        _showSafeFeedback(context, 'Pagina wordt voorgelezen...');
+      }
+      
+      if (context.mounted) {
+        await UnifiedTTSService.readCurrentScreen(context, ref);
+      }
     } else {
       // Enable TTS first, then read content
       debugPrint('UnifiedTTS: Enabling TTS and reading screen');
+      
+      // Provide feedback - use safe method that works in any context
+      if (context.mounted) {
+        _showSafeFeedback(context, 'Spraak wordt ingeschakeld...');
+      }
+      
       await accessibilityNotifier.toggleTextToSpeech();
       await Future.delayed(const Duration(milliseconds: 500));
       if (context.mounted) {
         await UnifiedTTSService.readCurrentScreen(context, ref);
       }
+    }
+  }
+
+  /// Safely show feedback that works in any context (Scaffold or not)
+  void _showSafeFeedback(BuildContext context, String message) {
+    try {
+      // Try to find ScaffoldMessenger first
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      // If ScaffoldMessenger is not available, try to find MaterialApp
+      try {
+        final materialApp = context.findAncestorWidgetOfExactType<MaterialApp>();
+        if (materialApp != null) {
+          // Use a simple overlay instead - but check if Overlay is available
+          _showOverlayFeedback(context, message);
+        } else {
+          // No MaterialApp found, just log the message
+          debugPrint('UnifiedTTS Feedback: $message');
+        }
+      } catch (e2) {
+        debugPrint('UnifiedTTS: Could not show feedback: $e2');
+        // Fallback: just print to console
+        debugPrint('UnifiedTTS Feedback: $message');
+      }
+    }
+  }
+
+  /// Show feedback using an overlay when ScaffoldMessenger is not available
+  void _showOverlayFeedback(BuildContext context, String message) {
+    try {
+      final overlay = Overlay.of(context);
+      late OverlayEntry overlayEntry;
+      
+      overlayEntry = OverlayEntry(
+        builder: (context) => Positioned(
+          bottom: 100,
+          left: 16,
+          right: 16,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.inverseSurface,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onInverseSurface,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      );
+      
+      overlay.insert(overlayEntry);
+    
+      // Remove overlay after 2 seconds
+      Future.delayed(const Duration(seconds: 2), () {
+        overlayEntry.remove();
+      });
+    } catch (e) {
+      // If overlay is not available, just log the message
+      debugPrint('UnifiedTTS: Could not show overlay feedback: $e');
+      debugPrint('UnifiedTTS Feedback: $message');
     }
   }
 }

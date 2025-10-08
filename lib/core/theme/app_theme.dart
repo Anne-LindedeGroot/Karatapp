@@ -444,7 +444,7 @@ class AppTheme {
     if (fontScaleFactor == null || fontScaleFactor == 1.0) {
       // Still check for system dynamic type even if user scaling is disabled
       if (context != null) {
-        final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+        final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
         if (systemScaleFactor > 1.0) {
           return baseStyle.copyWith(
             fontSize: (baseStyle.fontSize ?? 14) * systemScaleFactor.clamp(1.0, 2.0),
@@ -457,7 +457,7 @@ class AppTheme {
     // Combine user preference with system scaling if context is available
     double effectiveScaleFactor = fontScaleFactor;
     if (context != null) {
-      final systemScaleFactor = MediaQuery.of(context).textScaleFactor;
+      final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
       effectiveScaleFactor = (fontScaleFactor * systemScaleFactor).clamp(0.5, 3.0);
     }
     
