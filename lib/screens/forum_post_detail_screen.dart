@@ -418,7 +418,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     const SizedBox(height: 2),
                     Text(
                       _formatDate(post.createdAt),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
@@ -605,13 +605,13 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           Icon(
                             Icons.comment,
                             size: 16,
-                            color: Colors.grey[600],
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '${post.commentCount}',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
                               fontSize: 12,
                             ),
@@ -738,7 +738,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     const SizedBox(height: 2),
                     Text(
                       _formatDate(comment.createdAt),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
                     ),
@@ -785,7 +785,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                   icon: Icon(
                     Icons.more_vert,
                     size: 16,
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
             ],
@@ -795,10 +795,10 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           // Comment content
           Text(
             comment.content,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15, 
               height: 1.5,
-              color: Color(0xFF2C2C2C),
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
         ],

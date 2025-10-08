@@ -472,7 +472,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Colors.grey[700],
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 15,
                     height: 1.5,
                   ),
@@ -517,7 +517,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                               child: Text(
                                 _formatDate(post.createdAt),
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   fontSize: 13,
                                 ),
                                 overflow: TextOverflow.ellipsis,
@@ -663,12 +663,12 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.comment_outlined, size: 16, color: Colors.grey[600]),
+                            Icon(Icons.comment_outlined, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             const SizedBox(width: 6),
                             Text(
                               '${post.commentCount}',
                               style: TextStyle(
-                                color: Colors.grey[700],
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -683,7 +683,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       Text(
                         'Bekijk bericht',
                         style: TextStyle(
-                          color: Colors.grey[500],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 12,
                           fontStyle: FontStyle.italic,
                         ),
