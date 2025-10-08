@@ -218,13 +218,27 @@ class ImageUtils {
             debugPrint('✅ kata_images bucket found');
           } catch (e) {
             debugPrint('⚠️ kata_images bucket not found or not accessible: $e');
-            // Try to create the bucket if it doesn't exist
+            
+            // Check if this is a network error
+            if (_isNetworkError(e)) {
+              debugPrint('🌐 Network error detected, returning empty list for offline mode');
+              return [];
+            }
+            
+            // Try to create the bucket if it doesn't exist (only if we have network)
             try {
               await supabase.storage.createBucket('kata_images', 
                 BucketOptions(public: true, allowedMimeTypes: ['image/*']));
               debugPrint('✅ Created kata_images bucket');
             } catch (createError) {
               debugPrint('❌ Failed to create kata_images bucket: $createError');
+              
+              // If it's a network error, return empty list instead of throwing
+              if (_isNetworkError(createError)) {
+                debugPrint('🌐 Network error during bucket creation, returning empty list');
+                return [];
+              }
+              
               throw Exception('Storage bucket not available. Please check your Supabase configuration.');
             }
           }
@@ -299,13 +313,17 @@ class ImageUtils {
         } catch (e) {
           debugPrint('❌ Error fetching kata images from bucket: $e');
           
-          // Provide more specific error messages
+          // Check if this is a network error - if so, return empty list for offline mode
+          if (_isNetworkError(e)) {
+            debugPrint('🌐 Network error detected, returning empty list for offline mode');
+            return [];
+          }
+          
+          // Provide more specific error messages for non-network errors
           if (e.toString().contains('bucket') && e.toString().contains('not found')) {
             throw Exception('Storage bucket not found. Please create the kata_images bucket in your Supabase dashboard.');
           } else if (e.toString().contains('row-level security') || e.toString().contains('Unauthorized')) {
             throw Exception('Storage access denied. Please check your storage policies.');
-          } else if (e.toString().contains('network') || e.toString().contains('connection')) {
-            throw Exception('Network error. Please check your internet connection.');
           }
           
           rethrow;
@@ -554,5 +572,20 @@ class ImageUtils {
       debugPrint('Error extracting file name from URL: $e');
       return null;
     }
+  }
+
+  /// Check if an error is a network-related error
+  static bool _isNetworkError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('socketexception') ||
+           errorString.contains('failed host lookup') ||
+           errorString.contains('no address associated with hostname') ||
+           errorString.contains('network') ||
+           errorString.contains('connection') ||
+           errorString.contains('timeout') ||
+           errorString.contains('dns') ||
+           errorString.contains('host') ||
+           errorString.contains('no internet') ||
+           errorString.contains('unreachable');
   }
 }

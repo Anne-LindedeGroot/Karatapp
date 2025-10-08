@@ -64,8 +64,11 @@ Future<void> ensureSupabaseInitialized() async {
         anonKey: Environment.supabaseAnonKey,
       );
       _supabaseInitialized = true;
+      debugPrint('✅ Supabase initialized successfully');
     } catch (e) {
-      debugPrint('Supabase initialization error: $e');
+      debugPrint('❌ Supabase initialization error: $e');
+      // Don't throw - let the app continue in offline mode
+      // The network provider will handle connection status
     }
   }
 }

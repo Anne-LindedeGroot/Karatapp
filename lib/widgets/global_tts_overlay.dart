@@ -41,7 +41,7 @@ class GlobalTTSOverlay extends ConsumerWidget {
           child,
           Positioned(
             right: margin?.right ?? 0,
-            bottom: margin?.bottom ?? 120, // Position above plus button with spacing
+            bottom: margin?.bottom ?? 180, // Position above plus button with more spacing
             child: UnifiedTTSButton(
               showLabel: showLabel,
               size: size,

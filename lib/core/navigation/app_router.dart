@@ -13,7 +13,6 @@ import '../../screens/edit_kata_screen.dart';
 import '../../screens/avatar_selection_screen.dart';
 import '../../screens/user_management_screen.dart';
 import '../../screens/accessibility_demo_screen.dart';
-import '../../test_enhanced_tts_screen.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/kata_provider.dart';
 import '../../widgets/global_error_widget.dart';
@@ -33,7 +32,6 @@ class AppRoutes {
   static const String avatarSelection = '/avatar-selection';
   static const String userManagement = '/user-management';
   static const String accessibilityDemo = '/accessibility-demo';
-  static const String testEnhancedTTS = '/test-enhanced-tts';
 }
 
 /// Router provider for dependency injection
@@ -176,13 +174,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       
-      GoRoute(
-        path: AppRoutes.testEnhancedTTS,
-        name: 'testEnhancedTTS',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: TestEnhancedTTSScreen(),
-        ),
-      ),
       
     ],
     
@@ -264,8 +255,6 @@ extension AppRouterExtension on GoRouter {
   /// Navigate to user management
   void goToUserManagement() => go(AppRoutes.userManagement);
   
-  /// Navigate to enhanced TTS test
-  void goToTestEnhancedTTS() => go(AppRoutes.testEnhancedTTS);
 }
 
 /// Context extension for easy navigation
@@ -306,8 +295,6 @@ extension BuildContextExtension on BuildContext {
   /// Navigate to user management
   void goToUserManagement() => go(AppRoutes.userManagement);
   
-  /// Navigate to enhanced TTS test
-  void goToTestEnhancedTTS() => go(AppRoutes.testEnhancedTTS);
   
   /// Navigate back with fallback to home
   void goBackOrHome() {

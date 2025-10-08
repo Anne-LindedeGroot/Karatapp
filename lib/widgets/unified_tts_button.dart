@@ -298,7 +298,7 @@ class UnifiedTTSOverlay extends ConsumerWidget {
         child,
         Positioned(
           right: margin?.right ?? 0,
-          bottom: margin?.bottom ?? 120, // Position above other floating buttons
+          bottom: margin?.bottom ?? 180, // Position above other floating buttons with more spacing
           child: UnifiedTTSButton(
             showLabel: showLabel,
             size: size,

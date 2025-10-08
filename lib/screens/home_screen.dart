@@ -1019,19 +1019,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: const Icon(Icons.add),
           ),
         ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-        persistentFooterButtons: [
-          // Test button for enhanced TTS (only in debug mode)
-          if (kDebugMode)
-            TextButton.icon(
-              onPressed: () => context.goToTestEnhancedTTS(),
-              icon: const Icon(Icons.record_voice_over),
-              label: const Text('Test Enhanced TTS'),
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-        ],
+        floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
       ),
     ),
     );
