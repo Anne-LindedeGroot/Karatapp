@@ -344,7 +344,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
   Widget _buildKataCard(Kata kata, int index) {
     return Semantics(
-      label: 'Favoriete kata $index van ${kata.name}. ${kata.style.isNotEmpty && kata.style != 'Unknown' ? 'Stijl: ${kata.style}.' : ''} ${kata.description.isNotEmpty ? 'Beschrijving: ${kata.description.length > 100 ? '${kata.description.substring(0, 100)}...' : kata.description}.' : ''} ${kata.imageUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.imageUrls?.length} afbeeldingen.' : ''} ${kata.videoUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.videoUrls?.length} video\'s.' : ''} Tik om te bekijken.',
+      label: 'Favoriete kata $index van ${kata.name}. ${kata.style.isNotEmpty && kata.style != 'Unknown' ? 'Stijl: ${kata.style}.' : ''} ${kata.description.isNotEmpty ? 'Beschrijving: ${kata.description}.' : ''} ${kata.imageUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.imageUrls?.length} afbeeldingen.' : ''} ${kata.videoUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.videoUrls?.length} video\'s.' : ''} Tik om te bekijken.',
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: InkWell(
@@ -394,7 +394,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   Widget _buildForumPostCard(ForumPost post, int index) {
     final semanticLabel = 'Favoriet forumbericht $index: ${post.title}. '
         'Categorie: ${post.category.displayName}. '
-        '${post.content.isNotEmpty ? 'Inhoud: ${post.content.length > 100 ? '${post.content.substring(0, 100)}...' : post.content}.' : ''} '
+        '${post.content.isNotEmpty ? 'Inhoud: ${post.content}.' : ''} '
         'Geschreven door: ${post.authorName}. '
         '${post.commentCount > 0 ? 'Dit bericht heeft ${post.commentCount} reacties.' : ''} '
         '${post.isPinned ? 'Dit bericht is vastgepind.' : ''} '

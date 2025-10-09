@@ -46,19 +46,13 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
   static const int _maxCollapsedLines = 3;
 
   String _getTruncatedDescription(String description) {
-    final lines = description.split('\n');
-    if (lines.length <= _maxCollapsedLines) {
-      return description;
-    }
-    
-    // Take first few lines and add ellipsis
-    final truncatedLines = lines.take(_maxCollapsedLines).toList();
-    return '${truncatedLines.join('\n')}...';
+    // Always return the full description - no truncation
+    return description;
   }
 
   bool _shouldShowToggleButton(String description) {
-    final lines = description.split('\n');
-    return lines.length > _maxCollapsedLines;
+    // Always show full description, so no toggle button needed
+    return false;
   }
 
   Future<void> _speakKataContent() async {
@@ -148,8 +142,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
+                            // Show full name without truncation
                           ),
                         ),
                         SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
@@ -165,8 +158,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                                   color: Colors.blueGrey,
                                   fontStyle: FontStyle.italic,
                                 ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                            // Show full style without truncation
                           ),
                         ),
                       ],
@@ -244,50 +236,11 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 headingStyle: const TextStyle(
                   fontWeight: FontWeight.bold,
                 ),
+                enableSelectiveCollapse: true, // Enable selective collapse for kata cards
               ),
             ),
             
-            // Toggle button for description
-            if (shouldShowToggle)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Semantics(
-                    label: _isExpanded ? 'Inklappen beschrijving' : 'Uitklappen volledige beschrijving',
-                    button: true,
-                    child: TextButton.icon(
-                      onPressed: () {
-                        setState(() {
-                          _isExpanded = !_isExpanded;
-                        });
-                      },
-                      icon: Icon(
-                        _isExpanded ? Icons.expand_less : Icons.expand_more,
-                        size: AppTheme.getResponsiveIconSize(context, baseSize: 18.0),
-                      ),
-                      label: Text(
-                        _isExpanded ? 'Minder zien' : 'Alles zien',
-                        style: TextStyle(
-                          fontSize: context.responsiveValue(
-                            mobile: 14.0,
-                            tablet: 15.0,
-                            desktop: 16.0,
-                          ),
-                        ),
-                      ),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.responsiveSpacing(SpacingSize.sm),
-                          vertical: context.responsiveSpacing(SpacingSize.xs),
-                        ),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            // Toggle button is now handled by FormattedText widget
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Display media (images and videos) with smart preview
@@ -1371,9 +1324,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       ),
                     ),
                     TextSpan(
-                      text: comment.content.length > 100 
-                          ? '${comment.content.substring(0, 100)}...'
-                          : comment.content,
+                      text: comment.content, // Show full comment content
                       style: const TextStyle(color: Colors.white),
                     ),
                   ],

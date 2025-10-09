@@ -305,11 +305,8 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
               content += 'Stijl: ${kata.style}. ';
             }
             if (kata.description.isNotEmpty) {
-              // Read more of the description for favorites
-              final description = kata.description.length > 150 
-                  ? '${kata.description.substring(0, 150)}...' 
-                  : kata.description;
-              content += 'Beschrijving: $description. ';
+              // Read full description for favorites
+              content += 'Beschrijving: ${kata.description}. ';
             }
             if (kata.imageUrls?.isNotEmpty == true) {
               content += 'Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ';
@@ -327,11 +324,8 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
             content += 'Forumbericht ${i + 1}: ${post.title}. ';
             content += 'Categorie: ${post.category.displayName}. ';
             if (post.content.isNotEmpty) {
-              // Read more of the content for favorites
-              final postContent = post.content.length > 120 
-                  ? '${post.content.substring(0, 120)}...' 
-                  : post.content;
-              content += 'Inhoud: $postContent. ';
+              // Read full content for favorites
+              content += 'Inhoud: ${post.content}. ';
             }
             content += 'Geschreven door: ${post.authorName}. ';
             if (post.commentCount > 0) {

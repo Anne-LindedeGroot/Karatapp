@@ -48,8 +48,7 @@ class KataCardLayout {
                     desktop: 18.0,
                   ),
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                // Show full name without truncation
               ),
               if (kata.style.isNotEmpty && kata.style != 'Unknown')
                 Text(
@@ -62,8 +61,7 @@ class KataCardLayout {
                       desktop: 14.0,
                     ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  // Show full style without truncation
                 ),
             ],
           ),
@@ -205,20 +203,12 @@ class KataCardLayout {
   }
 
   static String _getTruncatedDescription(String description) {
-    const int maxCollapsedLines = 3;
-    final lines = description.split('\n');
-    if (lines.length <= maxCollapsedLines) {
-      return description;
-    }
-    
-    // Take first few lines and add ellipsis
-    final truncatedLines = lines.take(maxCollapsedLines).toList();
-    return '${truncatedLines.join('\n')}...';
+    // Always return the full description - no truncation
+    return description;
   }
 
   static bool shouldShowToggleButton(String description) {
-    const int maxCollapsedLines = 3;
-    final lines = description.split('\n');
-    return lines.length > maxCollapsedLines;
+    // Always show full description, so no toggle button needed
+    return false;
   }
 }
