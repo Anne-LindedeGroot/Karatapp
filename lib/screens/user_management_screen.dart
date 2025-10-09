@@ -28,10 +28,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   void initState() {
     super.initState();
     _loadUsers();
-    // Announce page load with TTS
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _announcePageLoad();
-    });
+    // TTS announcement disabled - only speak when user clicks TTS button
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _announcePageLoad();
+    // });
   }
 
   Future<void> _announcePageLoad() async {

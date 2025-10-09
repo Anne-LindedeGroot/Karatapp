@@ -7,6 +7,9 @@ import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/modern_loading_widget.dart';
+import 'home/home_search_section.dart';
+import 'home/home_kata_list.dart';
+import 'home/home_dialogs.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
@@ -34,10 +37,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Announce page load with TTS
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _announcePageLoad();
-    });
+    // TTS announcement disabled - only speak when user clicks TTS button
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _announcePageLoad();
+    // });
   }
 
   @override

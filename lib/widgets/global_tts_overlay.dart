@@ -43,62 +43,37 @@ class GlobalTTSOverlay extends ConsumerWidget {
         Positioned(
           right: _calculateRightPosition(context),
           bottom: _calculateBottomPosition(context),
-          child: _buildStableTTSButton(context, ref),
+          child: UnifiedTTSButton(
+            showLabel: showLabel,
+            size: size,
+            backgroundColor: backgroundColor,
+            foregroundColor: foregroundColor,
+            margin: const EdgeInsets.all(8),
+          ),
         ),
         ],
       ),
     );
   }
 
-  /// Build a stable TTS button without animations
-  Widget _buildStableTTSButton(BuildContext context, WidgetRef ref) {
-    return Semantics(
-      label: 'Text to speech knop',
-      button: true,
-      child: FloatingActionButton(
-        heroTag: "global_tts_fab",
-        onPressed: () async {
-          // Use the unified TTS service to read current screen content
-          await UnifiedTTSService.readCurrentScreen(context, ref);
-        },
-        backgroundColor: backgroundColor ?? Theme.of(context).colorScheme.primary,
-        foregroundColor: foregroundColor ?? Colors.white,
-        child: const Icon(Icons.volume_up),
-      ),
-    );
-  }
-
   /// Calculate bottom position to avoid conflicts with other UI elements
   double _calculateBottomPosition(BuildContext context) {
-    // Check if there are floating action buttons
-    final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
-    if (scaffold?.floatingActionButton != null) {
-      // Position much higher above FAB with generous spacing (FAB is typically 56px + 16px margin = 72px from bottom)
-      // We want the TTS button to be well above it with plenty of clearance
-      return (margin?.bottom ?? 16); // Same level as FAB for horizontal alignment
-    }
+    // Use MediaQuery to get screen dimensions for center positioning
+    final mediaQuery = MediaQuery.of(context);
+    final screenHeight = mediaQuery.size.height;
     
-    // Check for bottom navigation bar
-    if (scaffold?.bottomNavigationBar != null) {
-      return (margin?.bottom ?? 80) + 20; // Position above bottom nav
-    }
+    // Position TTS button in middle-right area of screen
+    // Calculate middle-right position: 20% from bottom (more down middle right)
+    final middleRightPosition = screenHeight * 0.2;
     
-    // Default position
-    return margin?.bottom ?? 80;
+    return (margin?.bottom ?? middleRightPosition);
   }
 
-  /// Calculate right position to place TTS button above FAB
+  /// Calculate right position to place TTS button on the right side
   double _calculateRightPosition(BuildContext context) {
-    // Check if there are floating action buttons
-    final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
-    if (scaffold?.floatingActionButton != null) {
-      // Perfect vertical alignment with FAB - both buttons should be at exactly the same horizontal position
-      // FAB with FloatingActionButtonLocation.endDocked is positioned at 16px from right edge
-      return (margin?.right ?? 0); // Position to the left of FAB for horizontal layout
-    }
-    
-    // Default position
-    return margin?.right ?? 0;
+    // Position TTS button more to the right for better appearance
+    // Closer to the right edge: 8px from right edge
+    return (margin?.right ?? 8);
   }
 }
 

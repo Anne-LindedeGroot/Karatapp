@@ -50,9 +50,13 @@ android {
         debug {
             isDebuggable = true
             applicationIdSuffix = ".debug"
-            // Optimize debug builds
+            // Optimize debug builds for faster compilation
             isMinifyEnabled = false
             isShrinkResources = false
+            // Enable incremental compilation
+            isJniDebuggable = false
+            isRenderscriptDebuggable = false
+            renderscriptOptimLevel = 3
         }
     }
     

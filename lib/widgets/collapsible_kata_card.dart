@@ -18,6 +18,9 @@ import 'video_gallery.dart';
 import 'video_player_widget.dart';
 import 'avatar_widget.dart';
 import 'responsive_layout.dart';
+import 'kata_card/kata_card_media.dart';
+import 'kata_card/kata_card_interactions.dart';
+import 'kata_card/kata_card_layout.dart';
 
 class CollapsibleKataCard extends ConsumerStatefulWidget {
   final Kata kata;

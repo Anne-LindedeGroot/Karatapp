@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
+import 'tts/tts_cache_manager.dart';
+import 'tts/tts_screen_detector.dart';
+import 'tts/tts_content_extractor.dart';
 
 /// Enhanced TTS Service - Comprehensive screen reading in Dutch!
 /// This service provides comprehensive text-to-speech functionality that reads
@@ -10,10 +13,7 @@ class UnifiedTTSService {
   factory UnifiedTTSService() => _instance;
   UnifiedTTSService._internal();
 
-  // Content caching for performance optimization
-  static final Map<String, String> _contentCache = {};
-  static final Map<String, DateTime> _cacheTimestamps = {};
-  static const Duration _cacheValidityDuration = Duration(minutes: 2);
+  // Content caching moved to TTSCacheManager
 
   /// Read the current screen content out loud in Dutch
   static Future<void> readCurrentScreen(BuildContext context, WidgetRef ref) async {
@@ -42,7 +42,7 @@ class UnifiedTTSService {
       }
       
       // Detect current screen type and extract appropriate content
-      final screenType = _detectCurrentScreenType(context);
+      final screenType = TTSScreenDetector.detectCurrentScreenType(context);
       debugPrint('TTS: Detected screen type: $screenType');
       print('📱 TTS: Detected screen type: $screenType');
       
@@ -54,13 +54,13 @@ class UnifiedTTSService {
       }
       
       // Try to get cached content first
-      final cacheKey = _generateCacheKey(context, screenType);
-      String screenContent = _getCachedContent(cacheKey);
+      final cacheKey = TTSScreenDetector.generateCacheKey(context, screenType);
+      String screenContent = TTSCacheManager.getCachedContent(cacheKey);
       
       if (screenContent.isEmpty) {
         // Extract content if not cached or cache expired
-        screenContent = _extractScreenContentByType(context, screenType);
-        _cacheContent(cacheKey, screenContent);
+        screenContent = TTSContentExtractor.extractScreenContentByType(context, screenType);
+        TTSCacheManager.cacheContent(cacheKey, screenContent);
       } else {
         debugPrint('TTS: Using cached content for $screenType');
         print('💾 TTS: Using cached content for $screenType');
@@ -2631,57 +2631,14 @@ class UnifiedTTSService {
     }
   }
 
-  /// Get cached content if available and not expired
-  static String _getCachedContent(String cacheKey) {
-    try {
-      final timestamp = _cacheTimestamps[cacheKey];
-      if (timestamp == null) return '';
-      
-      final now = DateTime.now();
-      if (now.difference(timestamp) > _cacheValidityDuration) {
-        // Cache expired, remove it
-        _contentCache.remove(cacheKey);
-        _cacheTimestamps.remove(cacheKey);
-        return '';
-      }
-      
-      return _contentCache[cacheKey] ?? '';
-    } catch (e) {
-      debugPrint('TTS: Error getting cached content: $e');
-      return '';
-    }
-  }
-
-  /// Cache content with timestamp
-  static void _cacheContent(String cacheKey, String content) {
-    try {
-      _contentCache[cacheKey] = content;
-      _cacheTimestamps[cacheKey] = DateTime.now();
-      debugPrint('TTS: Cached content for key: $cacheKey');
-    } catch (e) {
-      debugPrint('TTS: Error caching content: $e');
-    }
-  }
-
   /// Clear all cached content (useful for memory management)
   static void clearCache() {
-    _contentCache.clear();
-    _cacheTimestamps.clear();
-    debugPrint('TTS: Cache cleared');
+    TTSCacheManager.clearCache();
   }
 
   /// Get cache statistics for debugging
   static Map<String, dynamic> getCacheStats() {
-    return {
-      'cachedItems': _contentCache.length,
-      'cacheKeys': _contentCache.keys.toList(),
-      'oldestCache': _cacheTimestamps.values.isNotEmpty 
-          ? _cacheTimestamps.values.reduce((a, b) => a.isBefore(b) ? a : b)
-          : null,
-      'newestCache': _cacheTimestamps.values.isNotEmpty 
-          ? _cacheTimestamps.values.reduce((a, b) => a.isAfter(b) ? a : b)
-          : null,
-    };
+    return TTSCacheManager.getCacheStats();
   }
 }
 
