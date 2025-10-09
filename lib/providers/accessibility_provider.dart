@@ -28,7 +28,7 @@ class AccessibilityState {
   const AccessibilityState({
     this.fontSize = AccessibilityFontSize.normal,
     this.isDyslexiaFriendly = false,
-    this.isTextToSpeechEnabled = false,
+    this.isTextToSpeechEnabled = true,
     this.speechRate = 0.5,
     this.speechPitch = 1.0,
     this.useHeadphones = true,
@@ -268,11 +268,18 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
         }
       }
       
-      // If no Dutch available, keep trying with default language
-      // Don't fall back to English - force Dutch or fail
-      debugPrint('No Dutch language variant available - TTS may not work properly');
+      // If no Dutch available, try English as fallback
+      debugPrint('No Dutch language variant available, trying English as fallback');
+      final englishResult = await _flutterTts.setLanguage('en-US');
+      if (englishResult == 1) {
+        debugPrint('Successfully set language to English as fallback');
+        return;
+      }
       
-      debugPrint('Warning: Could not set any preferred language, using system default');
+      // Try system default
+      final defaultResult = await _flutterTts.setLanguage('');
+      debugPrint('Set system default language result: $defaultResult');
+      debugPrint('Warning: Using system default language for TTS');
     } catch (e) {
       debugPrint('Error setting optimal language: $e');
     }
@@ -335,7 +342,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       final isDyslexiaFriendly = prefs.getBool(_dyslexiaFriendlyKey) ?? false;
 
       // Load text-to-speech setting
-      final isTextToSpeechEnabled = prefs.getBool(_textToSpeechKey) ?? false;
+      final isTextToSpeechEnabled = prefs.getBool(_textToSpeechKey) ?? true;
 
       // Load speech rate
       final speechRate = prefs.getDouble(_speechRateKey) ?? 0.5;
@@ -480,8 +487,12 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
 
   /// Speak text using text-to-speech with improved error handling
   Future<void> speak(String text) async {
+    debugPrint('TTS: speak() called with text: "$text"');
+    print('🗣️ TTS: speak() called with text: "$text"');
+    
     if (!state.isTextToSpeechEnabled) {
       debugPrint('TTS: Text-to-speech is disabled');
+      print('❌ TTS: Text-to-speech is disabled');
       return;
     }
     
@@ -489,6 +500,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     final cleanText = text.trim();
     if (cleanText.isEmpty) {
       debugPrint('TTS: Empty text provided, skipping');
+      print('❌ TTS: Empty text provided, skipping');
       return;
     }
     
@@ -516,7 +528,8 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       state = state.copyWith(isSpeaking: true);
       
       debugPrint('TTS: Starting to speak: "${cleanText.length > 100 ? '${cleanText.substring(0, 100)}...' : cleanText}"');
-      print('🗣️ TTS: Starting to speak: "${cleanText.length > 100 ? '${cleanText.substring(0, 100)}...' : cleanText}"');
+      // Show full TTS output in terminal for debugging
+      print('🗣️ FULL TTS OUTPUT: "$cleanText"');
       
       // Speak with timeout and retry logic
       final result = await _speakWithTimeout(cleanText);

@@ -5,6 +5,7 @@ import '../providers/theme_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/forum_provider.dart';
 import '../providers/interaction_provider.dart';
+import '../services/unified_tts_service.dart';
 
 /// Unified TTS Button - One button to rule them all!
 /// This button works on ANY page, with ANY content, including popups, forms, and dialogs.
@@ -156,16 +157,23 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
         _showSafeFeedback(context, 'Voorlezen gestopt');
       }
     } else if (accessibilityState.isTextToSpeechEnabled) {
-      // Simple screen reading with fallback content
-      debugPrint('UnifiedTTS: Starting simple screen reading');
+      // Use comprehensive screen reading from TTS service
+      debugPrint('UnifiedTTS: Starting comprehensive screen reading');
       
       // Provide feedback - use safe method that works in any context
       if (context.mounted) {
-        _showSafeFeedback(context, 'Voorlezen van pagina inhoud...');
+        _showSafeFeedback(context, 'Scannen en voorlezen van alle inhoud...');
       }
       
       if (context.mounted) {
-        await _readSimpleScreenContent(context, ref);
+        // Find the proper screen context instead of using the button's context
+        final screenContext = _findScreenContext(context);
+        if (screenContext != null && screenContext.mounted) {
+          await UnifiedTTSService.readCurrentScreen(screenContext, ref);
+        } else {
+          // Fallback to simple content reading
+          await _readSimpleScreenContent(context, ref);
+        }
       }
     } else {
       // Enable TTS first, then read content
@@ -179,8 +187,98 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       await accessibilityNotifier.toggleTextToSpeech();
       await Future.delayed(const Duration(milliseconds: 500));
       if (context.mounted) {
-        await _readSimpleScreenContent(context, ref);
+        // Find the proper screen context instead of using the button's context
+        final screenContext = _findScreenContext(context);
+        if (screenContext != null && screenContext.mounted) {
+          await UnifiedTTSService.readCurrentScreen(screenContext, ref);
+        } else {
+          // Fallback to simple content reading
+          await _readSimpleScreenContent(context, ref);
+        }
       }
+    }
+  }
+
+  /// Find the proper screen context by traversing up the widget tree
+  /// to find the Scaffold or main screen content context
+  BuildContext? _findScreenContext(BuildContext context) {
+    try {
+      debugPrint('UnifiedTTS: Finding screen context from ${context.widget.runtimeType}');
+      
+      // First, try to find a Scaffold context
+      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+      if (scaffold != null) {
+        debugPrint('UnifiedTTS: Found Scaffold widget, looking for its context');
+        // Find the context that contains the Scaffold
+        BuildContext? scaffoldContext;
+        context.visitAncestorElements((element) {
+          if (element.widget is Scaffold) {
+            scaffoldContext = element;
+            debugPrint('UnifiedTTS: Found Scaffold context: ${element.widget.runtimeType}');
+            return false; // Stop searching
+          }
+          return true; // Continue searching
+        });
+        if (scaffoldContext != null) {
+          debugPrint('UnifiedTTS: Using Scaffold context for text extraction');
+          return scaffoldContext;
+        }
+      } else {
+        debugPrint('UnifiedTTS: No Scaffold found in widget tree');
+      }
+      
+      // If no Scaffold found, try to find the main screen context
+      // Look for common screen widgets like StatefulWidget or StatelessWidget
+      debugPrint('UnifiedTTS: Looking for main screen context...');
+      BuildContext? screenContext;
+      context.visitAncestorElements((element) {
+        final widget = element.widget;
+        debugPrint('UnifiedTTS: Checking ancestor element: ${widget.runtimeType}');
+        // Look for common screen widget types
+        if (widget is StatefulWidget || widget is StatelessWidget) {
+          // Skip the TTS button and overlay widgets
+          if (widget.runtimeType.toString().contains('TTS') || 
+              widget.runtimeType.toString().contains('Overlay')) {
+            debugPrint('UnifiedTTS: Skipping TTS/Overlay widget: ${widget.runtimeType}');
+            return true; // Continue searching
+          }
+          screenContext = element;
+          debugPrint('UnifiedTTS: Found potential screen context: ${widget.runtimeType}');
+          return false; // Stop searching
+        }
+        return true; // Continue searching
+      });
+      
+      if (screenContext != null) {
+        debugPrint('UnifiedTTS: Using screen context for text extraction: ${screenContext?.widget.runtimeType}');
+        return screenContext;
+      } else {
+        debugPrint('UnifiedTTS: No suitable screen context found');
+      }
+      
+      // Fallback: try to find any context that's not the TTS button
+      BuildContext? fallbackContext;
+      context.visitAncestorElements((element) {
+        final widget = element.widget;
+        if (!widget.runtimeType.toString().contains('TTS') && 
+            !widget.runtimeType.toString().contains('Overlay') &&
+            !widget.runtimeType.toString().contains('AnimatedBuilder')) {
+          fallbackContext = element;
+          return false; // Stop searching
+        }
+        return true; // Continue searching
+      });
+      
+      if (fallbackContext != null) {
+        debugPrint('UnifiedTTS: Using fallback context for text extraction: ${fallbackContext?.widget.runtimeType}');
+        return fallbackContext;
+      }
+      
+      debugPrint('UnifiedTTS: Could not find proper screen context, will use original context');
+      return context;
+    } catch (e) {
+      debugPrint('UnifiedTTS: Error finding screen context: $e');
+      return context; // Fallback to original context
     }
   }
 
@@ -223,7 +321,19 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       
       // If no specific content found, use fallback
       if (content.isEmpty) {
-        content = 'Welkom bij de Karate app. Gebruik de navigatie om door de app te bewegen.';
+        // Try to get more specific content based on current screen
+        final route = ModalRoute.of(context);
+        if (route?.settings.name != null) {
+          final routeName = route!.settings.name!;
+          final pageDescription = _getPageDescription(routeName);
+          if (pageDescription.isNotEmpty) {
+            content = pageDescription;
+          } else {
+            content = 'Welkom bij de Karate app. Gebruik de navigatie om door de app te bewegen.';
+          }
+        } else {
+          content = 'Welkom bij de Karate app. Gebruik de navigatie om door de app te bewegen.';
+        }
       }
       
       debugPrint('UnifiedTTS: Speaking content: $content');

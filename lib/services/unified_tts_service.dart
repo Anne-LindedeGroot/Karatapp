@@ -60,6 +60,19 @@ class UnifiedTTSService {
       if (screenContent.isEmpty) {
         // Extract content if not cached or cache expired
         screenContent = TTSContentExtractor.extractScreenContentByType(context, screenType);
+        
+        // If still empty, try comprehensive extraction as backup
+        if (screenContent.isEmpty) {
+          debugPrint('TTS: Screen-specific extraction found no content, trying comprehensive extraction');
+          print('🔄 TTS: Screen-specific extraction found no content, trying comprehensive extraction');
+          final comprehensiveContent = _extractAllVisibleTextComprehensive(context);
+          if (comprehensiveContent.isNotEmpty) {
+            screenContent = comprehensiveContent.join('. ');
+            debugPrint('TTS: Comprehensive extraction found ${comprehensiveContent.length} items');
+            print('✅ TTS: Comprehensive extraction found ${comprehensiveContent.length} items');
+          }
+        }
+        
         TTSCacheManager.cacheContent(cacheKey, screenContent);
       } else {
         debugPrint('TTS: Using cached content for $screenType');
@@ -71,6 +84,11 @@ class UnifiedTTSService {
       print('📝 TTS: Extracted content length: ${screenContent.length}');
       print('📄 TTS: Content preview: ${screenContent.length > 100 ? '${screenContent.substring(0, 100)}...' : screenContent}');
       
+      // Show full content in terminal for debugging
+      if (screenContent.isNotEmpty) {
+        print('📋 FULL EXTRACTED CONTENT: "$screenContent"');
+      }
+      
       if (screenContent.isNotEmpty && screenContent.length > 5) {
         // Process and speak the content with proper Dutch formatting
         final processedContent = _processContentForDutchSpeech(screenContent);
@@ -80,6 +98,7 @@ class UnifiedTTSService {
         // Provide helpful fallback based on current route
         debugPrint('TTS: Using fallback content due to insufficient extracted content');
         print('⚠️ TTS: Using fallback content due to insufficient extracted content');
+        print('📊 TTS: Screen content length: ${screenContent.length}, Content: "$screenContent"');
         
         // Check context again before fallback
         if (!context.mounted) {
@@ -88,10 +107,31 @@ class UnifiedTTSService {
           return;
         }
         
-        final fallbackContent = _getFallbackContentForCurrentRoute(context);
-        debugPrint('TTS: Fallback content: $fallbackContent');
-        print('🔄 TTS: Fallback content: $fallbackContent');
-        await accessibilityNotifier.speak(fallbackContent);
+        // Try comprehensive extraction one more time as a last resort
+        final comprehensiveContent = _extractAllVisibleTextComprehensive(context);
+        if (comprehensiveContent.isNotEmpty) {
+          final processedComprehensive = _processContentForDutchSpeech(comprehensiveContent.join('. '));
+          print('🔄 TTS: Using comprehensive extraction as fallback: ${processedComprehensive.length > 200 ? '${processedComprehensive.substring(0, 200)}...' : processedComprehensive}');
+          await accessibilityNotifier.speak(processedComprehensive);
+        } else {
+          // Don't use fake fallback content - try one more comprehensive extraction
+          debugPrint('TTS: No content found, trying one more comprehensive extraction');
+          print('⚠️ TTS: No content found, trying one more comprehensive extraction');
+          
+          final lastResortContent = _extractAllVisibleTextComprehensive(context);
+          if (lastResortContent.isNotEmpty) {
+            final processedLastResort = _processContentForDutchSpeech(lastResortContent.join('. '));
+            print('🔄 TTS: Found content on last resort: ${processedLastResort.length > 200 ? '${processedLastResort.substring(0, 200)}...' : processedLastResort}');
+            await accessibilityNotifier.speak(processedLastResort);
+          } else {
+            // Generate helpful fallback based on current screen context
+            final fallbackContent = _generateContextualFallbackContent(context);
+            final processedFallback = _processContentForDutchSpeech(fallbackContent);
+            debugPrint('TTS: Using contextual fallback content: $processedFallback');
+            print('🔄 TTS: Using contextual fallback content: $processedFallback');
+            await accessibilityNotifier.speak(processedFallback);
+          }
+        }
       }
       
     } catch (e) {
@@ -108,39 +148,47 @@ class UnifiedTTSService {
     try {
       debugPrint('TTS: Starting comprehensive content extraction...');
       
-      // 1. Check for overlays, dialogs, and popups first
-      final overlayContent = _extractOverlayContent(context);
-      if (overlayContent.isNotEmpty) {
-        contentParts.add(overlayContent);
-        debugPrint('TTS: Found overlay content: $overlayContent');
-      }
-      
-      // 2. Extract page title and navigation
-      final pageInfo = _extractPageInformation(context);
-      if (pageInfo.isNotEmpty) {
-        contentParts.add(pageInfo);
-        debugPrint('TTS: Found page info: $pageInfo');
-      }
-      
-      // 3. Extract main content using multiple strategies
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
-        contentParts.add(mainContent);
-        debugPrint('TTS: Found main content: ${mainContent.length} characters');
-      }
-      
-      // 4. Extract interactive elements
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-        debugPrint('TTS: Found interactive elements: $interactiveElements');
-      }
-      
-      // 5. Extract form content if present
-      final formContent = _extractFormContent(context);
-      if (formContent.isNotEmpty) {
-        contentParts.add(formContent);
-        debugPrint('TTS: Found form content: $formContent');
+      // First try comprehensive text extraction
+      final allVisibleText = _extractAllVisibleTextComprehensive(context);
+      if (allVisibleText.isNotEmpty) {
+        contentParts.addAll(allVisibleText);
+        debugPrint('TTS: Found ${allVisibleText.length} text elements using comprehensive extraction');
+      } else {
+        // Fallback to structured extraction if comprehensive fails
+        // 1. Check for overlays, dialogs, and popups first
+        final overlayContent = _extractOverlayContent(context);
+        if (overlayContent.isNotEmpty) {
+          contentParts.add(overlayContent);
+          debugPrint('TTS: Found overlay content: $overlayContent');
+        }
+        
+        // 2. Extract page title and navigation
+        final pageInfo = _extractPageInformation(context);
+        if (pageInfo.isNotEmpty) {
+          contentParts.add(pageInfo);
+          debugPrint('TTS: Found page info: $pageInfo');
+        }
+        
+        // 3. Extract main content using multiple strategies
+        final mainContent = _extractMainContent(context);
+        if (mainContent.isNotEmpty) {
+          contentParts.add(mainContent);
+          debugPrint('TTS: Found main content: ${mainContent.length} characters');
+        }
+        
+        // 4. Extract interactive elements
+        final interactiveElements = _extractInteractiveElements(context);
+        if (interactiveElements.isNotEmpty) {
+          contentParts.add(interactiveElements);
+          debugPrint('TTS: Found interactive elements: $interactiveElements');
+        }
+        
+        // 5. Extract form content if present
+        final formContent = _extractFormContent(context);
+        if (formContent.isNotEmpty) {
+          contentParts.add(formContent);
+          debugPrint('TTS: Found form content: $formContent');
+        }
       }
       
       // Combine all content parts
@@ -151,7 +199,8 @@ class UnifiedTTSService {
       
     } catch (e) {
       debugPrint('TTS: Error in comprehensive extraction: $e');
-      return _getFallbackContentForCurrentRoute(context);
+      print('❌ TTS: Error in comprehensive extraction: $e');
+      return ''; // Return empty string instead of fake content
     }
   }
 
@@ -165,10 +214,27 @@ class UnifiedTTSService {
     // Remove excessive whitespace and normalize
     processed = processed.replaceAll(RegExp(r'\s+'), ' ').trim();
     
-    // Add pauses for better readability
-    processed = processed.replaceAll('. ', '. ');
-    processed = processed.replaceAll('! ', '! ');
-    processed = processed.replaceAll('? ', '? ');
+    // Remove UI element descriptions to make speech more natural
+    processed = processed.replaceAll(RegExp(r'Knop:\s*', caseSensitive: false), '');
+    processed = processed.replaceAll(RegExp(r'Zwevende knop:\s*', caseSensitive: false), '');
+    processed = processed.replaceAll(RegExp(r'Filter:\s*', caseSensitive: false), '');
+    processed = processed.replaceAll(RegExp(r'Invoerveld:\s*', caseSensitive: false), '');
+    processed = processed.replaceAll(RegExp(r'Pagina:\s*', caseSensitive: false), '');
+    
+    // Remove redundant phrases that make speech unnatural
+    processed = processed.replaceAll(RegExp(r'Dit is de\s+', caseSensitive: false), '');
+    processed = processed.replaceAll(RegExp(r'Dit zijn de\s+', caseSensitive: false), '');
+    processed = processed.replaceAll(RegExp(r'Dit is je\s+', caseSensitive: false), '');
+    processed = processed.replaceAll(RegExp(r'Dit zijn je\s+', caseSensitive: false), '');
+    
+    // Clean up multiple dots and spaces
+    processed = processed.replaceAll(RegExp(r'\.\s*\.\s*\.'), '.');
+    processed = processed.replaceAll(RegExp(r'\s+'), ' ');
+    
+    // Add natural pauses for better readability
+    processed = processed.replaceAll(RegExp(r'\.\s*'), '. ');
+    processed = processed.replaceAll(RegExp(r'!\s*'), '! ');
+    processed = processed.replaceAll(RegExp(r'\?\s*'), '? ');
     
     // Handle common abbreviations and acronyms for better pronunciation
     processed = processed.replaceAll(RegExp(r'\bTTS\b', caseSensitive: false), 'T T S');
@@ -180,7 +246,7 @@ class UnifiedTTSService {
       processed += '.';
     }
     
-    return processed;
+    return processed.trim();
   }
 
   /// Extract content from overlays, dialogs, and popups
@@ -261,15 +327,19 @@ class UnifiedTTSService {
       }
       
       // Get page title from AppBar
-      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
-      if (scaffold?.appBar != null) {
-        final appBar = scaffold!.appBar!;
-        if (appBar is AppBar && appBar.title != null) {
+      try {
+        final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffold?.appBar != null) {
+          final appBar = scaffold!.appBar!;
+          if (appBar is AppBar && appBar.title != null) {
           final titleText = _extractTextFromWidgetHelper(appBar.title!);
           if (titleText.isNotEmpty) {
             pageParts.add('Pagina: $titleText');
           }
         }
+      }
+      } catch (e) {
+        debugPrint('TTS: Error accessing Scaffold for page info: $e');
       }
       
       // Get route information as fallback
@@ -317,23 +387,296 @@ class UnifiedTTSService {
     return contentParts.join('. ');
   }
 
+  /// Aggressive text extraction that tries multiple approaches
+  static void _extractTextAggressively(BuildContext context, List<String> textContent) {
+    try {
+      debugPrint('TTS: Starting aggressive text extraction');
+      
+      // Try to find Scaffold and extract from its body
+      try {
+        final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffold != null) {
+          debugPrint('TTS: Found Scaffold, extracting from body');
+          if (scaffold.body != null) {
+            _extractTextFromWidgetRecursively(scaffold.body!, textContent);
+          }
+          if (scaffold.appBar != null) {
+            debugPrint('TTS: Extracting from AppBar');
+            _extractTextFromWidgetRecursively(scaffold.appBar!, textContent);
+          }
+        } else {
+          debugPrint('TTS: No Scaffold found in context, skipping scaffold extraction');
+        }
+      } catch (e) {
+        debugPrint('TTS: Error accessing Scaffold: $e');
+      }
+      
+      // Try to find MaterialApp and extract from its home
+      final materialApp = context.findAncestorWidgetOfExactType<MaterialApp>();
+      if (materialApp != null && materialApp.home != null) {
+        debugPrint('TTS: Found MaterialApp, extracting from home');
+        _extractTextFromWidgetRecursively(materialApp.home!, textContent);
+      }
+      
+      debugPrint('TTS: Aggressive extraction completed, found ${textContent.length} items');
+    } catch (e) {
+      debugPrint('TTS: Error in aggressive text extraction: $e');
+    }
+  }
+  
+  /// Recursively extract text from any widget
+  static void _extractTextFromWidgetRecursively(Widget widget, List<String> textContent) {
+    try {
+      if (widget is Text) {
+        final text = widget.data ?? widget.textSpan?.toPlainText();
+        if (text != null && text.trim().isNotEmpty && text.trim() != ' ') {
+          final processedText = _processDutchText(text.trim());
+          textContent.add(processedText);
+          debugPrint('TTS: Aggressive found Text: $processedText');
+        }
+      } else if (widget is RichText) {
+        final text = widget.text.toPlainText();
+        if (text.trim().isNotEmpty && text.trim() != ' ') {
+          final processedText = _processDutchText(text.trim());
+          textContent.add(processedText);
+          debugPrint('TTS: Aggressive found RichText: $processedText');
+        }
+      } else if (widget is StatefulWidget || widget is StatelessWidget) {
+        // For complex widgets, we can't easily extract text, but we can try
+        debugPrint('TTS: Found complex widget: ${widget.runtimeType}');
+      }
+    } catch (e) {
+      debugPrint('TTS: Error extracting from widget recursively: $e');
+    }
+  }
+
+  /// Alternative text extraction methods when standard approaches fail
+  static void _extractTextWithAlternativeMethods(BuildContext context, List<String> textContent) {
+    try {
+      debugPrint('TTS: Starting alternative text extraction methods');
+      
+      // Method 1: Try to extract from RenderObject tree
+      _extractTextFromRenderObject(context, textContent);
+      
+      // Method 2: Try to find text in common widget patterns
+      _extractTextFromCommonPatterns(context, textContent);
+      
+      // Method 3: Try to extract from Material widgets specifically
+      _extractTextFromMaterialWidgets(context, textContent);
+      
+      // Method 4: Try a more aggressive widget tree traversal
+      _extractTextFromWidgetTreeAggressive(context, textContent);
+      
+      debugPrint('TTS: Alternative extraction completed, found ${textContent.length} items');
+    } catch (e) {
+      debugPrint('TTS: Error in alternative text extraction: $e');
+    }
+  }
+  
+  /// Extract text from RenderObject tree
+  static void _extractTextFromRenderObject(BuildContext context, List<String> textContent) {
+    try {
+      debugPrint('TTS: Trying RenderObject extraction');
+      
+      // Get the RenderObject from the context
+      final renderObject = context.findRenderObject();
+      if (renderObject != null) {
+        _traverseRenderObject(renderObject, textContent);
+      }
+    } catch (e) {
+      debugPrint('TTS: Error in RenderObject extraction: $e');
+    }
+  }
+  
+  /// Traverse RenderObject tree to find text
+  static void _traverseRenderObject(RenderObject renderObject, List<String> textContent) {
+    try {
+      // Check if this is a RenderParagraph (contains text)
+      // Note: RenderParagraph is not directly accessible, so we'll skip this for now
+      // and rely on other extraction methods
+      debugPrint('TTS: Traversing RenderObject: ${renderObject.runtimeType}');
+      
+      // Traverse children
+      renderObject.visitChildren((child) {
+        _traverseRenderObject(child, textContent);
+      });
+    } catch (e) {
+      debugPrint('TTS: Error traversing RenderObject: $e');
+    }
+  }
+  
+  /// Extract text from common widget patterns
+  static void _extractTextFromCommonPatterns(BuildContext context, List<String> textContent) {
+    try {
+      debugPrint('TTS: Trying common patterns extraction');
+      
+      // Look for common text-containing widgets in the widget tree
+      context.visitChildElements((element) {
+        final widget = element.widget;
+        
+        // Check for Card widgets that might contain text
+        if (widget is Card) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for Container widgets that might contain text
+        if (widget is Container) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for Column and Row widgets
+        if (widget is Column || widget is Row) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for ListView and other scrollable widgets
+        if (widget is ListView || widget is SingleChildScrollView) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+      });
+    } catch (e) {
+      debugPrint('TTS: Error in common patterns extraction: $e');
+    }
+  }
+  
+  /// Extract text from Material widgets specifically
+  static void _extractTextFromMaterialWidgets(BuildContext context, List<String> textContent) {
+    try {
+      debugPrint('TTS: Trying Material widgets extraction');
+      
+      // Look for Material-specific widgets that commonly contain text
+      context.visitChildElements((element) {
+        final widget = element.widget;
+        
+        // Check for Material widgets
+        if (widget is Material) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for InkWell widgets
+        if (widget is InkWell) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for GestureDetector widgets
+        if (widget is GestureDetector) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+      });
+    } catch (e) {
+      debugPrint('TTS: Error in Material widgets extraction: $e');
+    }
+  }
+
+  /// Aggressive widget tree traversal that tries to extract text from any widget
+  static void _extractTextFromWidgetTreeAggressive(BuildContext context, List<String> textContent) {
+    try {
+      debugPrint('TTS: Starting aggressive widget tree traversal');
+      
+      // Try to find the root widget and traverse it completely
+      final rootElement = context.findRootAncestorStateOfType<State<StatefulWidget>>();
+      if (rootElement != null) {
+        debugPrint('TTS: Found root element: ${rootElement.runtimeType}');
+      }
+      
+      // Try to traverse the entire widget tree from the context
+      context.visitChildElements((element) {
+        _extractTextFromElementAggressive(element, textContent);
+      });
+      
+      debugPrint('TTS: Aggressive widget tree traversal completed');
+    } catch (e) {
+      debugPrint('TTS: Error in aggressive widget tree traversal: $e');
+    }
+  }
+  
+  /// Aggressive text extraction from any element
+  static void _extractTextFromElementAggressive(Element element, List<String> textContent) {
+    try {
+      final widget = element.widget;
+      
+      // Try to extract text from any widget that might contain text
+      if (widget is Text) {
+        final text = widget.data ?? widget.textSpan?.toPlainText();
+        if (text != null && text.trim().isNotEmpty) {
+          textContent.add(text.trim());
+          debugPrint('TTS: Aggressive found Text: ${text.trim()}');
+        }
+      } else if (widget is RichText) {
+        final text = widget.text.toPlainText();
+        if (text.trim().isNotEmpty) {
+          textContent.add(text.trim());
+          debugPrint('TTS: Aggressive found RichText: ${text.trim()}');
+        }
+      } else if (widget is TextField) {
+        if (widget.decoration?.hintText != null) {
+          textContent.add(widget.decoration!.hintText!);
+          debugPrint('TTS: Aggressive found TextField hint: ${widget.decoration!.hintText}');
+        }
+        if (widget.controller?.text != null && widget.controller!.text.isNotEmpty) {
+          textContent.add(widget.controller!.text);
+          debugPrint('TTS: Aggressive found TextField content: ${widget.controller!.text}');
+        }
+      }
+      
+      // Recursively visit child elements
+      element.visitChildElements((childElement) {
+        _extractTextFromElementAggressive(childElement, textContent);
+      });
+      
+    } catch (e) {
+      debugPrint('TTS: Error in aggressive element extraction: $e');
+    }
+  }
+
   /// Enhanced element tree traversal with better Dutch text processing
   static void _extractTextFromElementTreeEnhanced(BuildContext context, List<String> textContent) {
     try {
       debugPrint('TTS: Starting enhanced element tree traversal from ${context.widget.runtimeType}');
+      print('🔍 TTS: Starting enhanced element tree traversal from ${context.widget.runtimeType}');
       
-      // Visit all child elements in the tree
+      int elementCount = 0;
+      int textWidgetCount = 0;
+      
+      // Visit all child elements in the tree recursively
       context.visitChildElements((element) {
+        elementCount++;
         try {
+          final beforeCount = textContent.length;
           _extractTextFromElementEnhanced(element, textContent);
+          final afterCount = textContent.length;
+          
+          if (afterCount > beforeCount) {
+            textWidgetCount++;
+            debugPrint('TTS: Found text in element ${element.widget.runtimeType}: ${textContent.sublist(beforeCount)}');
+          }
+          
+          // Also visit child elements recursively for deeper traversal
+          element.visitChildElements((childElement) {
+            elementCount++;
+            try {
+              final beforeChildCount = textContent.length;
+              _extractTextFromElementEnhanced(childElement, textContent);
+              final afterChildCount = textContent.length;
+              
+              if (afterChildCount > beforeChildCount) {
+                textWidgetCount++;
+                debugPrint('TTS: Found text in child element ${childElement.widget.runtimeType}: ${textContent.sublist(beforeChildCount)}');
+              }
+            } catch (e) {
+              debugPrint('TTS: Error extracting from child element: $e');
+            }
+          });
         } catch (e) {
           debugPrint('TTS: Error extracting from element: $e');
         }
       });
       
-      debugPrint('TTS: Enhanced element tree traversal completed, found ${textContent.length} items');
+      debugPrint('TTS: Enhanced element tree traversal completed, found ${textContent.length} items from $elementCount elements ($textWidgetCount text widgets)');
+      print('✅ TTS: Enhanced element tree traversal completed, found ${textContent.length} items from $elementCount elements ($textWidgetCount text widgets)');
     } catch (e) {
       debugPrint('TTS: Error in enhanced element tree extraction: $e');
+      print('❌ TTS: Error in enhanced element tree extraction: $e');
     }
   }
 
@@ -345,17 +688,17 @@ class UnifiedTTSService {
       // Handle different widget types that contain text with enhanced Dutch processing
       if (widget is Text) {
         final text = widget.data ?? widget.textSpan?.toPlainText();
-        if (text != null && text.trim().isNotEmpty && text.trim() != 'Pagina geladen') {
-        final processedText = _processDutchText(text.trim());
-        textContent.add(processedText);
-        debugPrint('TTS: Found Text widget: $processedText');
+        if (text != null && _isValidText(text)) {
+          final processedText = _processDutchText(text.trim());
+          textContent.add(processedText);
+          debugPrint('TTS: Found Text widget: $processedText');
         }
       } else if (widget is RichText) {
         final text = widget.text.toPlainText();
-        if (text.trim().isNotEmpty && text.trim() != 'Pagina geladen') {
-        final processedText = _processDutchText(text.trim());
-        textContent.add(processedText);
-        debugPrint('TTS: Found RichText widget: $processedText');
+        if (_isValidText(text)) {
+          final processedText = _processDutchText(text.trim());
+          textContent.add(processedText);
+          debugPrint('TTS: Found RichText widget: $processedText');
         }
       } else if (widget is TextField) {
         if (widget.decoration?.hintText != null) {
@@ -371,20 +714,24 @@ class UnifiedTTSService {
       } else if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
         if (widget is ButtonStyleButton && widget.child is Text) {
           final text = (widget.child as Text).data;
-        if (text != null && text.trim().isNotEmpty) {
-          final processedText = _processDutchText(text.trim());
-          textContent.add('Knop: $processedText');
-          debugPrint('TTS: Found Button: $processedText');
-        }
+          if (text != null && text.trim().isNotEmpty) {
+            final processedText = _processDutchText(text.trim());
+            textContent.add('Knop: $processedText');
+            debugPrint('TTS: Found Button: $processedText');
+          }
         }
       } else if (widget is IconButton && widget.tooltip != null) {
         final tooltipText = _processDutchText(widget.tooltip!);
         textContent.add('Knop: $tooltipText');
         debugPrint('TTS: Found IconButton tooltip: $tooltipText');
       } else if (widget is FloatingActionButton && widget.tooltip != null) {
-        final tooltipText = _processDutchText(widget.tooltip!);
-        textContent.add('Zwevende knop: $tooltipText');
-        debugPrint('TTS: Found FAB tooltip: $tooltipText');
+        // Skip TTS button tooltip to avoid reading its own description
+        final tooltipText = widget.tooltip!;
+        if (!tooltipText.contains('Scan hele pagina') && !tooltipText.contains('voorlezen')) {
+          final processedTooltip = _processDutchText(tooltipText);
+          textContent.add('Zwevende knop: $processedTooltip');
+          debugPrint('TTS: Found FAB tooltip: $processedTooltip');
+        }
       } else if (widget is ListTile) {
         if (widget.title is Text) {
           final titleText = (widget.title as Text).data;
@@ -415,6 +762,211 @@ class UnifiedTTSService {
           final processedText = _processDutchText(titleText.trim());
           textContent.add('Pagina: $processedText');
           debugPrint('TTS: Found AppBar title: $processedText');
+        }
+      } else if (widget is Card) {
+        // Extract text from card content
+        if (widget.child is Text) {
+          final text = (widget.child as Text).data;
+          if (text != null && text.trim().isNotEmpty) {
+            final processedText = _processDutchText(text.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found Card text: $processedText');
+          }
+        }
+      } else if (widget is Container) {
+        // Extract text from container content
+        if (widget.child is Text) {
+          final text = (widget.child as Text).data;
+          if (text != null && text.trim().isNotEmpty) {
+            final processedText = _processDutchText(text.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found Container text: $processedText');
+          }
+        }
+      } else if (widget is Column || widget is Row) {
+        // Extract text from column/row children
+        if (widget is Flex) {
+          for (final child in widget.children) {
+            if (child is Text) {
+              final text = child.data;
+              if (text != null && text.trim().isNotEmpty) {
+                final processedText = _processDutchText(text.trim());
+                textContent.add(processedText);
+                debugPrint('TTS: Found Flex child text: $processedText');
+              }
+            }
+          }
+        }
+      } else if (widget is PopupMenuButton) {
+        // Extract text from popup menu items
+        if (widget.tooltip != null) {
+          final tooltipText = _processDutchText(widget.tooltip!);
+          textContent.add('Menu: $tooltipText');
+          debugPrint('TTS: Found PopupMenuButton tooltip: $tooltipText');
+        }
+      } else if (widget is DropdownButton) {
+        // Extract text from dropdown items
+        if (widget.hint is Text) {
+          final hintText = (widget.hint as Text).data;
+          if (hintText != null && hintText.trim().isNotEmpty) {
+            final processedText = _processDutchText(hintText.trim());
+            textContent.add('Dropdown: $processedText');
+            debugPrint('TTS: Found DropdownButton hint: $processedText');
+          }
+        }
+      } else if (widget is ListTile) {
+        // Extract text from ListTile
+        if (widget.title is Text) {
+          final titleText = (widget.title as Text).data;
+          if (titleText != null && titleText.trim().isNotEmpty) {
+            final processedText = _processDutchText(titleText.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found ListTile title: $processedText');
+          }
+        }
+        if (widget.subtitle is Text) {
+          final subtitleText = (widget.subtitle as Text).data;
+          if (subtitleText != null && subtitleText.trim().isNotEmpty) {
+            final processedText = _processDutchText(subtitleText.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found ListTile subtitle: $processedText');
+          }
+        }
+      } else if (widget is Card) {
+        // Extract text from Card content
+        if (widget.child is Column || widget.child is Row) {
+          // Handle cards with flex children
+          final flexChild = widget.child as Flex;
+          for (final child in flexChild.children) {
+            if (child is Text) {
+              final text = child.data;
+              if (text != null && text.trim().isNotEmpty) {
+                final processedText = _processDutchText(text.trim());
+                textContent.add(processedText);
+                debugPrint('TTS: Found Card flex text: $processedText');
+              }
+            }
+          }
+        }
+      } else if (widget is ExpansionTile) {
+        // Extract text from ExpansionTile
+        if (widget.title is Text) {
+          final titleText = (widget.title as Text).data;
+          if (titleText != null && titleText.trim().isNotEmpty) {
+            final processedText = _processDutchText(titleText.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found ExpansionTile title: $processedText');
+          }
+        }
+      } else if (widget is Switch) {
+        // Extract text from switch labels
+        if (widget.activeColor != null) {
+          textContent.add('Schakelaar');
+          debugPrint('TTS: Found Switch');
+        }
+      } else if (widget is Checkbox) {
+        // Extract text from checkbox labels
+        textContent.add('Selectievakje');
+        debugPrint('TTS: Found Checkbox');
+      } else if (widget is Radio) {
+        // Extract text from radio button labels
+        textContent.add('Keuzerondje');
+        debugPrint('TTS: Found Radio');
+      } else if (widget is Slider) {
+        // Extract text from slider labels
+        textContent.add('Schuifbalk');
+        debugPrint('TTS: Found Slider');
+      } else if (widget is ProgressIndicator) {
+        // Extract text from progress indicators
+        textContent.add('Voortgangsindicator');
+        debugPrint('TTS: Found ProgressIndicator');
+      } else if (widget is CircularProgressIndicator) {
+        // Extract text from circular progress indicators
+        textContent.add('Laden');
+        debugPrint('TTS: Found CircularProgressIndicator');
+      } else if (widget is LinearProgressIndicator) {
+        // Extract text from linear progress indicators
+        textContent.add('Voortgang');
+        debugPrint('TTS: Found LinearProgressIndicator');
+      } else if (widget is SnackBar) {
+        // Extract text from snackbars
+        if (widget.content is Text) {
+          final text = (widget.content as Text).data;
+          if (text != null && text.trim().isNotEmpty) {
+            final processedText = _processDutchText(text.trim());
+            textContent.add('Bericht: $processedText');
+            debugPrint('TTS: Found SnackBar text: $processedText');
+          }
+        }
+      } else if (widget is AlertDialog) {
+        // Extract text from alert dialogs
+        if (widget.title is Text) {
+          final titleText = (widget.title as Text).data;
+          if (titleText != null && titleText.trim().isNotEmpty) {
+            final processedText = _processDutchText(titleText.trim());
+            textContent.add('Dialoog: $processedText');
+            debugPrint('TTS: Found AlertDialog title: $processedText');
+          }
+        }
+        if (widget.content is Text) {
+          final contentText = (widget.content as Text).data;
+          if (contentText != null && contentText.trim().isNotEmpty) {
+            final processedText = _processDutchText(contentText.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found AlertDialog content: $processedText');
+          }
+        }
+      } else if (widget is Drawer) {
+        // Extract text from drawer content
+        textContent.add('Navigatiemenu');
+        debugPrint('TTS: Found Drawer');
+      } else if (widget is BottomNavigationBar) {
+        // Extract text from bottom navigation
+        textContent.add('Ondernavigatie');
+        debugPrint('TTS: Found BottomNavigationBar');
+      } else if (widget is TabBar) {
+        // Extract text from tab bar
+        textContent.add('Tabbladen');
+        debugPrint('TTS: Found TabBar');
+      } else if (widget is ExpansionTile) {
+        // Extract text from expansion tiles
+        if (widget.title is Text) {
+          final titleText = (widget.title as Text).data;
+          if (titleText != null && titleText.trim().isNotEmpty) {
+            final processedText = _processDutchText(titleText.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found ExpansionTile title: $processedText');
+          }
+        }
+      } else if (widget is DataTable) {
+        // Extract text from data tables
+        textContent.add('Tabel');
+        debugPrint('TTS: Found DataTable');
+      } else if (widget is DataColumn) {
+        // Extract text from data columns
+        final dataColumn = widget as DataColumn;
+        if (dataColumn.label is Text) {
+          final labelText = (dataColumn.label as Text).data;
+          if (labelText != null && labelText.trim().isNotEmpty) {
+            final processedText = _processDutchText(labelText.trim());
+            textContent.add('Kolom: $processedText');
+            debugPrint('TTS: Found DataColumn: $processedText');
+          }
+        }
+      } else if (widget is DataRow) {
+        // Extract text from data rows
+        textContent.add('Rij');
+        debugPrint('TTS: Found DataRow');
+      } else if (widget is DataCell) {
+        // Extract text from data cells
+        final dataCell = widget as DataCell;
+        if (dataCell.child is Text) {
+          final text = (dataCell.child as Text).data;
+          if (text != null && text.trim().isNotEmpty) {
+            final processedText = _processDutchText(text.trim());
+            textContent.add(processedText);
+            debugPrint('TTS: Found DataCell: $processedText');
+          }
         }
       }
       
@@ -500,13 +1052,50 @@ class UnifiedTTSService {
     return textParts.join('. ');
   }
 
+  /// Check if text is valid and meaningful for TTS
+  static bool _isValidText(String text) {
+    if (text.isEmpty) return false;
+    
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    
+    // Filter out common empty or meaningless text patterns
+    final invalidPatterns = [
+      'Pagina geladen',
+      'Loading...',
+      'Laden...',
+      ' ', // Single space
+      '\u200B', // Zero-width space
+      '\u200C', // Zero-width non-joiner
+      '\u200D', // Zero-width joiner
+      '\uFEFF', // Zero-width no-break space
+    ];
+    
+    for (final pattern in invalidPatterns) {
+      if (trimmed == pattern) return false;
+    }
+    
+    // Check if text contains only whitespace or special characters
+    if (trimmed.replaceAll(RegExp(r'\s'), '').isEmpty) return false;
+    
+    // Check if text is too short (less than 2 characters)
+    if (trimmed.length < 2) return false;
+    
+    // Check if text contains only special characters or symbols
+    if (trimmed.replaceAll(RegExp(r'[a-zA-Z0-9\u00C0-\u017F\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF]'), '').length == trimmed.length) {
+      return false;
+    }
+    
+    return true;
+  }
+
   /// Enhanced text extraction with better Dutch language support
   static void _extractTextFromWidgetEnhanced(Widget widget, List<String> textContent) {
     try {
       // Handle Text widgets with enhanced Dutch processing
       if (widget is Text) {
         final text = widget.data ?? widget.textSpan?.toPlainText();
-        if (text != null && text.trim().isNotEmpty && text.trim() != 'Pagina geladen') {
+        if (text != null && _isValidText(text)) {
           final processedText = _processDutchText(text.trim());
           textContent.add(processedText);
         }
@@ -516,7 +1105,7 @@ class UnifiedTTSService {
       // Handle RichText widgets
       if (widget is RichText) {
         final text = widget.text.toPlainText();
-        if (text.trim().isNotEmpty && text.trim() != 'Pagina geladen') {
+        if (_isValidText(text)) {
           final processedText = _processDutchText(text.trim());
           textContent.add(processedText);
         }
@@ -562,8 +1151,12 @@ class UnifiedTTSService {
       // Handle FloatingActionButton
       if (widget is FloatingActionButton) {
         if (widget.tooltip != null && widget.tooltip!.isNotEmpty) {
-          final tooltipText = _processDutchText(widget.tooltip!);
-          textContent.add('Zwevende knop: $tooltipText');
+          // Skip TTS button tooltip to avoid reading its own description
+          final tooltipText = widget.tooltip!;
+          if (!tooltipText.contains('Scan hele pagina') && !tooltipText.contains('voorlezen')) {
+            final processedTooltip = _processDutchText(tooltipText);
+            textContent.add('Zwevende knop: $processedTooltip');
+          }
         }
         if (widget.child != null) {
           _extractTextFromWidgetEnhanced(widget.child!, textContent);
@@ -1137,9 +1730,15 @@ class UnifiedTTSService {
                           !text.startsWith('Filter:') &&
                           !text.startsWith('Invoerveld:') &&
                           !text.startsWith('Pagina:') &&
+                          !text.startsWith('Beschikbare knoppen') &&
+                          !text.startsWith('Navigatie') &&
+                          !text.toLowerCase().contains('scan hele pagina') &&
+                          !text.toLowerCase().contains('voorlezen') &&
+                          !text.toLowerCase().contains('spraak') &&
                           text.length > 5 &&
                           !text.toLowerCase().contains('loading') &&
-                          !text.toLowerCase().contains('laden'))
+                          !text.toLowerCase().contains('laden') &&
+                          !text.toLowerCase().contains('welkom bij de karate app'))
           .toList();
       
       if (mainTexts.isNotEmpty) {
@@ -1608,7 +2207,11 @@ class UnifiedTTSService {
         if (scaffold?.floatingActionButton != null) {
           final fab = scaffold!.floatingActionButton as FloatingActionButton?;
           if (fab?.tooltip != null && fab!.tooltip!.isNotEmpty) {
-            textContent.add('Zwevende knop: ${fab.tooltip}');
+            // Skip TTS button tooltip to avoid reading its own description
+            final tooltipText = fab.tooltip!;
+            if (!tooltipText.contains('Scan hele pagina') && !tooltipText.contains('voorlezen')) {
+              textContent.add('Zwevende knop: $tooltipText');
+            }
           }
         }
       }
@@ -1686,7 +2289,11 @@ class UnifiedTTSService {
       // Handle FloatingActionButton
       if (widget is FloatingActionButton) {
         if (widget.tooltip != null && widget.tooltip!.isNotEmpty) {
-          textContent.add('Zwevende knop: ${widget.tooltip}');
+          // Skip TTS button tooltip to avoid reading its own description
+          final tooltipText = widget.tooltip!;
+          if (!tooltipText.contains('Scan hele pagina') && !tooltipText.contains('voorlezen')) {
+            textContent.add('Zwevende knop: $tooltipText');
+          }
         }
         if (widget.child != null) {
           _extractTextFromWidget(widget.child!, textContent);
@@ -1996,8 +2603,12 @@ class UnifiedTTSService {
         textContent.add('Knop: ${widget.tooltip}');
         debugPrint('TTS: Found IconButton tooltip: "${widget.tooltip}"');
       } else if (widget is FloatingActionButton && widget.tooltip != null) {
-        textContent.add('Zwevende knop: ${widget.tooltip}');
-        debugPrint('TTS: Found FAB tooltip: "${widget.tooltip}"');
+        // Skip TTS button tooltip to avoid reading its own description
+        final tooltipText = widget.tooltip!;
+        if (!tooltipText.contains('Scan hele pagina') && !tooltipText.contains('voorlezen')) {
+          textContent.add('Zwevende knop: $tooltipText');
+          debugPrint('TTS: Found FAB tooltip: "$tooltipText"');
+        }
       } else if (widget is ListTile) {
         if (widget.title is Text) {
           final titleText = (widget.title as Text).data;
@@ -2046,6 +2657,51 @@ class UnifiedTTSService {
     }
   }
 
+
+  /// Generate contextual fallback content based on current screen context
+  static String _generateContextualFallbackContent(BuildContext context) {
+    try {
+      // Try to determine the current screen type from route
+      final route = ModalRoute.of(context)?.settings.name ?? '';
+      
+      // Also try to get page title from AppBar
+      String pageTitle = '';
+      try {
+        final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+        if (scaffold?.appBar is AppBar) {
+          final appBar = scaffold!.appBar as AppBar;
+          if (appBar.title is Text) {
+            pageTitle = (appBar.title as Text).data ?? '';
+          }
+        }
+      } catch (e) {
+        debugPrint('TTS: Could not get page title: $e');
+      }
+      
+      // Generate content based on route and title
+      if (route.contains('home') || route.contains('Home') || pageTitle.toLowerCase().contains('home')) {
+        return 'Je bent op de hoofdpagina van de Karate app. Hier kun je navigeren naar verschillende onderdelen zoals kata\'s, het forum, en je profiel. Gebruik de navigatie knoppen onderaan het scherm om door de app te bewegen.';
+      } else if (route.contains('kata') || route.contains('Kata') || pageTitle.toLowerCase().contains('kata')) {
+        return 'Je bent in de kata sectie. Hier kun je verschillende karate kata\'s bekijken en oefenen. Scroll door de lijst om verschillende technieken te vinden.';
+      } else if (route.contains('forum') || route.contains('Forum') || pageTitle.toLowerCase().contains('forum')) {
+        return 'Je bent in het forum. Hier kun je berichten lezen en nieuwe berichten plaatsen over karate. Gebruik de zoekfunctie om specifieke onderwerpen te vinden.';
+      } else if (route.contains('favorites') || route.contains('Favorites') || pageTitle.toLowerCase().contains('favoriet')) {
+        return 'Je bent in je favorieten. Hier vind je alle kata\'s en forumberichten die je hebt opgeslagen. Tik op een item om het te bekijken.';
+      } else if (route.contains('profile') || route.contains('Profile') || pageTitle.toLowerCase().contains('profiel')) {
+        return 'Je bent in je profiel. Hier kun je je persoonlijke informatie bekijken en bewerken, inclusief je avatar en instellingen.';
+      } else if (route.contains('settings') || route.contains('Settings') || pageTitle.toLowerCase().contains('instelling')) {
+        return 'Je bent in de instellingen. Hier kun je de app aanpassen naar je voorkeuren, inclusief toegankelijkheidsopties en thema instellingen.';
+      } else if (route.contains('user-management') || pageTitle.toLowerCase().contains('gebruiker')) {
+        return 'Je bent in het gebruikersbeheer. Hier kun je gebruikers beheren en instellingen aanpassen.';
+      } else {
+        // Try to provide more specific help based on what's visible
+        return 'Je bent in de Karate app. Gebruik de navigatie knoppen onderaan het scherm om door de verschillende onderdelen te bewegen. Je kunt ook de spraakknop gebruiken om de inhoud van elke pagina te laten voorlezen.';
+      }
+    } catch (e) {
+      debugPrint('TTS: Error generating contextual fallback: $e');
+      return 'Je bent in de Karate app. Gebruik de navigatie om door de app te bewegen.';
+    }
+  }
 
   /// Generate helpful fallback content based on page type
   static String _generateFallbackContent(String pageName) {
@@ -2208,37 +2864,6 @@ class UnifiedTTSService {
     }
   }
 
-  /// Extract screen content based on detected screen type
-  static String _extractScreenContentByType(BuildContext context, ScreenType screenType) {
-    switch (screenType) {
-      case ScreenType.overlay:
-        return _extractOverlayContent(context);
-      case ScreenType.form:
-        return _extractFormScreenContent(context);
-      case ScreenType.auth:
-        return _extractAuthScreenContent(context);
-      case ScreenType.home:
-        return _extractHomeScreenContent(context);
-      case ScreenType.profile:
-        return _extractProfileScreenContent(context);
-      case ScreenType.forum:
-        return _extractForumScreenContent(context);
-      case ScreenType.forumDetail:
-        return _extractForumDetailScreenContent(context);
-      case ScreenType.createPost:
-        return _extractCreatePostScreenContent(context);
-      case ScreenType.favorites:
-        return _extractFavoritesScreenContent(context);
-      case ScreenType.userManagement:
-        return _extractUserManagementScreenContent(context);
-      case ScreenType.avatarSelection:
-        return _extractAvatarSelectionScreenContent(context);
-      case ScreenType.accessibility:
-        return _extractAccessibilityScreenContent(context);
-      case ScreenType.generic:
-        return _extractComprehensiveScreenContent(context);
-    }
-  }
 
 
   /// Extract content from form screens
@@ -2246,18 +2871,25 @@ class UnifiedTTSService {
     final List<String> contentParts = [];
     
     try {
-      contentParts.add('Formulier pagina');
-      
-      // Extract form fields and labels
-      final formContent = _extractFormContent(context);
-      if (formContent.isNotEmpty) {
-        contentParts.add(formContent);
-      }
-      
-      // Extract buttons
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
+      // Extract ALL visible text content comprehensively
+      final allVisibleText = _extractAllVisibleTextComprehensive(context);
+      if (allVisibleText.isNotEmpty) {
+        contentParts.addAll(allVisibleText);
+      } else {
+        // Fallback to structured extraction if comprehensive fails
+        contentParts.add('Formulier pagina');
+        
+        // Extract form fields and labels
+        final formContent = _extractFormContent(context);
+        if (formContent.isNotEmpty) {
+          contentParts.add(formContent);
+        }
+        
+        // Extract buttons
+        final interactiveElements = _extractInteractiveElements(context);
+        if (interactiveElements.isNotEmpty) {
+          contentParts.add(interactiveElements);
+        }
       }
       
     } catch (e) {
@@ -2272,18 +2904,25 @@ class UnifiedTTSService {
     final List<String> contentParts = [];
     
     try {
-      contentParts.add('Inlog of registratie pagina');
-      
-      // Extract form fields
-      final formContent = _extractFormContent(context);
-      if (formContent.isNotEmpty) {
-        contentParts.add(formContent);
-      }
-      
-      // Extract buttons and links
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
+      // Extract ALL visible text content comprehensively
+      final allVisibleText = _extractAllVisibleTextComprehensive(context);
+      if (allVisibleText.isNotEmpty) {
+        contentParts.addAll(allVisibleText);
+      } else {
+        // Fallback to structured extraction if comprehensive fails
+        contentParts.add('Inlog of registratie pagina');
+        
+        // Extract form fields
+        final formContent = _extractFormContent(context);
+        if (formContent.isNotEmpty) {
+          contentParts.add(formContent);
+        }
+        
+        // Extract buttons and links
+        final interactiveElements = _extractInteractiveElements(context);
+        if (interactiveElements.isNotEmpty) {
+          contentParts.add(interactiveElements);
+        }
       }
       
     } catch (e) {
@@ -2298,24 +2937,39 @@ class UnifiedTTSService {
     final List<String> contentParts = [];
     
     try {
-      contentParts.add('Hoofdpagina van de Karate app');
+      debugPrint('TTS: Starting home screen content extraction');
       
-      // Extract search functionality
-      final searchContent = _extractSearchBarsAndFilters(context);
-      if (searchContent.isNotEmpty) {
-        contentParts.add('Zoek functionaliteit: $searchContent');
-      }
-      
-      // Extract kata cards with enhanced information
+      // First, try to extract kata cards content specifically
       final kataContent = _extractKataCardsContent(context);
       if (kataContent.isNotEmpty) {
-        contentParts.add('Kata technieken: $kataContent');
-      }
-      
-      // Extract main content as fallback
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty && kataContent.isEmpty) {
-        contentParts.add(mainContent);
+        debugPrint('TTS: Found kata content: $kataContent');
+        contentParts.add(kataContent);
+      } else {
+        debugPrint('TTS: No kata content found, trying comprehensive extraction');
+        
+        // Extract ALL visible text content comprehensively
+        final allVisibleText = _extractAllVisibleTextComprehensive(context);
+        if (allVisibleText.isNotEmpty) {
+          debugPrint('TTS: Found comprehensive content: ${allVisibleText.length} items');
+          contentParts.addAll(allVisibleText);
+        } else {
+          debugPrint('TTS: No comprehensive content found, using structured extraction');
+          
+          // Fallback to structured extraction if comprehensive fails
+          contentParts.add('Hoofdpagina van de Karate app');
+          
+          // Extract search functionality
+          final searchContent = _extractSearchBarsAndFilters(context);
+          if (searchContent.isNotEmpty) {
+            contentParts.add('Zoek functionaliteit: $searchContent');
+          }
+          
+          // Extract main content as fallback
+          final mainContent = _extractMainContent(context);
+          if (mainContent.isNotEmpty) {
+            contentParts.add(mainContent);
+          }
+        }
       }
       
       // Extract navigation options
@@ -2331,6 +2985,442 @@ class UnifiedTTSService {
     return contentParts.join('. ');
   }
 
+  /// Extract ALL visible text content comprehensively from the current screen
+  static List<String> _extractAllVisibleTextComprehensive(BuildContext context) {
+    final List<String> allTextContent = [];
+    
+    try {
+      debugPrint('TTS: Starting comprehensive visible text extraction...');
+      
+      if (!context.mounted) return allTextContent;
+      
+      // Use enhanced element tree traversal to get ALL text
+      final elementTexts = <String>[];
+      _extractTextFromElementTreeEnhanced(context, elementTexts);
+      
+      debugPrint('TTS: Enhanced traversal found ${elementTexts.length} text elements');
+      print('🔍 TTS: Enhanced traversal found ${elementTexts.length} text elements');
+      
+      // Also try a more aggressive approach - extract from the entire widget tree
+      if (elementTexts.isEmpty) {
+        debugPrint('TTS: No text found with enhanced traversal, trying aggressive extraction');
+        print('🔄 TTS: No text found with enhanced traversal, trying aggressive extraction');
+        _extractTextAggressively(context, elementTexts);
+        debugPrint('TTS: Aggressive extraction found ${elementTexts.length} text elements');
+        print('🔍 TTS: Aggressive extraction found ${elementTexts.length} text elements');
+      }
+      
+      // If still no text found, try alternative extraction methods
+      if (elementTexts.isEmpty) {
+        debugPrint('TTS: Still no text found, trying alternative extraction methods');
+        print('🔄 TTS: Still no text found, trying alternative extraction methods');
+        _extractTextWithAlternativeMethods(context, elementTexts);
+        debugPrint('TTS: Alternative extraction found ${elementTexts.length} text elements');
+        print('🔍 TTS: Alternative extraction found ${elementTexts.length} text elements');
+      }
+      
+      // Try one more approach - look for specific widget types that commonly contain text
+      if (elementTexts.isEmpty) {
+        debugPrint('TTS: Trying widget-specific extraction');
+        print('🔄 TTS: Trying widget-specific extraction');
+        _extractTextFromSpecificWidgets(context, elementTexts);
+        debugPrint('TTS: Widget-specific extraction found ${elementTexts.length} text elements');
+        print('🔍 TTS: Widget-specific extraction found ${elementTexts.length} text elements');
+      }
+      
+      // Debug: Show all extracted text before filtering
+      debugPrint('TTS: All extracted text before filtering: $elementTexts');
+      print('🔍 TTS: All extracted text before filtering: $elementTexts');
+      
+      // Process and filter the extracted text to get meaningful content
+      final meaningfulTexts = elementTexts
+          .where((text) => text.trim().isNotEmpty && 
+                         text.trim() != 'Pagina geladen' &&
+                         text.trim() != ' ' && // Filter out single spaces
+                         text.trim().length > 0 && // Allow any non-empty text
+                         !text.startsWith('Knop:') &&
+                         !text.startsWith('Zwevende knop:') &&
+                         !text.startsWith('Filter:') &&
+                         !text.startsWith('Invoerveld:') &&
+                         !text.startsWith('Pagina:') &&
+                         !text.startsWith('Beschikbare knoppen') &&
+                         !text.startsWith('Navigatie') &&
+                         !text.toLowerCase().contains('scan hele pagina') &&
+                         !text.toLowerCase().contains('voorlezen') &&
+                         !text.toLowerCase().contains('spraak') &&
+                         !text.toLowerCase().contains('welkom bij de karate app') &&
+                         !text.toLowerCase().contains('loading') &&
+                         !text.toLowerCase().contains('laden') &&
+                         !text.toLowerCase().contains('error') &&
+                         !text.toLowerCase().contains('fout') &&
+                         // Filter out strange Unicode characters and control characters
+                         !_isStrangeUnicodeCharacter(text.trim()) &&
+                         // Filter out very short meaningless text
+                         (text.trim().length > 1 || _isMeaningfulShortText(text.trim())))
+          .map((text) => text.trim())
+          .toSet() // Remove duplicates
+          .toList();
+      
+      // Debug: Show filtered text
+      debugPrint('TTS: Filtered meaningful text: $meaningfulTexts');
+      print('✅ TTS: Filtered meaningful text: $meaningfulTexts');
+      
+      // Sort by length (longer text first) to prioritize meaningful content
+      meaningfulTexts.sort((a, b) => b.length.compareTo(a.length));
+      
+      // Add all meaningful text to the result
+      allTextContent.addAll(meaningfulTexts);
+      
+      debugPrint('TTS: Comprehensive extraction found ${allTextContent.length} text elements');
+      print('📝 TTS: Comprehensive extraction found ${allTextContent.length} text elements');
+      
+      // Log first few items for debugging
+      if (allTextContent.isNotEmpty) {
+        final preview = allTextContent.take(5).join(', ');
+        debugPrint('TTS: Content preview: $preview');
+        print('📄 TTS: Content preview: $preview');
+      }
+      
+    } catch (e) {
+      debugPrint('TTS: Error in comprehensive text extraction: $e');
+      print('❌ TTS: Error in comprehensive text extraction: $e');
+    }
+    
+    return allTextContent;
+  }
+
+  /// Check if text is a strange Unicode character that should be filtered out
+  static bool _isStrangeUnicodeCharacter(String text) {
+    if (text.isEmpty) return true;
+    
+    // Check for common strange Unicode characters
+    final strangeChars = [
+      '\u{20000}', // 𠀿 - the character we're seeing in logs
+      '\u{20001}', // 𠀁
+      '\u{20002}', // 𠀂
+      '\u{20003}', // 𠀃
+      '\u{20004}', // 𠀄
+      '\u{20005}', // 𠀅
+      '\u{20006}', // 𠀆
+      '\u{20007}', // 𠀇
+      '\u{20008}', // 𠀈
+      '\u{20009}', // 𠀉
+      '\u{2000A}', // 𠀊
+      '\u{2000B}', // 𠀋
+      '\u{2000C}', // 𠀌
+      '\u{2000D}', // 𠀍
+      '\u{2000E}', // 𠀎
+      '\u{2000F}', // 𠀏
+      '\u{20010}', // 𠀐
+      '\u{20011}', // 𠀑
+      '\u{20012}', // 𠀒
+      '\u{20013}', // 𠀓
+      '\u{20014}', // 𠀔
+      '\u{20015}', // 𠀕
+      '\u{20016}', // 𠀖
+      '\u{20017}', // 𠀗
+      '\u{20018}', // 𠀘
+      '\u{20019}', // 𠀙
+      '\u{2001A}', // 𠀚
+      '\u{2001B}', // 𠀛
+      '\u{2001C}', // 𠀜
+      '\u{2001D}', // 𠀝
+      '\u{2001E}', // 𠀞
+      '\u{2001F}', // 𠀟
+      '\u{20020}', // 𠀠
+      '\u{20021}', // 𠀡
+      '\u{20022}', // 𠀢
+      '\u{20023}', // 𠀣
+      '\u{20024}', // 𠀤
+      '\u{20025}', // 𠀥
+      '\u{20026}', // 𠀦
+      '\u{20027}', // 𠀧
+      '\u{20028}', // 𠀨
+      '\u{20029}', // 𠀩
+      '\u{2002A}', // 𠀪
+      '\u{2002B}', // 𠀫
+      '\u{2002C}', // 𠀬
+      '\u{2002D}', // 𠀭
+      '\u{2002E}', // 𠀮
+      '\u{2002F}', // 𠀯
+      '\u{20030}', // 𠀰
+      '\u{20031}', // 𠀱
+      '\u{20032}', // 𠀲
+      '\u{20033}', // 𠀳
+      '\u{20034}', // 𠀴
+      '\u{20035}', // 𠀵
+      '\u{20036}', // 𠀶
+      '\u{20037}', // 𠀷
+      '\u{20038}', // 𠀸
+      '\u{20039}', // 𠀹
+      '\u{2003A}', // 𠀺
+      '\u{2003B}', // 𠀻
+      '\u{2003C}', // 𠀼
+      '\u{2003D}', // 𠀽
+      '\u{2003E}', // 𠀾
+      '\u{2003F}', // 𠀿
+      // Add more control characters and strange Unicode ranges
+      '\u{0000}', // NULL
+      '\u{0001}', // START OF HEADING
+      '\u{0002}', // START OF TEXT
+      '\u{0003}', // END OF TEXT
+      '\u{0004}', // END OF TRANSMISSION
+      '\u{0005}', // ENQUIRY
+      '\u{0006}', // ACKNOWLEDGE
+      '\u{0007}', // BELL
+      '\u{0008}', // BACKSPACE
+      '\u{000B}', // VERTICAL TAB
+      '\u{000C}', // FORM FEED
+      '\u{000E}', // SHIFT OUT
+      '\u{000F}', // SHIFT IN
+      '\u{0010}', // DATA LINK ESCAPE
+      '\u{0011}', // DEVICE CONTROL ONE
+      '\u{0012}', // DEVICE CONTROL TWO
+      '\u{0013}', // DEVICE CONTROL THREE
+      '\u{0014}', // DEVICE CONTROL FOUR
+      '\u{0015}', // NEGATIVE ACKNOWLEDGE
+      '\u{0016}', // SYNCHRONOUS IDLE
+      '\u{0017}', // END OF TRANSMISSION BLOCK
+      '\u{0018}', // CANCEL
+      '\u{0019}', // END OF MEDIUM
+      '\u{001A}', // SUBSTITUTE
+      '\u{001B}', // ESCAPE
+      '\u{001C}', // FILE SEPARATOR
+      '\u{001D}', // GROUP SEPARATOR
+      '\u{001E}', // RECORD SEPARATOR
+      '\u{001F}', // UNIT SEPARATOR
+      '\u{007F}', // DELETE
+      '\u{0080}', // PADDING CHARACTER
+      '\u{0081}', // HIGH OCTET PRESET
+      '\u{0082}', // BREAK PERMITTED HERE
+      '\u{0083}', // NO BREAK HERE
+      '\u{0084}', // INDEX
+      '\u{0085}', // NEXT LINE
+      '\u{0086}', // START OF SELECTED AREA
+      '\u{0087}', // END OF SELECTED AREA
+      '\u{0088}', // CHARACTER TABULATION SET
+      '\u{0089}', // CHARACTER TABULATION WITH JUSTIFICATION
+      '\u{008A}', // LINE TABULATION SET
+      '\u{008B}', // PARTIAL LINE FORWARD
+      '\u{008C}', // PARTIAL LINE BACKWARD
+      '\u{008D}', // REVERSE LINE FEED
+      '\u{008E}', // SINGLE SHIFT TWO
+      '\u{008F}', // SINGLE SHIFT THREE
+      '\u{0090}', // DEVICE CONTROL STRING
+      '\u{0091}', // PRIVATE USE ONE
+      '\u{0092}', // PRIVATE USE TWO
+      '\u{0093}', // SET TRANSMIT STATE
+      '\u{0094}', // CANCEL CHARACTER
+      '\u{0095}', // MESSAGE WAITING
+      '\u{0096}', // START OF GUARDED AREA
+      '\u{0097}', // END OF GUARDED AREA
+      '\u{0098}', // START OF STRING
+      '\u{0099}', // SINGLE GRAPHIC CHARACTER INTRODUCER
+      '\u{009A}', // SINGLE CHARACTER INTRODUCER
+      '\u{009B}', // CONTROL SEQUENCE INTRODUCER
+      '\u{009C}', // STRING TERMINATOR
+      '\u{009D}', // OPERATING SYSTEM COMMAND
+      '\u{009E}', // PRIVACY MESSAGE
+      '\u{009F}', // APPLICATION PROGRAM COMMAND
+    ];
+    
+    // Check if text contains any strange characters
+    for (final char in strangeChars) {
+      if (text.contains(char)) {
+        debugPrint('TTS: Filtering out strange Unicode character: $text (contains $char)');
+        return true;
+      }
+    }
+    
+    // Check for other problematic patterns
+    // Single character that's not a letter, number, or common punctuation
+    if (text.length == 1) {
+      final char = text.codeUnitAt(0);
+      // Allow letters, numbers, and common punctuation
+      if (!((char >= 65 && char <= 90) || // A-Z
+            (char >= 97 && char <= 122) || // a-z
+            (char >= 48 && char <= 57) || // 0-9
+            (char >= 192 && char <= 255) || // Extended Latin
+            char == 32 || // space
+            char == 33 || // !
+            char == 34 || // "
+            char == 39 || // '
+            char == 40 || // (
+            char == 41 || // )
+            char == 44 || // ,
+            char == 45 || // -
+            char == 46 || // .
+            char == 58 || // :
+            char == 59 || // ;
+            char == 63 || // ?
+            char == 95 || // _
+            char == 228 || // ä
+            char == 246 || // ö
+            char == 252 || // ü
+            char == 223 || // ß
+            char == 196 || // Ä
+            char == 214 || // Ö
+            char == 220 || // Ü
+            char == 233 || // é
+            char == 232 || // è
+            char == 234 || // ê
+            char == 235 || // ë
+            char == 201 || // É
+            char == 200 || // È
+            char == 202 || // Ê
+            char == 203 || // Ë
+            char == 225 || // á
+            char == 224 || // à
+            char == 226 || // â
+            char == 227 || // ã
+            char == 193 || // Á
+            char == 192 || // À
+            char == 194 || // Â
+            char == 195 || // Ã
+            char == 237 || // í
+            char == 236 || // ì
+            char == 238 || // î
+            char == 239 || // ï
+            char == 205 || // Í
+            char == 204 || // Ì
+            char == 206 || // Î
+            char == 207 || // Ï
+            char == 243 || // ó
+            char == 242 || // ò
+            char == 244 || // ô
+            char == 245 || // õ
+            char == 211 || // Ó
+            char == 210 || // Ò
+            char == 212 || // Ô
+            char == 213 || // Õ
+            char == 250 || // ú
+            char == 249 || // ù
+            char == 251 || // û
+            char == 218 || // Ú
+            char == 217 || // Ù
+            char == 219 || // Û
+            char == 241 || // ñ
+            char == 209 || // Ñ
+            char == 231 || // ç
+            char == 199 || // Ç
+            char == 255 || // ÿ
+            char == 159 || // Ÿ
+            char == 255 || // ÿ
+            char == 159)) { // Ÿ
+        debugPrint('TTS: Filtering out non-printable character: $text (code: $char)');
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  /// Check if short text is meaningful (like single letters that are valid)
+  static bool _isMeaningfulShortText(String text) {
+    if (text.length != 1) return false;
+    
+    final char = text.codeUnitAt(0);
+    // Allow single letters, numbers, and common punctuation
+    return ((char >= 65 && char <= 90) || // A-Z
+            (char >= 97 && char <= 122) || // a-z
+            (char >= 48 && char <= 57) || // 0-9
+            char == 33 || // !
+            char == 44 || // ,
+            char == 46 || // .
+            char == 58 || // :
+            char == 59 || // ;
+            char == 63 || // ?
+            char == 95); // _
+  }
+
+  /// Extract text from specific widget types that commonly contain text
+  static void _extractTextFromSpecificWidgets(BuildContext context, List<String> textContent) {
+    try {
+      debugPrint('TTS: Starting widget-specific text extraction');
+      
+      // Look for specific widget types that commonly contain text
+      context.visitChildElements((element) {
+        final widget = element.widget;
+        
+        // Check for Text widgets
+        if (widget is Text) {
+          final text = widget.data ?? widget.textSpan?.toPlainText();
+          if (text != null && text.trim().isNotEmpty && text.trim().length > 2) {
+            final processedText = _processDutchText(text.trim());
+            if (!_isStrangeUnicodeCharacter(processedText)) {
+              textContent.add(processedText);
+              debugPrint('TTS: Widget-specific found Text: $processedText');
+            }
+          }
+        }
+        
+        // Check for RichText widgets
+        else if (widget is RichText) {
+          final text = widget.text.toPlainText();
+          if (text.trim().isNotEmpty && text.trim().length > 2) {
+            final processedText = _processDutchText(text.trim());
+            if (!_isStrangeUnicodeCharacter(processedText)) {
+              textContent.add(processedText);
+              debugPrint('TTS: Widget-specific found RichText: $processedText');
+            }
+          }
+        }
+        
+        // Check for TextField widgets
+        else if (widget is TextField) {
+          if (widget.decoration?.hintText != null && widget.decoration!.hintText!.trim().isNotEmpty) {
+            final hintText = widget.decoration!.hintText!.trim();
+            if (hintText.length > 2 && !_isStrangeUnicodeCharacter(hintText)) {
+              textContent.add('Hint: $hintText');
+              debugPrint('TTS: Widget-specific found TextField hint: $hintText');
+            }
+          }
+          if (widget.controller?.text != null && widget.controller!.text.trim().isNotEmpty) {
+            final fieldText = widget.controller!.text.trim();
+            if (fieldText.length > 2 && !_isStrangeUnicodeCharacter(fieldText)) {
+              textContent.add(fieldText);
+              debugPrint('TTS: Widget-specific found TextField content: $fieldText');
+            }
+          }
+        }
+        
+        // Check for Card widgets (common in kata cards)
+        else if (widget is Card) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for Container widgets that might contain text
+        else if (widget is Container) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for Column and Row widgets
+        else if (widget is Column || widget is Row) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for ListView and other scrollable widgets
+        else if (widget is ListView || widget is SingleChildScrollView) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for Material widgets
+        else if (widget is Material) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+        
+        // Check for InkWell and GestureDetector widgets
+        else if (widget is InkWell || widget is GestureDetector) {
+          _extractTextFromWidgetRecursively(widget, textContent);
+        }
+      });
+      
+      debugPrint('TTS: Widget-specific extraction completed, found ${textContent.length} items');
+    } catch (e) {
+      debugPrint('TTS: Error in widget-specific text extraction: $e');
+    }
+  }
+
   /// Extract content specifically from kata cards
   static String _extractKataCardsContent(BuildContext context) {
     final List<String> kataParts = [];
@@ -2338,31 +3428,63 @@ class UnifiedTTSService {
     try {
       if (!context.mounted) return '';
       
-      // Use element tree traversal to find kata-specific content
+      debugPrint('TTS: Starting kata cards content extraction');
+      
+      // Use comprehensive text extraction to find all visible text
       final elementTexts = <String>[];
       _extractTextFromElementTreeEnhanced(context, elementTexts);
       
-      // Filter for kata-related content
-      final kataTexts = elementTexts
-          .where((text) => text.toLowerCase().contains('kata') ||
-                          text.toLowerCase().contains('techniek') ||
-                          text.toLowerCase().contains('beweging') ||
-                          text.toLowerCase().contains('karate') ||
-                          text.length > 10) // Include longer descriptive text
+      // Also try aggressive extraction to find more content
+      if (elementTexts.isEmpty) {
+        _extractTextAggressively(context, elementTexts);
+      }
+      
+      // Filter for meaningful content (not just kata-related)
+      final meaningfulTexts = elementTexts
+          .where((text) => text.trim().isNotEmpty && 
+                         text.trim().length > 2 && // At least 3 characters
+                         !_isStrangeUnicodeCharacter(text.trim()) &&
+                         !text.toLowerCase().contains('scan hele pagina') &&
+                         !text.toLowerCase().contains('voorlezen') &&
+                         !text.toLowerCase().contains('spraak') &&
+                         !text.toLowerCase().contains('welkom bij de karate app') &&
+                         !text.toLowerCase().contains('loading') &&
+                         !text.toLowerCase().contains('laden') &&
+                         !text.toLowerCase().contains('error') &&
+                         !text.toLowerCase().contains('fout') &&
+                         !text.startsWith('Knop:') &&
+                         !text.startsWith('Zwevende knop:') &&
+                         !text.startsWith('Filter:') &&
+                         !text.startsWith('Invoerveld:') &&
+                         !text.startsWith('Pagina:') &&
+                         !text.startsWith('Beschikbare knoppen') &&
+                         !text.startsWith('Navigatie'))
+          .map((text) => text.trim())
+          .toSet() // Remove duplicates
           .toList();
       
-      if (kataTexts.isNotEmpty) {
-        // Limit to first 5 kata items to avoid overwhelming speech
-        final limitedKataTexts = kataTexts.take(5).toList();
-        kataParts.addAll(limitedKataTexts);
+      debugPrint('TTS: Found ${meaningfulTexts.length} meaningful text elements');
+      print('🔍 TTS: Found ${meaningfulTexts.length} meaningful text elements: $meaningfulTexts');
+      
+      if (meaningfulTexts.isNotEmpty) {
+        // Sort by length (longer text first) to prioritize meaningful content
+        meaningfulTexts.sort((a, b) => b.length.compareTo(a.length));
         
-        if (kataTexts.length > 5) {
-          kataParts.add('En nog ${kataTexts.length - 5} meer kata technieken');
+        // Take the most meaningful content (up to 10 items to avoid overwhelming speech)
+        final limitedTexts = meaningfulTexts.take(10).toList();
+        kataParts.addAll(limitedTexts);
+        
+        if (meaningfulTexts.length > 10) {
+          kataParts.add('En nog ${meaningfulTexts.length - 10} meer items');
         }
+      } else {
+        debugPrint('TTS: No meaningful content found in kata cards');
+        print('⚠️ TTS: No meaningful content found in kata cards');
       }
       
     } catch (e) {
       debugPrint('TTS: Error extracting kata cards content: $e');
+      print('❌ TTS: Error extracting kata cards content: $e');
     }
     
     return kataParts.join('. ');
@@ -2373,18 +3495,25 @@ class UnifiedTTSService {
     final List<String> contentParts = [];
     
     try {
-      contentParts.add('Profiel pagina');
-      
-      // Extract user information
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
-        contentParts.add(mainContent);
-      }
-      
-      // Extract profile options
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
+      // Extract ALL visible text content comprehensively
+      final allVisibleText = _extractAllVisibleTextComprehensive(context);
+      if (allVisibleText.isNotEmpty) {
+        contentParts.addAll(allVisibleText);
+      } else {
+        // Fallback to structured extraction if comprehensive fails
+        contentParts.add('Profiel pagina');
+        
+        // Extract user information
+        final mainContent = _extractMainContent(context);
+        if (mainContent.isNotEmpty) {
+          contentParts.add(mainContent);
+        }
+        
+        // Extract profile options
+        final interactiveElements = _extractInteractiveElements(context);
+        if (interactiveElements.isNotEmpty) {
+          contentParts.add(interactiveElements);
+        }
       }
       
     } catch (e) {
@@ -2399,24 +3528,31 @@ class UnifiedTTSService {
     final List<String> contentParts = [];
     
     try {
-      contentParts.add('Forum pagina met berichten');
-      
-      // Extract forum posts with enhanced information
-      final forumPosts = _extractForumPostsContent(context);
-      if (forumPosts.isNotEmpty) {
-        contentParts.add('Forum berichten: $forumPosts');
-      }
-      
-      // Extract main content as fallback
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty && forumPosts.isEmpty) {
-        contentParts.add(mainContent);
-      }
-      
-      // Extract forum actions
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
+      // Extract ALL visible text content comprehensively
+      final allVisibleText = _extractAllVisibleTextComprehensive(context);
+      if (allVisibleText.isNotEmpty) {
+        contentParts.addAll(allVisibleText);
+      } else {
+        // Fallback to structured extraction if comprehensive fails
+        contentParts.add('Forum pagina met berichten');
+        
+        // Extract forum posts with enhanced information
+        final forumPosts = _extractForumPostsContent(context);
+        if (forumPosts.isNotEmpty) {
+          contentParts.add('Forum berichten: $forumPosts');
+        }
+        
+        // Extract main content as fallback
+        final mainContent = _extractMainContent(context);
+        if (mainContent.isNotEmpty && forumPosts.isEmpty) {
+          contentParts.add(mainContent);
+        }
+        
+        // Extract forum actions
+        final interactiveElements = _extractInteractiveElements(context);
+        if (interactiveElements.isNotEmpty) {
+          contentParts.add(interactiveElements);
+        }
       }
       
     } catch (e) {
@@ -2642,22 +3778,6 @@ class UnifiedTTSService {
   }
 }
 
-/// Screen types for intelligent content reading
-enum ScreenType {
-  overlay,
-  form,
-  auth,
-  home,
-  profile,
-  forum,
-  forumDetail,
-  createPost,
-  favorites,
-  userManagement,
-  avatarSelection,
-  accessibility,
-  generic,
-}
 
 /// Provider for the unified TTS service
 final unifiedTTSServiceProvider = Provider<UnifiedTTSService>((ref) {
