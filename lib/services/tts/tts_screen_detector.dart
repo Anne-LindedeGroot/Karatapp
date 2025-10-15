@@ -10,6 +10,9 @@ enum ScreenType {
   forum,
   forumDetail,
   createPost,
+  editPost,
+  createKata,
+  editKata,
   favorites,
   userManagement,
   avatarSelection,
@@ -101,12 +104,15 @@ class TTSScreenDetector {
 
   /// Get screen type from route name
   static ScreenType _getScreenTypeFromRoute(String routeName) {
-    switch (routeName.toLowerCase()) {
+    final lowerRouteName = routeName.toLowerCase();
+    
+    switch (lowerRouteName) {
       case '/':
       case '/home':
         return ScreenType.home;
       case '/login':
       case '/signup':
+      case '/auth':
         return ScreenType.auth;
       case '/profile':
         return ScreenType.profile;
@@ -116,6 +122,12 @@ class TTSScreenDetector {
         return ScreenType.forumDetail;
       case '/forum/create':
         return ScreenType.createPost;
+      case '/forum/edit':
+        return ScreenType.editPost;
+      case '/kata/create':
+        return ScreenType.createKata;
+      case '/kata/edit':
+        return ScreenType.editKata;
       case '/favorites':
         return ScreenType.favorites;
       case '/user-management':
@@ -125,6 +137,21 @@ class TTSScreenDetector {
       case '/accessibility-demo':
         return ScreenType.accessibility;
       default:
+        // Check for dynamic routes
+        if (lowerRouteName.contains('create') && lowerRouteName.contains('kata')) {
+          return ScreenType.createKata;
+        } else if (lowerRouteName.contains('edit') && lowerRouteName.contains('kata')) {
+          return ScreenType.editKata;
+        } else if (lowerRouteName.contains('create') && lowerRouteName.contains('post')) {
+          return ScreenType.createPost;
+        } else if (lowerRouteName.contains('edit') && lowerRouteName.contains('post')) {
+          return ScreenType.editPost;
+        } else if (lowerRouteName.contains('login') || 
+                   lowerRouteName.contains('signup') || 
+                   lowerRouteName.contains('auth') ||
+                   lowerRouteName.contains('register')) {
+          return ScreenType.auth;
+        }
         return ScreenType.generic;
     }
   }

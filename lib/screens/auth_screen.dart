@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../models/auth_state.dart';
 import '../utils/responsive_utils.dart';
+import '../services/unified_tts_service.dart';
+import '../providers/accessibility_provider.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -39,6 +41,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Auto-read page content when screen loads (similar to logout popup)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _readPageContent();
+    });
+  }
+  
+  /// Read the current page content using TTS
+  Future<void> _readPageContent() async {
+    try {
+      // Add a small delay to ensure the screen is fully rendered
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
+      
+      // Only proceed if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('AuthScreen TTS: TTS is not enabled, skipping auto-read');
+        return;
+      }
+      
+      // Use the unified TTS service to read the current screen (same as TTS button)
+      await UnifiedTTSService.readCurrentScreen(context, ref);
+      
+    } catch (e) {
+      debugPrint('AuthScreen TTS Error: $e');
+      // Don't rethrow the error to prevent screen from crashing
+    }
   }
 
   @override
@@ -76,6 +106,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         setState(() {
           _loginError = e.toString();
         });
+        // Clear the global error to prevent duplicate display in AuthWrapper
+        ref.read(authNotifierProvider.notifier).clearError();
       }
     } finally {
       if (mounted) {
@@ -131,6 +163,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         setState(() {
           _signupError = e.toString();
         });
+        // Clear the global error to prevent duplicate display in AuthWrapper
+        ref.read(authNotifierProvider.notifier).clearError();
       }
     } finally {
       if (mounted) {
@@ -152,21 +186,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 60.0, desktop: 80.0)),
             
             // App Logo/Title
-            Text(
-              'Welkom Terug',
-              style: TextStyle(
-                fontSize: context.responsiveValue(mobile: 28.0, tablet: 32.0, desktop: 36.0),
-                fontWeight: FontWeight.bold,
+            Semantics(
+              label: 'Welkom Terug, titel van de inlogpagina',
+              child: Text(
+                'Welkom Terug',
+                style: TextStyle(
+                  fontSize: context.responsiveValue(mobile: 28.0, tablet: 32.0, desktop: 36.0),
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
-            Text(
-              'Log in op je account',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
+            Semantics(
+              label: 'Log in op je account, instructie voor het inloggen',
+              child: Text(
+                'Log in op je account',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 50.0, desktop: 60.0)),
             
@@ -188,10 +228,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        _loginError!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                      child: Semantics(
+                        label: 'Foutmelding: $_loginError',
+                        child: Text(
+                          _loginError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
                     ),
@@ -200,47 +243,53 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               ),
             
             // Email field
-            TextFormField(
-              controller: _loginEmailController,
-              decoration: const InputDecoration(
-                labelText: 'E-mail',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(),
+            Semantics(
+              label: 'E-mail invoerveld voor het inloggen',
+              child: TextFormField(
+                controller: _loginEmailController,
+                decoration: const InputDecoration(
+                  labelText: 'E-mail',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Voer je e-mailadres in';
+                  }
+                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                    return 'Voer een geldig e-mailadres in';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Voer je e-mailadres in';
-                }
-                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                  return 'Voer een geldig e-mailadres in';
-                }
-                return null;
-              },
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Password field
-            TextFormField(
-              controller: _loginPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'Wachtwoord',
-                prefixIcon: Icon(Icons.lock_outlined),
-                border: OutlineInputBorder(),
+            Semantics(
+              label: 'Wachtwoord invoerveld voor het inloggen',
+              child: TextFormField(
+                controller: _loginPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Wachtwoord',
+                  prefixIcon: Icon(Icons.lock_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _signIn(),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Voer je wachtwoord in';
+                  }
+                  if (value.length < 6) {
+                    return 'Wachtwoord moet minimaal 6 tekens zijn';
+                  }
+                  return null;
+                },
               ),
-              obscureText: true,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _signIn(),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Voer je wachtwoord in';
-                }
-                if (value.length < 6) {
-                  return 'Wachtwoord moet minimaal 6 tekens zijn';
-                }
-                return null;
-              },
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
             
@@ -255,7 +304,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Inloggen'),
+                    : Semantics(
+                        label: 'Inloggen knop om in te loggen op je account',
+                        child: const Text('Inloggen'),
+                      ),
               ),
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
@@ -264,13 +316,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Nog geen account? ',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                Semantics(
+                  label: 'Nog geen account? Tekst om naar registratie te gaan',
+                  child: Text(
+                    'Nog geen account? ',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
                 TextButton(
                   onPressed: () => _tabController.animateTo(1),
-                  child: const Text('Registreren'),
+                  child: Semantics(
+                    label: 'Registreren knop om een nieuw account aan te maken',
+                    child: const Text('Registreren'),
+                  ),
                 ),
               ],
             ),
@@ -291,21 +349,27 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 50.0, desktop: 60.0)),
             
             // App Logo/Title
-            const Text(
-              'Account Aanmaken',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+            Semantics(
+              label: 'Account Aanmaken, titel van de registratiepagina',
+              child: const Text(
+                'Account Aanmaken',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(
-              'Word lid van de Karate gemeenschap',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            Semantics(
+              label: 'Word lid van de Karate gemeenschap, beschrijving van de registratie',
+              child: Text(
+                'Word lid van de Karate gemeenschap',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
             SizedBox(height: context.responsiveValue(mobile: 40.0, tablet: 50.0, desktop: 60.0)),
             
@@ -327,10 +391,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        _signupError!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
+                      child: Semantics(
+                        label: 'Foutmelding: $_signupError',
+                        child: Text(
+                          _signupError!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
                     ),
@@ -339,91 +406,103 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               ),
             
             // Name field
-            TextFormField(
-              controller: _signupNameController,
-              decoration: const InputDecoration(
-                labelText: 'Volledige Naam',
-                prefixIcon: Icon(Icons.person_outlined),
-                border: OutlineInputBorder(),
+            Semantics(
+              label: 'Volledige Naam invoerveld voor registratie',
+              child: TextFormField(
+                controller: _signupNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Volledige Naam',
+                  prefixIcon: Icon(Icons.person_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                textInputAction: TextInputAction.next,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Voer je volledige naam in';
+                  }
+                  if (value.trim().length < 2) {
+                    return 'Naam moet minimaal 2 tekens zijn';
+                  }
+                  return null;
+                },
               ),
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Voer je volledige naam in';
-                }
-                if (value.trim().length < 2) {
-                  return 'Naam moet minimaal 2 tekens zijn';
-                }
-                return null;
-              },
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Email field
-            TextFormField(
-              controller: _signupEmailController,
-              decoration: const InputDecoration(
-                labelText: 'E-mail',
-                prefixIcon: Icon(Icons.email_outlined),
-                border: OutlineInputBorder(),
+            Semantics(
+              label: 'E-mail invoerveld voor registratie',
+              child: TextFormField(
+                controller: _signupEmailController,
+                decoration: const InputDecoration(
+                  labelText: 'E-mail',
+                  prefixIcon: Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Voer je e-mailadres in';
+                  }
+                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                    return 'Voer een geldig e-mailadres in';
+                  }
+                  return null;
+                },
               ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Voer je e-mailadres in';
-                }
-                if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                  return 'Voer een geldig e-mailadres in';
-                }
-                return null;
-              },
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Password field
-            TextFormField(
-              controller: _signupPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'Wachtwoord',
-                prefixIcon: Icon(Icons.lock_outlined),
-                border: OutlineInputBorder(),
-                helperText: 'Minimaal 6 tekens',
+            Semantics(
+              label: 'Wachtwoord invoerveld voor registratie, minimaal 6 tekens',
+              child: TextFormField(
+                controller: _signupPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Wachtwoord',
+                  prefixIcon: Icon(Icons.lock_outlined),
+                  border: OutlineInputBorder(),
+                  helperText: 'Minimaal 6 tekens',
+                ),
+                obscureText: true,
+                textInputAction: TextInputAction.next,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Voer een wachtwoord in';
+                  }
+                  if (value.length < 6) {
+                    return 'Wachtwoord moet minimaal 6 tekens zijn';
+                  }
+                  return null;
+                },
               ),
-              obscureText: true,
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Voer een wachtwoord in';
-                }
-                if (value.length < 6) {
-                  return 'Wachtwoord moet minimaal 6 tekens zijn';
-                }
-                return null;
-              },
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Confirm password field
-            TextFormField(
-              controller: _signupConfirmPasswordController,
-              decoration: const InputDecoration(
-                labelText: 'Bevestig Wachtwoord',
-                prefixIcon: Icon(Icons.lock_outlined),
-                border: OutlineInputBorder(),
+            Semantics(
+              label: 'Bevestig Wachtwoord invoerveld voor registratie',
+              child: TextFormField(
+                controller: _signupConfirmPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Bevestig Wachtwoord',
+                  prefixIcon: Icon(Icons.lock_outlined),
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _signUp(),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Bevestig je wachtwoord';
+                  }
+                  if (value != _signupPasswordController.text) {
+                    return 'Wachtwoorden komen niet overeen';
+                  }
+                  return null;
+                },
               ),
-              obscureText: true,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _signUp(),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Bevestig je wachtwoord';
-                }
-                if (value != _signupPasswordController.text) {
-                  return 'Wachtwoorden komen niet overeen';
-                }
-                return null;
-              },
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
             
@@ -438,7 +517,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Account Aanmaken'),
+                    : Semantics(
+                        label: 'Account Aanmaken knop om een nieuw account te registreren',
+                        child: const Text('Account Aanmaken'),
+                      ),
               ),
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
@@ -447,13 +529,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Al een account? ',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                Semantics(
+                  label: 'Al een account? Tekst om naar inloggen te gaan',
+                  child: Text(
+                    'Al een account? ',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ),
                 TextButton(
                   onPressed: () => _tabController.animateTo(0),
-                      child: const Text('Inloggen'),
+                  child: Semantics(
+                    label: 'Inloggen knop om naar de inlogpagina te gaan',
+                    child: const Text('Inloggen'),
+                  ),
                 ),
               ],
             ),
@@ -483,17 +571,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               child: Column(
                 children: [
                   // App icon or logo could go here
-                  Icon(
-                    Icons.sports_martial_arts,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
+                  Semantics(
+                    label: 'Karate app logo, sportieve vechtkunst icoon',
+                    child: Icon(
+                      Icons.sports_martial_arts,
+                      size: 64,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                   SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
-                  Text(
-                    'Karatapp',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                  Semantics(
+                    label: 'Karatapp, naam van de applicatie',
+                    child: Text(
+                      'Karatapp',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -516,9 +610,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 labelColor: Theme.of(context).colorScheme.onPrimary,
                 unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
                 dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: 'Inloggen'),
-                  Tab(text: 'Registreren'),
+                tabs: [
+                  Tab(
+                    child: Semantics(
+                      label: 'Inloggen tab, klik om naar de inlogpagina te gaan',
+                      child: const Text('Inloggen'),
+                    ),
+                  ),
+                  Tab(
+                    child: Semantics(
+                      label: 'Registreren tab, klik om naar de registratiepagina te gaan',
+                      child: const Text('Registreren'),
+                    ),
+                  ),
                 ],
               ),
             ),

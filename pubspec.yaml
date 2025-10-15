@@ -79,8 +79,6 @@ dependencies:
   # Text-to-speech for accessibility
   flutter_tts: ^4.0.2
   
-  # Speech recognition for one-on-one TTS mode
-  speech_to_text: ^7.3.0
 
 dev_dependencies:
   flutter_test:

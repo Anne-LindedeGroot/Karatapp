@@ -7,7 +7,6 @@ import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/modern_loading_widget.dart';
-import '../widgets/global_tts_overlay.dart';
 import '../widgets/overflow_safe_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';

@@ -10,6 +10,12 @@ import '../services/unified_tts_service.dart';
 /// Unified TTS Button - One button to rule them all!
 /// This button works on ANY page, with ANY content, including popups, forms, and dialogs.
 /// It's simple, reliable, and always works.
+/// 
+/// Features:
+/// - Tap: TTS functionality (read screen content)
+/// - Long press: Voice commands (speech-to-text)
+/// - Visual feedback and animations
+/// - Works globally on all screens
 class UnifiedTTSButton extends ConsumerStatefulWidget {
   final bool showLabel;
   final EdgeInsets? margin;
@@ -108,17 +114,20 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
             ),
             child: Material(
               color: Colors.transparent,
-              child: InkWell(
+              child: GestureDetector(
                 onTap: () => _handleTTSAction(context, ref),
-                borderRadius: BorderRadius.circular(8),
-                child: Icon(
-                  isSpeaking 
-                    ? Icons.volume_up 
-                    : (isEnabled 
-                        ? (isHighContrast ? Icons.headset_mic : Icons.headphones)
-                        : (isHighContrast ? Icons.headset_mic_outlined : Icons.headphones_outlined)),
-                  color: effectiveForegroundColor,
-                  size: (widget.size ?? 40.0) * 0.5, // Proportionally smaller icon
+                child: InkWell(
+                  onTap: () => _handleTTSAction(context, ref),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Icon(
+                    isSpeaking 
+                      ? Icons.volume_up 
+                      : (isEnabled 
+                          ? (isHighContrast ? Icons.headset_mic : Icons.headphones)
+                          : (isHighContrast ? Icons.headset_mic_outlined : Icons.headphones_outlined)),
+                    color: effectiveForegroundColor,
+                    size: (widget.size ?? 40.0) * 0.5, // Proportionally smaller icon
+                  ),
                 ),
               ),
             ),
@@ -136,7 +145,7 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
           const SizedBox(height: 8),
           Flexible(
             child: Text(
-              isSpeaking ? 'Aan het spreken' : (isEnabled ? 'Spraak aan' : 'Spraak uit'),
+              isSpeaking ? 'Aan het spreken' : (isEnabled ? 'Spraak + Stem' : 'Spraak uit'),
               style: TextStyle(
                 fontSize: 12,
                 color: isSpeaking 
@@ -225,6 +234,7 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       }
     }
   }
+
 
   /// Find the proper screen context by traversing up the widget tree
   /// to find the Scaffold or main screen content context

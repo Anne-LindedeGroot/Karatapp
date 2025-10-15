@@ -16,19 +16,25 @@ class KataCardInteractions {
   static Future<void> speakKataContent(WidgetRef ref, Kata kata) async {
     try {
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSProvider);
       
-      // Build comprehensive content for TTS
+      // Build content for TTS based on settings
       final content = StringBuffer();
+      
+      // Always include kata name
       content.write('Kata: ${kata.name}. ');
       
+      // Always include style (this is important kata information)
       if (kata.style.isNotEmpty && kata.style != 'Unknown') {
         content.write('Stijl: ${kata.style}. ');
       }
       
-      if (kata.description.isNotEmpty) {
+      // Include description only if not skipping general info
+      if (!skipGeneralInfo && kata.description.isNotEmpty) {
         content.write('Beschrijving: ${kata.description}. ');
       }
       
+      // Always include media information (this is specific content, not general info)
       if (kata.imageUrls?.isNotEmpty == true) {
         content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
       }

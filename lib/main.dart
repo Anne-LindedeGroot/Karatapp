@@ -10,8 +10,6 @@ import 'providers/accessibility_provider.dart';
 import 'providers/error_boundary_provider.dart';
 import 'widgets/global_tts_overlay.dart';
 import 'widgets/global_overflow_handler.dart';
-import 'widgets/overflow_safe_widgets.dart';
-import 'widgets/render_box_protection.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -366,7 +364,7 @@ class _MyAppState extends ConsumerState<MyApp> {
                   ),
                 );
 
-                // Simplified protection - just error catching and TTS overlay
+                // Simplified protection - just error catching and overlays
                 return OverflowErrorCatcher(
                   enableErrorCatching: true,
                   child: GlobalTTSOverlay(

@@ -45,8 +45,8 @@ class GlobalTTSOverlay extends ConsumerWidget {
           
           // Calculate safe positioning
           final buttonSize = 56.0;
-          final rightMargin = 8.0;
-          final bottomMargin = 120.0;
+          final rightMargin = 16.0; // Increased margin for better visibility
+          final bottomMargin = 100.0; // Adjusted for better positioning
           
           // Ensure button fits within available space
           final availableWidth = constraints.maxWidth;

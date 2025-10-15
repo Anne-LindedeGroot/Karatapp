@@ -24,6 +24,7 @@ class AccessibilityState {
   final bool useHeadphones;
   final bool isSpeaking;
   final bool showTTSButton;
+  final bool skipGeneralInfoInTTS;
 
   const AccessibilityState({
     this.fontSize = AccessibilityFontSize.normal,
@@ -34,6 +35,7 @@ class AccessibilityState {
     this.useHeadphones = true,
     this.isSpeaking = false,
     this.showTTSButton = true,
+    this.skipGeneralInfoInTTS = false,
   });
 
   AccessibilityState copyWith({
@@ -45,6 +47,7 @@ class AccessibilityState {
     bool? useHeadphones,
     bool? isSpeaking,
     bool? showTTSButton,
+    bool? skipGeneralInfoInTTS,
   }) {
     return AccessibilityState(
       fontSize: fontSize ?? this.fontSize,
@@ -55,6 +58,7 @@ class AccessibilityState {
       useHeadphones: useHeadphones ?? this.useHeadphones,
       isSpeaking: isSpeaking ?? this.isSpeaking,
       showTTSButton: showTTSButton ?? this.showTTSButton,
+      skipGeneralInfoInTTS: skipGeneralInfoInTTS ?? this.skipGeneralInfoInTTS,
     );
   }
 
@@ -96,7 +100,9 @@ class AccessibilityState {
         other.speechRate == speechRate &&
         other.speechPitch == speechPitch &&
         other.useHeadphones == useHeadphones &&
-        other.isSpeaking == isSpeaking;
+        other.isSpeaking == isSpeaking &&
+        other.showTTSButton == showTTSButton &&
+        other.skipGeneralInfoInTTS == skipGeneralInfoInTTS;
   }
 
   @override
@@ -106,11 +112,13 @@ class AccessibilityState {
       speechRate.hashCode ^ 
       speechPitch.hashCode ^
       useHeadphones.hashCode ^
-      isSpeaking.hashCode;
+      isSpeaking.hashCode ^
+      showTTSButton.hashCode ^
+      skipGeneralInfoInTTS.hashCode;
 
   @override
   String toString() {
-    return 'AccessibilityState(fontSize: $fontSize, isDyslexiaFriendly: $isDyslexiaFriendly, isTextToSpeechEnabled: $isTextToSpeechEnabled, speechRate: $speechRate, speechPitch: $speechPitch, useHeadphones: $useHeadphones, isSpeaking: $isSpeaking)';
+    return 'AccessibilityState(fontSize: $fontSize, isDyslexiaFriendly: $isDyslexiaFriendly, isTextToSpeechEnabled: $isTextToSpeechEnabled, speechRate: $speechRate, speechPitch: $speechPitch, useHeadphones: $useHeadphones, isSpeaking: $isSpeaking, showTTSButton: $showTTSButton, skipGeneralInfoInTTS: $skipGeneralInfoInTTS)';
   }
 }
 
@@ -123,6 +131,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   static const String _speechPitchKey = 'accessibility_speech_pitch';
   static const String _useHeadphonesKey = 'accessibility_use_headphones';
   static const String _showTTSButtonKey = 'accessibility_show_tts_button';
+  static const String _skipGeneralInfoInTTSKey = 'accessibility_skip_general_info_in_tts';
 
   late FlutterTts _flutterTts;
   bool _isTtsInitialized = false;
@@ -391,6 +400,9 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       // Load TTS button visibility setting
       final showTTSButton = prefs.getBool(_showTTSButtonKey) ?? true;
 
+      // Load skip general info in TTS setting
+      final skipGeneralInfoInTTS = prefs.getBool(_skipGeneralInfoInTTSKey) ?? false;
+
       state = AccessibilityState(
         fontSize: fontSize,
         isDyslexiaFriendly: isDyslexiaFriendly,
@@ -399,6 +411,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
         speechPitch: speechPitch,
         useHeadphones: useHeadphones,
         showTTSButton: showTTSButton,
+        skipGeneralInfoInTTS: skipGeneralInfoInTTS,
       );
 
       // Update TTS settings if initialized
@@ -423,6 +436,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       await prefs.setDouble(_speechPitchKey, state.speechPitch);
       await prefs.setBool(_useHeadphonesKey, state.useHeadphones);
       await prefs.setBool(_showTTSButtonKey, state.showTTSButton);
+      await prefs.setBool(_skipGeneralInfoInTTSKey, state.skipGeneralInfoInTTS);
     } catch (e) {
       debugPrint('Error saving accessibility preferences: $e');
     }
@@ -518,6 +532,17 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   Future<void> toggleShowTTSButton() async {
     final newValue = !state.showTTSButton;
     await setShowTTSButton(newValue);
+  }
+
+  /// Set skip general info in TTS
+  Future<void> setSkipGeneralInfoInTTS(bool skip) async {
+    state = state.copyWith(skipGeneralInfoInTTS: skip);
+    await _saveAccessibilityToPreferences();
+  }
+
+  /// Toggle skip general info in TTS
+  Future<void> toggleSkipGeneralInfoInTTS() async {
+    await setSkipGeneralInfoInTTS(!state.skipGeneralInfoInTTS);
   }
 
   /// Speak text using text-to-speech with improved error handling
@@ -748,6 +773,10 @@ final isSpeakingProvider = Provider<bool>((ref) {
 
 final showTTSButtonProvider = Provider<bool>((ref) {
   return ref.watch(accessibilityNotifierProvider).showTTSButton;
+});
+
+final skipGeneralInfoInTTSProvider = Provider<bool>((ref) {
+  return ref.watch(accessibilityNotifierProvider).skipGeneralInfoInTTS;
 });
 
 final fontSizeDescriptionProvider = Provider<String>((ref) {

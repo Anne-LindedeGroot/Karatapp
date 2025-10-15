@@ -639,6 +639,12 @@ class UnifiedTTSService {
           textContent.add(widget.controller!.text);
           debugPrint('TTS: Aggressive found TextField content: ${widget.controller!.text}');
         }
+      } else if (widget is TextFormField) {
+        // Note: TextFormField decoration is not directly accessible, so we skip hint text
+        if (widget.controller?.text != null && widget.controller!.text.isNotEmpty) {
+          textContent.add(widget.controller!.text);
+          debugPrint('TTS: Aggressive found TextFormField content: ${widget.controller!.text}');
+        }
       }
       
       // Recursively visit child elements
@@ -736,6 +742,13 @@ class UnifiedTTSService {
           final inputText = _processDutchText(widget.controller!.text);
           textContent.add('Ingevoerde tekst: $inputText');
           debugPrint('TTS: Found TextField content: "$inputText"');
+        }
+      } else if (widget is TextFormField) {
+        // Note: TextFormField decoration is not directly accessible, so we skip hint text
+        if (widget.controller?.text != null && widget.controller!.text.isNotEmpty) {
+          final inputText = _processDutchText(widget.controller!.text);
+          textContent.add('Ingevoerde tekst: $inputText');
+          debugPrint('TTS: Found TextFormField content: "$inputText"');
         }
       } else if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
         if (widget is ButtonStyleButton && widget.child is Text) {
@@ -1144,6 +1157,16 @@ class UnifiedTTSService {
           final hintText = _processDutchText(widget.decoration!.hintText!);
           textContent.add('Invoerveld: $hintText');
         }
+        if (widget.controller?.text != null && widget.controller!.text.isNotEmpty) {
+          final inputText = _processDutchText(widget.controller!.text);
+          textContent.add('Ingevoerde tekst: $inputText');
+        }
+        return;
+      }
+      
+      // Handle TextFormField widgets (same as TextField but for forms)
+      if (widget is TextFormField) {
+        // Note: TextFormField decoration is not directly accessible, so we skip hint text
         if (widget.controller?.text != null && widget.controller!.text.isNotEmpty) {
           final inputText = _processDutchText(widget.controller!.text);
           textContent.add('Ingevoerde tekst: $inputText');
@@ -2301,6 +2324,15 @@ class UnifiedTTSService {
         return;
       }
       
+      // Handle TextFormField widgets (same as TextField but for forms)
+      if (widget is TextFormField) {
+        // Note: TextFormField decoration is not directly accessible, so we skip hint text
+        if (widget.controller?.text != null && widget.controller!.text.isNotEmpty) {
+          textContent.add('Ingevoerde tekst: ${widget.controller!.text}');
+        }
+        return;
+      }
+      
       // Handle buttons with text
       if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
         // Try to extract text from button child
@@ -2629,6 +2661,12 @@ class UnifiedTTSService {
           textContent.add('Ingevoerde tekst: ${widget.controller!.text}');
           debugPrint('TTS: Found TextField content: "${widget.controller!.text}"');
         }
+      } else if (widget is TextFormField) {
+        // Note: TextFormField decoration is not directly accessible, so we skip hint text
+        if (widget.controller?.text != null && widget.controller!.text.isNotEmpty) {
+          textContent.add('Ingevoerde tekst: ${widget.controller!.text}');
+          debugPrint('TTS: Found TextFormField content: "${widget.controller!.text}"');
+        }
       } else if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
         if (widget is ButtonStyleButton && widget.child is Text) {
           final text = (widget.child as Text).data;
@@ -2719,6 +2757,10 @@ class UnifiedTTSService {
       // Generate content based on route and title
       if (route.contains('home') || route.contains('Home') || pageTitle.toLowerCase().contains('home')) {
         return 'Je bent op de hoofdpagina van de Karate app. Hier kun je navigeren naar verschillende onderdelen zoals kata\'s, het forum, en je profiel. Gebruik de navigatie knoppen onderaan het scherm om door de app te bewegen.';
+      } else if (route.contains('auth') || route.contains('login') || route.contains('signup') || 
+                 route.contains('Auth') || route.contains('Login') || route.contains('Signup') ||
+                 pageTitle.toLowerCase().contains('inlog') || pageTitle.toLowerCase().contains('registr')) {
+        return 'Je bent op de inlog en registratie pagina van de Karate app. Hier kun je inloggen met je bestaande account of een nieuw account aanmaken. Gebruik de tabbladen bovenaan om tussen inloggen en registreren te wisselen. Vul je e-mailadres en wachtwoord in en klik op de knop om in te loggen of te registreren.';
       } else if (route.contains('kata') || route.contains('Kata') || pageTitle.toLowerCase().contains('kata')) {
         return 'Je bent in de kata sectie. Hier kun je verschillende karate kata\'s bekijken en oefenen. Scroll door de lijst om verschillende technieken te vinden.';
       } else if (route.contains('forum') || route.contains('Forum') || pageTitle.toLowerCase().contains('forum')) {
@@ -3422,6 +3464,18 @@ class UnifiedTTSService {
           }
         }
         
+        // Check for TextFormField widgets (same as TextField but for forms)
+        else if (widget is TextFormField) {
+          // Note: TextFormField decoration is not directly accessible, so we skip hint text
+          if (widget.controller?.text != null && widget.controller!.text.trim().isNotEmpty) {
+            final fieldText = widget.controller!.text.trim();
+            if (fieldText.length > 2 && !_isStrangeUnicodeCharacter(fieldText)) {
+              textContent.add(fieldText);
+              debugPrint('TTS: Widget-specific found TextFormField content: $fieldText');
+            }
+          }
+        }
+        
         // Check for Card widgets (common in kata cards)
         else if (widget is Card) {
           _extractTextFromWidgetRecursively(widget, textContent);
@@ -3814,6 +3868,7 @@ class UnifiedTTSService {
   static Map<String, dynamic> getCacheStats() {
     return TTSCacheManager.getCacheStats();
   }
+
 }
 
 

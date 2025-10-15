@@ -44,19 +44,23 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   Future<void> _speakKataContent(Kata kata, int index) async {
     try {
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSProvider);
       
-      // Build comprehensive content for TTS
+      // Build content for TTS based on settings
       final content = StringBuffer();
       content.write('Kata $index: ${kata.name}. ');
       
+      // Always include style (this is important kata information)
       if (kata.style.isNotEmpty && kata.style != 'Unknown') {
         content.write('Stijl: ${kata.style}. ');
       }
       
-      if (kata.description.isNotEmpty) {
+      // Include description only if not skipping general info
+      if (!skipGeneralInfo && kata.description.isNotEmpty) {
         content.write('Beschrijving: ${kata.description}. ');
       }
       
+      // Always include media information (this is specific content, not general info)
       if (kata.imageUrls?.isNotEmpty == true) {
         content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
       }

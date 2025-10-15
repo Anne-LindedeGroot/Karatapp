@@ -23,6 +23,7 @@ import '../services/unified_tts_service.dart';
 import 'kata_card/kata_card_media.dart';
 import 'kata_card/kata_card_interactions.dart';
 import 'kata_card/kata_card_layout.dart';
+import 'kata_card/kata_card_tts_toggle.dart';
 
 class CollapsibleKataCard extends ConsumerStatefulWidget {
   final Kata kata;
@@ -60,20 +61,48 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
   Future<void> _speakKataContent() async {
     try {
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSProvider);
       final kata = widget.kata;
       
-      // Build comprehensive content for TTS
+      // Build content for TTS based on settings
       final content = StringBuffer();
+      
+      // Always include kata name
       content.write('Kata: ${kata.name}. ');
       
+      // Always include style (this is important kata information)
       if (kata.style.isNotEmpty && kata.style != 'Unknown') {
         content.write('Stijl: ${kata.style}. ');
       }
       
+      // Handle description based on skip setting
       if (kata.description.isNotEmpty) {
-        content.write('Beschrijving: ${kata.description}. ');
+        if (skipGeneralInfo) {
+          // Only include "Kata uitleg:" section, skip general information
+          final descriptionParts = kata.description.split('\n');
+          final kataUitlegParts = <String>[];
+          bool foundKataUitleg = false;
+          
+          for (final part in descriptionParts) {
+            if (part.toLowerCase().contains('kata uitleg:')) {
+              foundKataUitleg = true;
+              kataUitlegParts.add(part);
+            } else if (foundKataUitleg) {
+              // Add subsequent paragraphs to kata uitleg section
+              kataUitlegParts.add(part);
+            }
+          }
+          
+          if (foundKataUitleg) {
+            content.write('${kataUitlegParts.join(' ')}. ');
+          }
+        } else {
+          // Include full description
+          content.write('Beschrijving: ${kata.description}. ');
+        }
       }
       
+      // Always include media information (this is specific content, not general info)
       if (kata.imageUrls?.isNotEmpty == true) {
         content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
       }
@@ -176,6 +205,26 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                       mainAxisSize: MainAxisSize.min,
                       enableWrapping: false,
                       children: [
+                        // TTS Toggle with label
+                        Consumer(
+                          builder: (context, ref, child) {
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Skip algemene info:',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontSize: context.responsiveValue(mobile: 10.0, tablet: 11.0, desktop: 12.0),
+                                  ),
+                                ),
+                                SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                                CompactKataCardTTSToggle(),
+                              ],
+                            );
+                          },
+                        ),
+                        SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
                         // Edit button - Responsive
                         Semantics(
                           label: 'Bewerk kata ${kata.name}',
