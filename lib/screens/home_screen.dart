@@ -7,9 +7,9 @@ import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/modern_loading_widget.dart';
-import 'home/home_search_section.dart';
-import 'home/home_kata_list.dart';
-import 'home/home_dialogs.dart';
+import '../widgets/cleaning_animation_widget.dart';
+import '../widgets/global_tts_overlay.dart';
+import '../widgets/overflow_safe_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/role_provider.dart';
@@ -17,11 +17,9 @@ import '../providers/network_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../services/role_service.dart';
-import '../services/unified_tts_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/responsive_utils.dart';
 import '../core/theme/app_theme.dart';
-import '../widgets/global_tts_overlay.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -50,14 +48,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _announcePageLoad() async {
-    try {
-      // Use the unified TTS service to read actual screen content
-      await UnifiedTTSService.readCurrentScreen(context, ref);
-    } catch (e) {
-      debugPrint('Error announcing page load: $e');
-    }
-  }
 
 
   Future<void> _refreshKatas() async {
@@ -69,95 +59,138 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await ref.read(kataNotifierProvider.notifier).refreshKatas();
   }
 
-  Future<void> _cleanupOrphanedImages() async {
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => ResponsiveDialog(
-        title: 'Verweesde afbeeldingen opruimen?',
-        child: const Text(
-          'Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen. '
-          'Dit omvat afbeeldingen in mappen zoals "0" of "temp_" die mogelijk zijn achtergebleven. '
-          'Deze actie kan niet ongedaan worden gemaakt.',
-          semanticsLabel: 'Waarschuwing bericht: Dit zal scannen naar en verwijderen van afbeeldingen die niet bij een bestaande kata horen. Dit omvat afbeeldingen in mappen zoals nul of temp die mogelijk zijn achtergebleven. Deze actie kan niet ongedaan worden gemaakt.',
+  Future<void> _safeCleanupTempFolders() async {
+    if (!context.mounted) return;
+    
+    try {
+      // Show confirmation dialog with enhanced styling
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => DialogTTSOverlay(
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: context.isTablet ? 450 : 350,
+                maxHeight: context.isTablet ? 400 : 300,
+              ),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Warning icon
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.orange.shade50,
+                    ),
+                    child: Icon(
+                      Icons.cleaning_services,
+                      size: 40,
+                      color: Colors.orange.shade600,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 20),
+                  
+                  // Title
+                  Text(
+                    'Tijdelijke bestanden opruimen?',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Description
+                  Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    'Dit zal alleen tijdelijke mappen opruimen zoals "temp_upload", "temp_processing" en "temp_backup". '
+                    'Uw kata afbeeldingen blijven volledig veilig. Deze actie kan niet ongedaan worden gemaakt.',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade700,
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    overflow: TextOverflow.visible,
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Annuleren',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Opruimen',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'Annuleren',
-              semanticsLabel: 'Annuleren knop om het opruimen te annuleren en terug te gaan',
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text(
-              'Opruimen',
-              semanticsLabel: 'Opruimen knop om te bevestigen en de verweesde afbeeldingen te verwijderen',
-            ),
-          ),
-        ],
       ),
     );
 
-    if (confirmed == true) {
-      try {
-        // Show loading indicator
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Row(
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(width: 16),
-                  Text('Scannen naar verweesde afbeeldingen...'),
-                ],
-              ),
-              duration: Duration(seconds: 30),
-            ),
-          );
-        }
-
-        // Run cleanup using provider
-        final deletedPaths = await ref
-            .read(kataNotifierProvider.notifier)
-            .cleanupOrphanedImages();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
-          if (deletedPaths.isNotEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '${deletedPaths.length} verweesde afbeeldingen succesvol opgeruimd',
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Geen verweesde afbeeldingen gevonden - opslag is schoon!'),
-                backgroundColor: Colors.blue,
-                duration: Duration(seconds: 3),
-              ),
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Fout tijdens opruimen: $e'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
+      if (confirmed == true && context.mounted) {
+        // Use the enhanced cleaning service with animations
+        await EnhancedCleaningService.performCleaningWithAnimation(context, ref);
+      }
+    } catch (e) {
+      debugPrint('Error in _safeCleanupTempFolders: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout bij opruimen: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -237,53 +270,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _showLogoutConfirmationDialog() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => ResponsiveDialog(
+      builder: (context) => TTSResponsiveDialog(
         title: 'Uitloggen',
         child: const Text(
           'Weet je/u zeker dat je uit wilt loggen?',
           semanticsLabel: 'Bevestiging bericht: Weet je zeker dat je uit wilt loggen?',
         ),
         actions: [
-          Flexible(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.lightGreenAccent,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              child: const Text(
-                'Nee dankje makker!',
-                semanticsLabel: 'Nee dankje makker! Knop om uitloggen te annuleren en in de app te blijven',
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.lightGreenAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            child: const Text(
+              'Nee dankje makker!',
+              semanticsLabel: 'Nee dankje makker! Knop om uitloggen te annuleren en in de app te blijven',
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
-          Flexible(
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.lightBlueAccent,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              child: const Text(
-                'Ja tuurlijk!',
-                semanticsLabel: 'Ja tuurlijk! Knop om te bevestigen en uit te loggen van de applicatie',
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.lightBlueAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            child: const Text(
+              'Ja tuurlijk!',
+              semanticsLabel: 'Ja tuurlijk! Knop om te bevestigen en uit te loggen van de applicatie',
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],
+        autoReadContent: true, // Explicitly enable auto-read
       ),
     );
 
     if (confirmed == true) {
-      await ref.read(authNotifierProvider.notifier).signOut();
-      if (mounted) {
-        context.go('/login');
+      try {
+        await ref.read(authNotifierProvider.notifier).signOut();
+        if (mounted) {
+          // Use a post-frame callback to ensure navigation happens after the widget tree is stable
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              context.go('/login');
+            }
+          });
+        }
+      } catch (e) {
+        // Handle logout errors gracefully
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Uitloggen mislukt: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -317,6 +364,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
           crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
           childAspectRatio: 0.8,
+          shrinkWrap: false,
+          physics: const AlwaysScrollableScrollPhysics(),
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
@@ -332,6 +381,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
           crossAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
           childAspectRatio: 0.85,
+          shrinkWrap: false,
+          physics: const AlwaysScrollableScrollPhysics(),
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
@@ -347,6 +398,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
           crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
           childAspectRatio: 0.9,
+          shrinkWrap: false,
+          physics: const AlwaysScrollableScrollPhysics(),
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
@@ -362,6 +415,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
           crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
           childAspectRatio: 0.9,
+          shrinkWrap: false,
+          physics: const AlwaysScrollableScrollPhysics(),
           children: katas.map((kata) => CollapsibleKataCard(
             kata: kata,
             onDelete: () => _deleteKata(kata.id, kata.name),
@@ -424,6 +479,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           top: 8,
           bottom: 16,
         ),
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
@@ -438,6 +495,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         childAspectRatio: 0.8,
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
@@ -453,6 +512,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.sm),
         childAspectRatio: 0.85,
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
@@ -468,6 +529,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         childAspectRatio: 0.9,
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
@@ -483,6 +546,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         childAspectRatio: 0.9,
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => _deleteKata(kata.id, kata.name),
@@ -588,15 +653,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
     );
 
-    return GlobalTTSOverlay(
-        child: GestureDetector(
-        onTap: () {
-          // Remove focus from search field when tapping outside
-          _searchFocusNode.unfocus();
-        },
-        child: Scaffold(
+    return GestureDetector(
+      onTap: () {
+        // Remove focus from search field when tapping outside
+        _searchFocusNode.unfocus();
+      },
+      child: Scaffold(
           appBar: AppBar(
-          title: const Text("Karatapp"),
+            title: const Text("Karatapp"),
           actions: [
             // Accessibility quick actions in app bar
             Consumer(
@@ -604,9 +668,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 final accessibilityState = ref.watch(accessibilityNotifierProvider);
                 final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
                 
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 200),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     
                     // Combined accessibility settings popup
                     PopupMenuButton<String>(
@@ -667,6 +733,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         PopupMenuItem<String>(
                           value: 'toggle_dyslexia',
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 accessibilityState.isDyslexiaFriendly 
@@ -678,7 +745,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     : null,
                               ),
                               const SizedBox(width: 12),
-                              Expanded(
+                              const Flexible(
                                 child: Text('Dyslexie vriendelijk'),
                               ),
                               Switch(
@@ -705,7 +772,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       },
                     ),
                   ],
-                );
+                ),
+              );
               },
             ),
             
@@ -730,29 +798,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 itemBuilder: (context) => [
                   PopupMenuItem<String>(
                     // ignore: sort_child_properties_last
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            currentUser?.userMetadata?['full_name'] ??
-                                currentUser?.email ??
-                                'User',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                        ),
-                      ],
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 200),
+                      child: Text(
+                        currentUser?.userMetadata?['full_name'] ??
+                            currentUser?.email ??
+                            'User',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     ),
                     enabled: false,
                   ),
                   const PopupMenuDivider(),
                   PopupMenuItem<String>(
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.person, size: 20),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        const Flexible(
                           child: Text(
                             'Profiel',
                             overflow: TextOverflow.ellipsis,
@@ -772,10 +838,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   PopupMenuItem<String>(
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.favorite, size: 20),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        const Flexible(
                           child: Text(
                             'Mijn Favorieten',
                             overflow: TextOverflow.ellipsis,
@@ -797,10 +864,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   if (isHost)
                     PopupMenuItem<String>(
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.admin_panel_settings, size: 20),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        const Flexible(
                           child: Text(
                             'Gebruikersbeheer',
                             overflow: TextOverflow.ellipsis,
@@ -821,10 +889,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   if (isHost)
                     PopupMenuItem<String>(
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.cleaning_services, size: 20),
                           const SizedBox(width: 12),
-                          const Expanded(
+                          const Flexible(
                             child: Text(
                               'Afbeeldingen opruimen',
                               overflow: TextOverflow.ellipsis,
@@ -837,7 +906,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         // Add a slight delay to ensure the popup menu closes first
                         Future.microtask(() {
                           if (context.mounted) {
-                            _cleanupOrphanedImages();
+                            try {
+                              _safeCleanupTempFolders();
+                            } catch (e) {
+                              debugPrint('Error in cleanup: $e');
+                              // Show a simple error message if cleanup fails
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Fout bij opruimen: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
                           }
                         });
                       },
@@ -917,10 +997,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         final themeNotifier = ref.read(themeNotifierProvider.notifier);
                         
                         return Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             const Icon(Icons.contrast, size: 20),
                             const SizedBox(width: 12),
-                            const Expanded(
+                            const Flexible(
                               child: Text(
                                 'Hoog Contrast',
                                 overflow: TextOverflow.ellipsis,
@@ -942,10 +1023,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   const PopupMenuDivider(),
                   PopupMenuItem<String>(
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.logout, size: 20, color: Colors.red),
                         const SizedBox(width: 12),
-                        const Expanded(
+                        const Flexible(
                           child: Text(
                             'Uitloggen', 
                             style: TextStyle(color: Colors.red),
@@ -983,32 +1065,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   borderRadius: context.responsiveBorderRadius,
                   border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.error, 
-                      color: Colors.red,
-                      size: AppTheme.getResponsiveIconSize(context),
-                    ),
-                    SizedBox(width: context.responsiveSpacing(SpacingSize.sm)),
-                    Expanded(
-                      child: Text(
-                        'Error: $error',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.red,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: double.infinity),
+                  child: OverflowSafeRow(
+                    children: [
+                      Icon(
+                        Icons.error, 
+                        color: Colors.red,
+                        size: AppTheme.getResponsiveIconSize(context),
+                      ),
+                      SizedBox(width: context.responsiveSpacing(SpacingSize.sm)),
+                      OverflowSafeExpanded(
+                        child: OverflowSafeText(
+                          'Fout: $error',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.red,
+                          ),
+                          maxLines: 2,
                         ),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        ref.read(kataNotifierProvider.notifier).clearError();
-                      },
-                      child: const Text('Dismiss'),
-                    ),
-                  ],
+                      OverflowSafeButton(
+                        onPressed: () {
+                          ref.read(kataNotifierProvider.notifier).clearError();
+                        },
+                        isElevated: false,
+                        child: const Text('Sluiten'),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            // Responsive kata list
+            // Responsive kata list with flexible height - use Expanded instead of OverflowSafeExpanded
             Expanded(
               child: isLoading
                   ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
@@ -1016,7 +1103,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onRefresh: _refreshKatas,
                       child: katas.isEmpty
                           ? Center(
-                              child: Text(
+                              child: OverflowSafeText(
                                 'Geen kata\'s gevonden',
                                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                                   color: Colors.grey,
@@ -1041,7 +1128,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
       ),
-    ),
     );
   }
 
@@ -1073,19 +1159,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     bottom: BorderSide(color: Colors.grey, width: 0.5),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.sports_martial_arts, color: Colors.blue, size: 28),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        "Nieuwe Kata Toevoegen",
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: double.infinity),
+                  child: Row(
+                    children: [
+                      Icon(Icons.sports_martial_arts, color: Colors.blue, size: 28),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "Nieuwe Kata Toevoegen",
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               content: SizedBox(

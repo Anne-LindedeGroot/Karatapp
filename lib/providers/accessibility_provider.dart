@@ -221,32 +221,67 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       final engines = await _flutterTts.getEngines;
       debugPrint('Available TTS engines: $engines');
       
-      // Try to use Samsung TTS if available (common on Samsung devices)
-      final samsungEngine = engines.firstWhere(
-        (engine) => engine['name'].toString().contains('samsung') || 
-                   engine['name'].toString().contains('Samsung'),
-        orElse: () => <String, dynamic>{},
-      );
+      if (engines == null || engines.isEmpty) {
+        debugPrint('No TTS engines available, using default');
+        return;
+      }
       
-      if (samsungEngine.isNotEmpty) {
-        debugPrint('Using Samsung TTS engine: ${samsungEngine['name']}');
-        await _flutterTts.setEngine(samsungEngine['name']);
-      } else {
-        // Try Google TTS as fallback
-        final googleEngine = engines.firstWhere(
-          (engine) => engine['name'].toString().contains('google') || 
-                     engine['name'].toString().contains('Google'),
+      // Try to use Samsung TTS if available (common on Samsung devices)
+      Map<String, dynamic>? samsungEngine;
+      try {
+        samsungEngine = engines.firstWhere(
+          (engine) {
+            if (engine is Map<String, dynamic>) {
+              final name = engine['name']?.toString() ?? '';
+              return name.toLowerCase().contains('samsung');
+            }
+            return false;
+          },
           orElse: () => <String, dynamic>{},
         );
-        
-        if (googleEngine.isNotEmpty) {
-          debugPrint('Using Google TTS engine: ${googleEngine['name']}');
-          await _flutterTts.setEngine(googleEngine['name']);
-        } else {
-          // Use default engine
-          debugPrint('Using default TTS engine');
+      } catch (e) {
+        debugPrint('Error finding Samsung engine: $e');
+        samsungEngine = <String, dynamic>{};
+      }
+      
+      if (samsungEngine != null && samsungEngine.isNotEmpty) {
+        final engineName = samsungEngine['name']?.toString() ?? '';
+        if (engineName.isNotEmpty) {
+          debugPrint('Using Samsung TTS engine: $engineName');
+          await _flutterTts.setEngine(engineName);
+          return;
         }
       }
+      
+      // Try Google TTS as fallback
+      Map<String, dynamic>? googleEngine;
+      try {
+        googleEngine = engines.firstWhere(
+          (engine) {
+            if (engine is Map<String, dynamic>) {
+              final name = engine['name']?.toString() ?? '';
+              return name.toLowerCase().contains('google');
+            }
+            return false;
+          },
+          orElse: () => <String, dynamic>{},
+        );
+      } catch (e) {
+        debugPrint('Error finding Google engine: $e');
+        googleEngine = <String, dynamic>{};
+      }
+      
+      if (googleEngine != null && googleEngine.isNotEmpty) {
+        final engineName = googleEngine['name']?.toString() ?? '';
+        if (engineName.isNotEmpty) {
+          debugPrint('Using Google TTS engine: $engineName');
+          await _flutterTts.setEngine(engineName);
+          return;
+        }
+      }
+      
+      // Use default engine
+      debugPrint('Using default TTS engine');
     } catch (e) {
       debugPrint('Error configuring Android TTS: $e');
     }

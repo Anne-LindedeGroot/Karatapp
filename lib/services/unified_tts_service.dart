@@ -496,9 +496,13 @@ class UnifiedTTSService {
       // and rely on other extraction methods
       debugPrint('TTS: Traversing RenderObject: ${renderObject.runtimeType}');
       
-      // Traverse children
+      // Traverse children safely
       renderObject.visitChildren((child) {
-        _traverseRenderObject(child, textContent);
+        try {
+          _traverseRenderObject(child, textContent);
+        } catch (e) {
+          debugPrint('TTS: Error traversing child RenderObject: $e');
+        }
       });
     } catch (e) {
       debugPrint('TTS: Error traversing RenderObject: $e');
@@ -512,26 +516,32 @@ class UnifiedTTSService {
       
       // Look for common text-containing widgets in the widget tree
       context.visitChildElements((element) {
-        final widget = element.widget;
-        
-        // Check for Card widgets that might contain text
-        if (widget is Card) {
-          _extractTextFromWidgetRecursively(widget, textContent);
-        }
-        
-        // Check for Container widgets that might contain text
-        if (widget is Container) {
-          _extractTextFromWidgetRecursively(widget, textContent);
-        }
-        
-        // Check for Column and Row widgets
-        if (widget is Column || widget is Row) {
-          _extractTextFromWidgetRecursively(widget, textContent);
-        }
-        
-        // Check for ListView and other scrollable widgets
-        if (widget is ListView || widget is SingleChildScrollView) {
-          _extractTextFromWidgetRecursively(widget, textContent);
+        try {
+          if (!element.mounted) return;
+          
+          final widget = element.widget;
+          
+          // Check for Card widgets that might contain text
+          if (widget is Card) {
+            _extractTextFromWidgetRecursively(widget, textContent);
+          }
+          
+          // Check for Container widgets that might contain text
+          if (widget is Container) {
+            _extractTextFromWidgetRecursively(widget, textContent);
+          }
+          
+          // Check for Column and Row widgets
+          if (widget is Column || widget is Row) {
+            _extractTextFromWidgetRecursively(widget, textContent);
+          }
+          
+          // Check for ListView and other scrollable widgets
+          if (widget is ListView || widget is SingleChildScrollView) {
+            _extractTextFromWidgetRecursively(widget, textContent);
+          }
+        } catch (e) {
+          debugPrint('TTS: Error processing element: $e');
         }
       });
     } catch (e) {
@@ -546,21 +556,27 @@ class UnifiedTTSService {
       
       // Look for Material-specific widgets that commonly contain text
       context.visitChildElements((element) {
-        final widget = element.widget;
-        
-        // Check for Material widgets
-        if (widget is Material) {
-          _extractTextFromWidgetRecursively(widget, textContent);
-        }
-        
-        // Check for InkWell widgets
-        if (widget is InkWell) {
-          _extractTextFromWidgetRecursively(widget, textContent);
-        }
-        
-        // Check for GestureDetector widgets
-        if (widget is GestureDetector) {
-          _extractTextFromWidgetRecursively(widget, textContent);
+        try {
+          if (!element.mounted) return;
+          
+          final widget = element.widget;
+          
+          // Check for Material widgets
+          if (widget is Material) {
+            _extractTextFromWidgetRecursively(widget, textContent);
+          }
+          
+          // Check for InkWell widgets
+          if (widget is InkWell) {
+            _extractTextFromWidgetRecursively(widget, textContent);
+          }
+          
+          // Check for GestureDetector widgets
+          if (widget is GestureDetector) {
+            _extractTextFromWidgetRecursively(widget, textContent);
+          }
+        } catch (e) {
+          debugPrint('TTS: Error processing Material element: $e');
         }
       });
     } catch (e) {
@@ -581,7 +597,13 @@ class UnifiedTTSService {
       
       // Try to traverse the entire widget tree from the context
       context.visitChildElements((element) {
-        _extractTextFromElementAggressive(element, textContent);
+        try {
+          if (element.mounted) {
+            _extractTextFromElementAggressive(element, textContent);
+          }
+        } catch (e) {
+          debugPrint('TTS: Error in aggressive element traversal: $e');
+        }
       });
       
       debugPrint('TTS: Aggressive widget tree traversal completed');
@@ -642,6 +664,8 @@ class UnifiedTTSService {
       context.visitChildElements((element) {
         elementCount++;
         try {
+          if (!element.mounted) return;
+          
           final beforeCount = textContent.length;
           _extractTextFromElementEnhanced(element, textContent);
           final afterCount = textContent.length;
@@ -655,6 +679,8 @@ class UnifiedTTSService {
           element.visitChildElements((childElement) {
             elementCount++;
             try {
+              if (!childElement.mounted) return;
+              
               final beforeChildCount = textContent.length;
               _extractTextFromElementEnhanced(childElement, textContent);
               final afterChildCount = textContent.length;
@@ -1358,6 +1384,12 @@ class UnifiedTTSService {
 
   /// Read specific text content with Dutch processing
   static Future<void> readText(BuildContext context, WidgetRef ref, String text) async {
+    // Check if context is still mounted before using ref
+    if (!context.mounted) {
+      debugPrint('TTS: Context no longer mounted, aborting text reading');
+      return;
+    }
+    
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
     // Ensure TTS is enabled
@@ -1389,6 +1421,12 @@ class UnifiedTTSService {
 
   /// Read content from a specific widget with Dutch processing
   static Future<void> readWidget(BuildContext context, WidgetRef ref, Widget widget) async {
+    // Check if context is still mounted before using ref
+    if (!context.mounted) {
+      debugPrint('TTS: Context no longer mounted, aborting widget reading');
+      return;
+    }
+    
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
     // Ensure TTS is enabled

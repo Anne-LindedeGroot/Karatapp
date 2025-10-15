@@ -477,20 +477,18 @@ class KataNotifier extends StateNotifier<KataState> {
   }
 
   /// Clean up orphaned images that don't belong to any existing kata
-  /// This is useful for cleaning up images left behind from failed operations
-  Future<List<String>> cleanupOrphanedImages() async {
+  /// SAFE cleanup function - only removes specific temporary folders
+  /// This is much safer than the previous cleanup function
+  Future<List<String>> safeCleanupTempFolders() async {
     try {
-      // Get all existing kata IDs
-      final existingKataIds = state.katas.map((kata) => kata.id).toList();
-      
-      // Clean up orphaned images
-      final deletedPaths = await ImageUtils.cleanupOrphanedImages(existingKataIds);
+      // Use the safe cleanup function that only targets known temporary folders
+      final deletedPaths = await ImageUtils.safeCleanupTempFolders();
       
       // Cleanup completed successfully
       
       return deletedPaths;
     } catch (e) {
-      final errorMessage = 'Failed to cleanup orphaned images: ${e.toString()}';
+      final errorMessage = 'Failed to cleanup temporary folders: ${e.toString()}';
       _errorBoundary.reportNetworkError(errorMessage);
       rethrow;
     }

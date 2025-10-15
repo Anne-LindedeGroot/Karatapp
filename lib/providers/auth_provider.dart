@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../models/auth_state.dart';
 import '../models/avatar_model.dart';
 import '../services/auth_service.dart';
-import '../main.dart' show ensureSupabaseInitialized;
+import '../core/initialization/app_initialization.dart';
 import 'error_boundary_provider.dart';
 
 // Provider for the AuthService instance - keep alive to maintain session state
@@ -28,50 +28,73 @@ class AuthNotifier extends StateNotifier<AuthState> {
     print('🚀 AuthNotifier: Initializing auth...');
     
     // Set loading state during initialization
-    state = state.copyWith(isLoading: true);
+    if (mounted) {
+      state = state.copyWith(isLoading: true);
+    }
     
     try {
       // Ensure Supabase is initialized before checking session
       await ensureSupabaseInitialized();
       
+      if (!mounted) return;
+      
       // First check if there's a current user session
       final currentUser = _authService.currentUser;
       if (currentUser != null) {
         print('✅ AuthNotifier: Found existing Supabase session for user: ${currentUser.email}');
-        state = state.copyWith(
-          user: currentUser,
-          isAuthenticated: true,
-          isLoading: false,
-        );
+        if (mounted) {
+          state = state.copyWith(
+            user: currentUser,
+            isAuthenticated: true,
+            isLoading: false,
+          );
+        }
         return;
       }
 
       print('🔍 AuthNotifier: No existing Supabase session, trying to restore from storage...');
       
-      // Try to restore session from local storage
-      final restored = await _authService.restoreSession();
+      // Try to restore session from local storage with timeout
+      final restored = await _authService.restoreSession().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          print('⏰ AuthNotifier: Session restoration timed out');
+          return false;
+        },
+      );
+      
+      if (!mounted) return;
+      
       if (restored) {
         final user = _authService.currentUser;
         if (user != null) {
           print('✅ AuthNotifier: Session restored successfully for user: ${user.email}');
-          state = state.copyWith(
-            user: user,
-            isAuthenticated: true,
-            isLoading: false,
-          );
+          if (mounted) {
+            state = state.copyWith(
+              user: user,
+              isAuthenticated: true,
+              isLoading: false,
+            );
+          }
         } else {
           print('❌ AuthNotifier: Session restored but no user found');
-          state = state.copyWith(isLoading: false);
+          if (mounted) {
+            state = state.copyWith(isLoading: false);
+          }
         }
       } else {
-        print('❌ AuthNotifier: Session restoration failed');
-        state = state.copyWith(isLoading: false);
+        print('❌ AuthNotifier: Session restoration failed or timed out');
+        if (mounted) {
+          state = state.copyWith(isLoading: false);
+        }
       }
     } catch (e) {
       // Session restoration failed, continue with unauthenticated state
       print('❌ AuthNotifier: Session restoration error: $e');
       debugPrint('Session restoration failed: $e');
-      state = state.copyWith(isLoading: false, error: e.toString());
+      if (mounted) {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     }
     
     print('🏁 AuthNotifier: Auth initialization complete. Authenticated: ${state.isAuthenticated}');
@@ -165,17 +188,23 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> signOut() async {
+    if (!mounted) return;
+    
     state = state.copyWith(isLoading: true, error: null);
     
     try {
       await _authService.signOut();
-      state = AuthState.initial();
+      if (mounted) {
+        state = AuthState.initial();
+      }
     } catch (e) {
       final errorMessage = e.toString();
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+        );
+      }
       
       // Only report non-network auth errors to global error boundary
       if (!_isNetworkError(e)) {
@@ -241,6 +270,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   void clearError() {
     state = state.copyWith(error: null);
+  }
+
+  void forceStopLoading() {
+    if (mounted) {
+      state = state.copyWith(isLoading: false);
+    }
   }
 }
 

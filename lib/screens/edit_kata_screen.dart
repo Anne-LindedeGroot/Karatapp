@@ -8,7 +8,6 @@ import '../providers/image_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/image_gallery.dart';
 import '../widgets/video_url_input_widget.dart';
-import '../widgets/global_tts_overlay.dart';
 
 class EditKataScreen extends ConsumerStatefulWidget {
   final Kata kata;
@@ -380,8 +379,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GlobalTTSOverlay(
-      child: PopScope(
+    return PopScope(
       canPop: !_hasChanges,
       onPopInvokedWithResult: (bool didPop, dynamic result) async {
         if (didPop) return;
@@ -909,7 +907,6 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
           ),
         ),
       ),
-    ),
     );
   }
 

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'unified_tts_button.dart';
 import '../providers/accessibility_provider.dart';
-import '../services/unified_tts_service.dart';
 
-/// Global TTS overlay that provides a floating TTS button on all screens
+/// Global TTS overlay that provides a floating TTS button on all screens, dialogs, and popups
 class GlobalTTSOverlay extends ConsumerWidget {
   final Widget child;
   final bool enabled;
@@ -21,7 +20,7 @@ class GlobalTTSOverlay extends ConsumerWidget {
     this.enabled = true,
     this.location,
     this.margin,
-    this.size = 56.0, // Same size as FAB for consistency
+    this.size = 40.0, // Smaller, more compact size
     this.backgroundColor,
     this.foregroundColor,
     this.showLabel = false,
@@ -29,51 +28,158 @@ class GlobalTTSOverlay extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final showTTSButton = ref.watch(showTTSButtonProvider);
-    
-    if (!enabled || !showTTSButton) {
+    try {
+      final showTTSButton = ref.watch(showTTSButtonProvider);
+      
+      if (!enabled || !showTTSButton) {
+        return child;
+      }
+
+      // Use a safer approach that doesn't rely on Stack positioning
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Only render if we have valid constraints
+          if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+            return child;
+          }
+          
+          // Calculate safe positioning
+          final buttonSize = 56.0;
+          final rightMargin = 8.0;
+          final bottomMargin = 120.0;
+          
+          // Ensure button fits within available space
+          final availableWidth = constraints.maxWidth;
+          final availableHeight = constraints.maxHeight;
+          
+          if (buttonSize + rightMargin > availableWidth || 
+              buttonSize + bottomMargin > availableHeight) {
+            return child;
+          }
+          
+          // Use a more stable approach with proper constraints and clip behavior
+          return Stack(
+            clipBehavior: Clip.hardEdge, // Use hard edge clipping to prevent overflow
+            children: [
+              child,
+              // Position the TTS button safely with proper constraints
+              Positioned(
+                right: rightMargin,
+                bottom: bottomMargin,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: buttonSize,
+                    maxWidth: buttonSize,
+                    minHeight: buttonSize,
+                    maxHeight: buttonSize,
+                  ),
+                  child: UnifiedTTSButton(
+                    showLabel: showLabel,
+                    size: buttonSize,
+                    backgroundColor: backgroundColor,
+                    foregroundColor: foregroundColor,
+                    margin: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      // If there's any error in the TTS overlay, just return the child
+      debugPrint('Error in GlobalTTSOverlay: $e');
       return child;
     }
-
-    return Directionality(
-      textDirection: TextDirection.ltr, // Explicitly set text direction
-      child: Stack(
-        children: [
-          child,
-        Positioned(
-          right: _calculateRightPosition(context),
-          bottom: _calculateBottomPosition(context),
-          child: UnifiedTTSButton(
-            showLabel: showLabel,
-            size: size,
-            backgroundColor: backgroundColor,
-            foregroundColor: foregroundColor,
-            margin: const EdgeInsets.all(8),
-          ),
-        ),
-        ],
-      ),
-    );
   }
+}
 
-  /// Calculate bottom position to avoid conflicts with other UI elements
-  double _calculateBottomPosition(BuildContext context) {
-    // Use MediaQuery to get screen dimensions for center positioning
-    final mediaQuery = MediaQuery.of(context);
-    final screenHeight = mediaQuery.size.height;
-    
-    // Position TTS button in middle-right area of screen
-    // Calculate middle-right position: 20% from bottom (more down middle right)
-    final middleRightPosition = screenHeight * 0.2;
-    
-    return (margin?.bottom ?? middleRightPosition);
-  }
+/// Dialog-aware TTS overlay that works specifically in dialogs and popups
+class DialogTTSOverlay extends ConsumerWidget {
+  final Widget child;
+  final bool enabled;
+  final EdgeInsets? margin;
+  final double? size;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
+  final bool showLabel;
 
-  /// Calculate right position to place TTS button on the right side
-  double _calculateRightPosition(BuildContext context) {
-    // Position TTS button more to the right for better appearance
-    // Closer to the right edge: 8px from right edge
-    return (margin?.right ?? 8);
+  const DialogTTSOverlay({
+    super.key,
+    required this.child,
+    this.enabled = true,
+    this.margin,
+    this.size = 40.0,
+    this.backgroundColor,
+    this.foregroundColor,
+    this.showLabel = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    try {
+      final showTTSButton = ref.watch(showTTSButtonProvider);
+      
+      if (!enabled || !showTTSButton) {
+        return child;
+      }
+
+      // For dialogs, use a safer approach that doesn't rely on Stack positioning
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Only render if we have valid constraints
+          if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+            return child;
+          }
+          
+          // Calculate safe positioning for dialog
+          final buttonSize = 48.0;
+          final topMargin = 8.0;
+          final rightMargin = 8.0;
+          
+          // Ensure button fits within available space
+          final availableWidth = constraints.maxWidth;
+          final availableHeight = constraints.maxHeight;
+          
+          if (buttonSize + rightMargin > availableWidth || 
+              buttonSize + topMargin > availableHeight) {
+            return child;
+          }
+          
+          // Use a more stable approach with proper constraints and clip behavior
+          return Stack(
+            clipBehavior: Clip.hardEdge, // Use hard edge clipping to prevent overflow
+            children: [
+              child,
+              // Position the TTS button safely in top-right corner with proper constraints
+              Positioned(
+                top: topMargin,
+                right: rightMargin,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: buttonSize,
+                    maxWidth: buttonSize,
+                    minHeight: buttonSize,
+                    maxHeight: buttonSize,
+                  ),
+                  child: UnifiedTTSButton(
+                    showLabel: false, // Don't show label in dialogs to save space
+                    size: buttonSize,
+                    backgroundColor: backgroundColor,
+                    foregroundColor: foregroundColor,
+                    margin: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      // If there's any error in the dialog TTS overlay, just return the child
+      debugPrint('Error in DialogTTSOverlay: $e');
+      return child;
+    }
   }
 }
 
@@ -81,33 +187,17 @@ class GlobalTTSOverlay extends ConsumerWidget {
 final globalTTSOverlayProvider = StateProvider<bool>((ref) => true);
 
 /// Hook to easily add global TTS to any screen
+/// Note: This is now optional since TTS is globally available through main.dart
 Widget withGlobalTTS({
   required Widget child,
   bool enabled = true,
   EdgeInsets? margin,
-  double? size = 56.0,
+  double? size = 40.0,
   Color? backgroundColor,
   Color? foregroundColor,
   bool showLabel = false,
 }) {
-  return Consumer(
-    builder: (context, ref, _) {
-      final isEnabled = ref.watch(globalTTSOverlayProvider);
-      final showTTSButton = ref.watch(showTTSButtonProvider);
-      
-      if (!isEnabled || !enabled || !showTTSButton) {
-        return child;
-      }
-
-      return GlobalTTSOverlay(
-        enabled: enabled,
-        margin: margin,
-        size: size,
-        backgroundColor: backgroundColor,
-        foregroundColor: foregroundColor,
-        showLabel: showLabel,
-        child: child,
-      );
-    },
-  );
+  // Since TTS is now globally available, just return the child
+  // This function is kept for backward compatibility
+  return child;
 }

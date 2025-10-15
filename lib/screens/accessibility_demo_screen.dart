@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/global_tts_overlay.dart';
 import '../providers/accessibility_provider.dart';
 import '../utils/responsive_utils.dart';
+import '../core/navigation/app_router.dart';
 
 class AccessibilityDemoScreen extends ConsumerWidget {
   const AccessibilityDemoScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: AccessibleText(
           'Toegankelijkheid Demo',
@@ -200,8 +200,6 @@ class AccessibilityDemoScreen extends ConsumerWidget {
           ],
         ),
       ),
-      // TTS functionality is now handled by the global floating button
-    ),
     );
   }
 }
@@ -251,6 +249,49 @@ class _FeatureItem extends StatelessWidget {
                   enableTextToSpeech: true,
                 ),
               ],
+            ),
+          ),
+          
+          // TTS Test Button
+          const SizedBox(height: 24),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AccessibleText(
+                    'Test TTS in Popups',
+                    style: TextStyle(
+                      fontSize: context.responsiveValue(mobile: 18.0, tablet: 20.0, desktop: 22.0),
+                      fontWeight: FontWeight.bold,
+                    ),
+                    enableTextToSpeech: true,
+                  ),
+                  const SizedBox(height: 8),
+                  AccessibleText(
+                    'Test de TTS functionaliteit in popups en dialogen. Klik op de knop hieronder om verschillende dialogen te openen en te testen of de tekst correct wordt voorgelezen.',
+                    style: TextStyle(
+                      fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                    ),
+                    enableTextToSpeech: true,
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.push(AppRoutes.ttsTest),
+                      icon: const Icon(Icons.record_voice_over),
+                      label: const Text('Test TTS Popups'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

@@ -21,7 +21,7 @@ class UnifiedTTSButton extends ConsumerStatefulWidget {
     super.key,
     this.showLabel = false,
     this.margin,
-    this.size = 56.0,
+    this.size = 40.0, // Smaller, more compact default size
     this.backgroundColor,
     this.foregroundColor,
   });
@@ -74,41 +74,53 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       _pulseController.reset();
     }
 
-    // Use high contrast colors when needed
+    // Use dark green background like the kata detail TTS button
     final effectiveBackgroundColor = widget.backgroundColor ?? 
         (isSpeaking 
-          ? (isHighContrast ? Colors.green.shade700 : Colors.green)
-          : (isEnabled 
-            ? Theme.of(context).colorScheme.primary 
-            : Theme.of(context).colorScheme.secondary));
+          ? Colors.green.shade600  // Slightly lighter green when speaking
+          : Colors.green.shade700);  // Dark green background like kata detail screen
     
     final effectiveForegroundColor = widget.foregroundColor ?? 
-        (isSpeaking || isEnabled 
-          ? Theme.of(context).colorScheme.onPrimary 
-          : Theme.of(context).colorScheme.onSecondary);
+        (isSpeaking 
+          ? Colors.white  // White icon when speaking
+          : (isEnabled 
+            ? Colors.white  // White icon like kata detail screen
+            : Colors.grey.shade400));  // Light grey when disabled
 
     Widget button = AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, child) {
         return Transform.scale(
           scale: isSpeaking ? _pulseAnimation.value : 1.0,
-          child: FloatingActionButton(
-            onPressed: () => _handleTTSAction(context, ref),
-            backgroundColor: effectiveBackgroundColor,
-            foregroundColor: effectiveForegroundColor,
-            elevation: isSpeaking ? 8 : 4,
-            tooltip: isSpeaking 
-              ? 'Stop voorlezen' 
-              : (isEnabled 
-                ? 'Scan hele pagina en lees alle inhoud voor' 
-                : 'Schakel spraak in en scan pagina'),
-            child: Icon(
-              isSpeaking 
-                ? Icons.volume_up 
-                : (isEnabled 
-                    ? (isHighContrast ? Icons.headset_mic : Icons.headphones)
-                    : (isHighContrast ? Icons.headset_mic_outlined : Icons.headphones_outlined)),
-              size: (widget.size ?? 56.0) * 0.4,
+          child: Container(
+            width: widget.size ?? 40.0, // Smaller, more compact size
+            height: widget.size ?? 40.0,
+            decoration: BoxDecoration(
+              color: effectiveBackgroundColor,
+              borderRadius: BorderRadius.circular(8), // Rounded corners like the previous design
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.3),  // More prominent shadow like kata detail
+                  blurRadius: isSpeaking ? 8 : 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _handleTTSAction(context, ref),
+                borderRadius: BorderRadius.circular(8),
+                child: Icon(
+                  isSpeaking 
+                    ? Icons.volume_up 
+                    : (isEnabled 
+                        ? (isHighContrast ? Icons.headset_mic : Icons.headphones)
+                        : (isHighContrast ? Icons.headset_mic_outlined : Icons.headphones_outlined)),
+                  color: effectiveForegroundColor,
+                  size: (widget.size ?? 40.0) * 0.5, // Proportionally smaller icon
+                ),
+              ),
             ),
           ),
         );
@@ -118,19 +130,25 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
     if (widget.showLabel) {
       button = Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           button,
           const SizedBox(height: 8),
-          Text(
-            isSpeaking ? 'Aan het spreken' : (isEnabled ? 'Spraak aan' : 'Spraak uit'),
-            style: TextStyle(
-              fontSize: 12,
-              color: isSpeaking 
-                ? Colors.green 
-                : (isEnabled 
-                  ? Theme.of(context).colorScheme.primary 
-                  : Theme.of(context).colorScheme.onSurfaceVariant),
-              fontWeight: (isEnabled || isSpeaking) ? FontWeight.w600 : FontWeight.normal,
+          Flexible(
+            child: Text(
+              isSpeaking ? 'Aan het spreken' : (isEnabled ? 'Spraak aan' : 'Spraak uit'),
+              style: TextStyle(
+                fontSize: 12,
+                color: isSpeaking 
+                  ? Colors.green.shade600 
+                  : (isEnabled 
+                    ? Colors.green.shade700  // Match button background color
+                    : Colors.grey.shade600),
+                fontWeight: (isEnabled || isSpeaking) ? FontWeight.w600 : FontWeight.normal,
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
           ),
         ],
@@ -139,11 +157,18 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
 
     return Container(
       margin: widget.margin ?? const EdgeInsets.all(16),
+      color: Colors.transparent, // Ensure no background color
       child: button,
     );
   }
 
   Future<void> _handleTTSAction(BuildContext context, WidgetRef ref) async {
+    // Check if widget is still mounted before using ref
+    if (!mounted) {
+      debugPrint('UnifiedTTS: Widget disposed, skipping TTS action');
+      return;
+    }
+    
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
@@ -165,13 +190,14 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
         _showSafeFeedback(context, 'Scannen en voorlezen van alle inhoud...');
       }
       
-      if (context.mounted) {
+      if (mounted && context.mounted) {
         // Find the proper screen context instead of using the button's context
         final screenContext = _findScreenContext(context);
         if (screenContext != null && screenContext.mounted) {
           await UnifiedTTSService.readCurrentScreen(screenContext, ref);
         } else {
-          // Fallback to simple content reading
+          // Fallback to simple content reading when no valid screen context found
+          debugPrint('UnifiedTTS: No valid screen context found, using simple content reading');
           await _readSimpleScreenContent(context, ref);
         }
       }
@@ -186,13 +212,14 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       
       await accessibilityNotifier.toggleTextToSpeech();
       await Future.delayed(const Duration(milliseconds: 500));
-      if (context.mounted) {
+      if (mounted && context.mounted) {
         // Find the proper screen context instead of using the button's context
         final screenContext = _findScreenContext(context);
         if (screenContext != null && screenContext.mounted) {
           await UnifiedTTSService.readCurrentScreen(screenContext, ref);
         } else {
-          // Fallback to simple content reading
+          // Fallback to simple content reading when no valid screen context found
+          debugPrint('UnifiedTTS: No valid screen context found, using simple content reading');
           await _readSimpleScreenContent(context, ref);
         }
       }
@@ -203,23 +230,40 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
   /// to find the Scaffold or main screen content context
   BuildContext? _findScreenContext(BuildContext context) {
     try {
+      // Check if context is still mounted before traversing
+      if (!context.mounted) {
+        debugPrint('UnifiedTTS: Context no longer mounted, cannot find screen context');
+        return null;
+      }
+      
       debugPrint('UnifiedTTS: Finding screen context from ${context.widget.runtimeType}');
       
-      // First, try to find a Scaffold context
+      // First, try to find a Scaffold context using safe method
       final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
       if (scaffold != null) {
         debugPrint('UnifiedTTS: Found Scaffold widget, looking for its context');
-        // Find the context that contains the Scaffold
+        // Find the context that contains the Scaffold using safe traversal
         BuildContext? scaffoldContext;
-        context.visitAncestorElements((element) {
-          if (element.widget is Scaffold) {
-            scaffoldContext = element;
-            debugPrint('UnifiedTTS: Found Scaffold context: ${element.widget.runtimeType}');
-            return false; // Stop searching
-          }
-          return true; // Continue searching
-        });
-        if (scaffoldContext != null) {
+        try {
+          context.visitAncestorElements((element) {
+            // Check if element is still active before accessing
+            if (!element.mounted) {
+              debugPrint('UnifiedTTS: Element no longer mounted during traversal');
+              return false; // Stop searching
+            }
+            
+            if (element.widget is Scaffold) {
+              scaffoldContext = element;
+              debugPrint('UnifiedTTS: Found Scaffold context: ${element.widget.runtimeType}');
+              return false; // Stop searching
+            }
+            return true; // Continue searching
+          });
+        } catch (e) {
+          debugPrint('UnifiedTTS: Error during Scaffold context traversal: $e');
+        }
+        
+        if (scaffoldContext != null && scaffoldContext!.mounted) {
           debugPrint('UnifiedTTS: Using Scaffold context for text extraction');
           return scaffoldContext;
         }
@@ -231,26 +275,36 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       // Look for common screen widgets like StatefulWidget or StatelessWidget
       debugPrint('UnifiedTTS: Looking for main screen context...');
       BuildContext? screenContext;
-      context.visitAncestorElements((element) {
-        final widget = element.widget;
-        debugPrint('UnifiedTTS: Checking ancestor element: ${widget.runtimeType}');
-        // Look for common screen widget types
-        if (widget is StatefulWidget || widget is StatelessWidget) {
-          // Skip the TTS button and overlay widgets
-          if (widget.runtimeType.toString().contains('TTS') || 
-              widget.runtimeType.toString().contains('Overlay')) {
-            debugPrint('UnifiedTTS: Skipping TTS/Overlay widget: ${widget.runtimeType}');
-            return true; // Continue searching
+      try {
+        context.visitAncestorElements((element) {
+          // Check if element is still active before accessing
+          if (!element.mounted) {
+            debugPrint('UnifiedTTS: Element no longer mounted during screen context traversal');
+            return false; // Stop searching
           }
-          screenContext = element;
-          debugPrint('UnifiedTTS: Found potential screen context: ${widget.runtimeType}');
-          return false; // Stop searching
-        }
-        return true; // Continue searching
-      });
+          
+          final widget = element.widget;
+          debugPrint('UnifiedTTS: Checking ancestor element: ${widget.runtimeType}');
+          // Look for common screen widget types
+          if (widget is StatefulWidget || widget is StatelessWidget) {
+            // Skip the TTS button and overlay widgets
+            if (widget.runtimeType.toString().contains('TTS') || 
+                widget.runtimeType.toString().contains('Overlay')) {
+              debugPrint('UnifiedTTS: Skipping TTS/Overlay widget: ${widget.runtimeType}');
+              return true; // Continue searching
+            }
+            screenContext = element;
+            debugPrint('UnifiedTTS: Found potential screen context: ${widget.runtimeType}');
+            return false; // Stop searching
+          }
+          return true; // Continue searching
+        });
+      } catch (e) {
+        debugPrint('UnifiedTTS: Error during screen context traversal: $e');
+      }
       
-      if (screenContext != null) {
-        debugPrint('UnifiedTTS: Using screen context for text extraction: ${screenContext?.widget.runtimeType}');
+      if (screenContext != null && screenContext!.mounted) {
+        debugPrint('UnifiedTTS: Using screen context for text extraction: ${screenContext!.widget.runtimeType}');
         return screenContext;
       } else {
         debugPrint('UnifiedTTS: No suitable screen context found');
@@ -258,32 +312,48 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       
       // Fallback: try to find any context that's not the TTS button
       BuildContext? fallbackContext;
-      context.visitAncestorElements((element) {
-        final widget = element.widget;
-        if (!widget.runtimeType.toString().contains('TTS') && 
-            !widget.runtimeType.toString().contains('Overlay') &&
-            !widget.runtimeType.toString().contains('AnimatedBuilder')) {
-          fallbackContext = element;
-          return false; // Stop searching
-        }
-        return true; // Continue searching
-      });
+      try {
+        context.visitAncestorElements((element) {
+          // Check if element is still active before accessing
+          if (!element.mounted) {
+            debugPrint('UnifiedTTS: Element no longer mounted during fallback traversal');
+            return false; // Stop searching
+          }
+          
+          final widget = element.widget;
+          if (!widget.runtimeType.toString().contains('TTS') && 
+              !widget.runtimeType.toString().contains('Overlay') &&
+              !widget.runtimeType.toString().contains('AnimatedBuilder')) {
+            fallbackContext = element;
+            return false; // Stop searching
+          }
+          return true; // Continue searching
+        });
+      } catch (e) {
+        debugPrint('UnifiedTTS: Error during fallback context traversal: $e');
+      }
       
-      if (fallbackContext != null) {
-        debugPrint('UnifiedTTS: Using fallback context for text extraction: ${fallbackContext?.widget.runtimeType}');
+      if (fallbackContext != null && fallbackContext!.mounted) {
+        debugPrint('UnifiedTTS: Using fallback context for text extraction: ${fallbackContext!.widget.runtimeType}');
         return fallbackContext;
       }
       
       debugPrint('UnifiedTTS: Could not find proper screen context, will use original context');
-      return context;
+      return context.mounted ? context : null;
     } catch (e) {
       debugPrint('UnifiedTTS: Error finding screen context: $e');
-      return context; // Fallback to original context
+      return context.mounted ? context : null; // Fallback to original context if still mounted
     }
   }
 
   /// Simple screen content reading with reliable fallback
   Future<void> _readSimpleScreenContent(BuildContext context, WidgetRef ref) async {
+    // Check if widget is still mounted before using ref
+    if (!mounted) {
+      debugPrint('UnifiedTTS: Widget disposed, skipping simple screen content reading');
+      return;
+    }
+    
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
     try {
@@ -543,111 +613,19 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
   }
 }
 
-/// Global TTS overlay that provides the unified TTS button on all screens
-class UnifiedTTSOverlay extends ConsumerWidget {
-  final Widget child;
-  final bool enabled;
-  final EdgeInsets? margin;
-  final double? size;
-  final Color? backgroundColor;
-  final Color? foregroundColor;
-  final bool showLabel;
-
-  const UnifiedTTSOverlay({
-    super.key,
-    required this.child,
-    this.enabled = true,
-    this.margin,
-    this.size = 56.0,
-    this.backgroundColor,
-    this.foregroundColor,
-    this.showLabel = false,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final showTTSButton = ref.watch(showTTSButtonProvider);
-    
-    if (!enabled || !showTTSButton) {
-      return child;
-    }
-
-    return Stack(
-      children: [
-        child,
-        Positioned(
-          right: _calculateRightPosition(context),
-          bottom: _calculateBottomPosition(context),
-          child: UnifiedTTSButton(
-            showLabel: showLabel,
-            size: size,
-            backgroundColor: backgroundColor,
-            foregroundColor: foregroundColor,
-            margin: const EdgeInsets.all(16),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Calculate bottom position to avoid conflicts with other UI elements
-  double _calculateBottomPosition(BuildContext context) {
-    // Check if there are floating action buttons
-    final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
-    if (scaffold?.floatingActionButton != null) {
-      return (margin?.bottom ?? 66); // 10px above FAB (FAB is at 16px, so 16 + 56 + 10 = 82, but we want 10px gap)
-    }
-    
-    // Check for bottom navigation bar
-    if (scaffold?.bottomNavigationBar != null) {
-      return (margin?.bottom ?? 80) + 20; // Position above bottom nav
-    }
-    
-    // Default position
-    return margin?.bottom ?? 80;
-  }
-
-  /// Calculate right position to place TTS button above FAB
-  double _calculateRightPosition(BuildContext context) {
-    // Check if there are floating action buttons
-    final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
-    if (scaffold?.floatingActionButton != null) {
-      // Position at the very right edge (0 pixels from right)
-      return (margin?.right ?? 0); // 0 pixels from right edge
-    }
-    
-    // Default position
-    return margin?.right ?? 0;
-  }
-}
-
 /// Helper function to easily add unified TTS to any screen
+/// Note: This function is kept for backward compatibility
+/// TTS is now globally available through main.dart
 Widget withUnifiedTTS({
   required Widget child,
   bool enabled = true,
   EdgeInsets? margin,
-  double? size = 56.0,
+  double? size = 40.0,
   Color? backgroundColor,
   Color? foregroundColor,
   bool showLabel = false,
 }) {
-  return Consumer(
-    builder: (context, ref, _) {
-      final showTTSButton = ref.watch(showTTSButtonProvider);
-      
-      if (!enabled || !showTTSButton) {
-        return child;
-      }
-
-      return UnifiedTTSOverlay(
-        enabled: enabled,
-        margin: margin,
-        size: size,
-        backgroundColor: backgroundColor,
-        foregroundColor: foregroundColor,
-        showLabel: showLabel,
-        child: child,
-      );
-    },
-  );
+  // Since TTS is now globally available, just return the child
+  // This function is kept for backward compatibility
+  return child;
 }

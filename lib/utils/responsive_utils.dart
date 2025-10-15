@@ -313,13 +313,17 @@ class ResponsiveUtils {
   // Get responsive constraints for dialogs and modals
   static BoxConstraints getDialogConstraints(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    // Account for TTS button (48px + 8px margin) and additional padding
+    final ttsButtonSpace = 56.0; // 48px button + 8px margin
+    final additionalPadding = 16.0; // Extra safety margin
+    
     return BoxConstraints(
       maxWidth: responsiveValue(
         context,
-        mobile: screenSize.width * 0.9,
-        tablet: 500.0,
-        desktop: 600.0,
-        largeDesktop: 700.0,
+        mobile: (screenSize.width * 0.9) - ttsButtonSpace - additionalPadding,
+        tablet: 500.0 - ttsButtonSpace - additionalPadding,
+        desktop: 600.0 - ttsButtonSpace - additionalPadding,
+        largeDesktop: 700.0 - ttsButtonSpace - additionalPadding,
       ),
       maxHeight: screenSize.height * 0.8,
     );

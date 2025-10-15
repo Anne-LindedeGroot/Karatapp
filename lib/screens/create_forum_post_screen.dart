@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/forum_models.dart';
 import '../providers/forum_provider.dart';
-import '../widgets/global_tts_overlay.dart';
 
 class CreateForumPostScreen extends ConsumerStatefulWidget {
   const CreateForumPostScreen({super.key});
@@ -100,8 +99,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: const Text('Nieuw Bericht Maken'),
       ),
@@ -393,7 +391,6 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
           ),
         ],
       ),
-    ),
     );
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/accessible_text.dart';
-import '../widgets/global_tts_overlay.dart';
 import '../utils/responsive_utils.dart';
 
 class AccessibilitySettingsScreen extends ConsumerWidget {
@@ -13,8 +12,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
     final accessibilityState = ref.watch(accessibilityNotifierProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
 
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: AccessibleText(
           'Toegankelijkheid',
@@ -475,7 +473,6 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
-    ),
     );
   }
 

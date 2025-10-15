@@ -11,7 +11,6 @@ import '../widgets/skeleton_forum_post.dart';
 import '../widgets/responsive_layout.dart';
 import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
-import '../widgets/global_tts_overlay.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
 
@@ -824,7 +823,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Error: $error',
+                    'Fout: $error',
                     style: const TextStyle(color: Colors.red),
                   ),
                 ),
@@ -920,12 +919,11 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final isLoading = ref.watch(forumLoadingProvider);
     final error = ref.watch(forumErrorProvider);
 
-    return GlobalTTSOverlay(
-      child: GestureDetector(
-        onTap: () {
-          _searchFocusNode.unfocus();
-        },
-        child: Scaffold(
+    return GestureDetector(
+      onTap: () {
+        _searchFocusNode.unfocus();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Forum'),
         leading: IconButton(
@@ -1097,7 +1095,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),
-    ),
     );
   }
 }

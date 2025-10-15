@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../screens/splash_screen.dart';
-import '../../screens/auth_screen.dart';
-import '../../screens/home_screen.dart';
+import '../../screens/auth_wrapper.dart';
 import '../../screens/profile_screen.dart';
 import '../../screens/forum_screen.dart';
 import '../../screens/forum_post_detail_screen.dart';
@@ -13,7 +11,7 @@ import '../../screens/edit_kata_screen.dart';
 import '../../screens/avatar_selection_screen.dart';
 import '../../screens/user_management_screen.dart';
 import '../../screens/accessibility_demo_screen.dart';
-import '../../providers/auth_provider.dart';
+import '../../screens/tts_test_screen.dart';
 import '../../providers/kata_provider.dart';
 import '../../widgets/global_error_widget.dart';
 
@@ -32,50 +30,33 @@ class AppRoutes {
   static const String avatarSelection = '/avatar-selection';
   static const String userManagement = '/user-management';
   static const String accessibilityDemo = '/accessibility-demo';
+  static const String ttsTest = '/tts-test';
 }
 
 /// Router provider for dependency injection
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
-  
+  // Create a stable router that doesn't recreate on auth state changes
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
-    redirect: (context, state) {
-      final isAuthenticated = authState.isAuthenticated;
-      final isLoading = authState.isLoading;
-      
-      // Don't redirect while loading (session restoration in progress)
-      if (isLoading) {
-        return null;
-      }
-      
-      // If not authenticated and trying to access protected routes, redirect to login
-      if (!isAuthenticated && state.matchedLocation != AppRoutes.splash && state.matchedLocation != AppRoutes.login && state.matchedLocation != AppRoutes.signup) {
-        return AppRoutes.login;
-      }
-      
-      // If authenticated and on splash/login/signup, redirect to home
-      if (isAuthenticated && (state.matchedLocation == AppRoutes.splash || state.matchedLocation == AppRoutes.login || state.matchedLocation == AppRoutes.signup)) {
-        return AppRoutes.home;
-      }
-      
-      return null;
-    },
+    // Remove redirect logic to prevent router recreation
+    // Let individual screens handle their own navigation logic
     routes: [
-      // Splash screen route
-      GoRoute(
-        path: AppRoutes.splash,
-        name: 'splash',
-        builder: (context, state) => const SplashScreen(),
-      ),
+        // Splash screen route - now uses AuthWrapper for proper authentication persistence
+        GoRoute(
+          path: AppRoutes.splash,
+          name: 'splash',
+          builder: (context, state) => const GlobalErrorBoundary(
+            child: AuthWrapper(),
+          ),
+        ),
       
-      // Auth routes
+      // Auth routes - these are now handled by AuthWrapper, but kept for direct navigation
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
         builder: (context, state) => const GlobalErrorBoundary(
-          child: AuthScreen(),
+          child: AuthWrapper(),
         ),
       ),
       
@@ -83,16 +64,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.signup,
         name: 'signup',
         builder: (context, state) => const GlobalErrorBoundary(
-          child: AuthScreen(),
+          child: AuthWrapper(),
         ),
       ),
       
-      // Main app routes
+      // Main app routes - these are now handled by AuthWrapper, but kept for direct navigation
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
         builder: (context, state) => const GlobalErrorBoundary(
-          child: HomeScreen(),
+          child: AuthWrapper(),
         ),
       ),
       
@@ -174,50 +155,57 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       
-      
-      
-    ],
-    
-    // Error handling
-    errorBuilder: (context, state) {
-      return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pagina Niet Gevonden'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(AppRoutes.home),
+      GoRoute(
+        path: AppRoutes.ttsTest,
+        name: 'ttsTest',
+        builder: (context, state) => const GlobalErrorBoundary(
+          child: TTSTestScreen(),
         ),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Pagina Niet Gevonden',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'De pagina die je zoekt bestaat niet.',
-              style: Theme.of(context).textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
+      
+        
+      ],
+      
+      // Error handling
+      errorBuilder: (context, state) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Pagina Niet Gevonden'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
               onPressed: () => context.go(AppRoutes.home),
-              child: const Text('Naar Home'),
             ),
-          ],
-        ),
-      ),
-    );
-    },
+          ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Pagina Niet Gevonden',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'De pagina die je zoekt bestaat niet.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => context.go(AppRoutes.home),
+                  child: const Text('Naar Home'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
   );
 });
 

@@ -399,12 +399,17 @@ class VideoService {
   }
   
   /// Clean up orphaned videos in the storage bucket
-  static Future<List<String>> cleanupOrphanedVideos(List<int> existingKataIds) async {
+  /// SAFE cleanup function - only removes specific temporary video folders
+  /// This function is much safer and only targets known temporary folders
+  static Future<List<String>> safeCleanupTempVideoFolders() async {
     return await RetryUtils.executeWithRetry(
       () async {
         try {
           final supabase = Supabase.instance.client;
           List<String> deletedPaths = [];
+          
+          // Only target specific temporary folders that are safe to delete
+          final safeToDeleteFolders = ['temp_upload', 'temp_processing', 'temp_backup'];
           
           // List all folders in the kata_videos bucket
           final response = await supabase.storage
@@ -413,48 +418,43 @@ class VideoService {
           
           for (final folder in response) {
             if (folder.name.isNotEmpty) {
-              // Try to parse the folder name as a kata ID
-              final folderId = int.tryParse(folder.name);
-              
-              if (folderId != null) {
-                // Check if this kata ID exists in the provided list
-                if (!existingKataIds.contains(folderId)) {
-                  debugPrint('🧹 Found orphaned video folder for kata $folderId, cleaning up...');
-                  
-                  // List all files in this orphaned folder
-                  final folderFiles = await supabase.storage
+              // Only delete folders that are explicitly in our safe list
+              if (safeToDeleteFolders.contains(folder.name)) {
+                debugPrint('🧹 Found safe temporary video folder "${folder.name}", cleaning up...');
+                
+                // List all files in this folder
+                final folderFiles = await supabase.storage
+                    .from('kata_videos')
+                    .list(path: folder.name);
+                
+                // Delete all video files in the folder
+                List<String> filesToDelete = [];
+                for (final file in folderFiles) {
+                  if (file.name.isNotEmpty && VideoUtils.isVideoFile(file.name)) {
+                    filesToDelete.add('${folder.name}/${file.name}');
+                  }
+                }
+                
+                if (filesToDelete.isNotEmpty) {
+                  await supabase.storage
                       .from('kata_videos')
-                      .list(path: folder.name);
-                  
-                  // Delete all video files in the orphaned folder
-                  List<String> filesToDelete = [];
-                  for (final file in folderFiles) {
-                    if (file.name.isNotEmpty && VideoUtils.isVideoFile(file.name)) {
-                      filesToDelete.add('${folder.name}/${file.name}');
-                    }
-                  }
-                  
-                  if (filesToDelete.isNotEmpty) {
-                    await supabase.storage
-                        .from('kata_videos')
-                        .remove(filesToDelete);
-                    deletedPaths.addAll(filesToDelete);
-                    debugPrint('✅ Deleted ${filesToDelete.length} orphaned videos from kata $folderId');
-                  }
+                      .remove(filesToDelete);
+                  deletedPaths.addAll(filesToDelete);
+                  debugPrint('✅ Deleted ${filesToDelete.length} temporary videos from folder "${folder.name}"');
                 }
               }
             }
           }
           
           if (deletedPaths.isNotEmpty) {
-            debugPrint('🎉 Video cleanup complete! Deleted ${deletedPaths.length} orphaned videos total');
+            debugPrint('🎉 Safe video cleanup complete! Deleted ${deletedPaths.length} temporary videos total');
           } else {
-            debugPrint('✨ No orphaned videos found - video storage is clean!');
+            debugPrint('✨ No temporary video folders found - video storage is clean!');
           }
           
           return deletedPaths;
         } catch (e) {
-          debugPrint('❌ Error during orphaned video cleanup: $e');
+          debugPrint('❌ Error during safe video cleanup: $e');
           rethrow;
         }
       },
@@ -462,7 +462,7 @@ class VideoService {
       initialDelay: const Duration(seconds: 1),
       shouldRetry: RetryUtils.shouldRetryImageError,
       onRetry: (attempt, error) {
-        debugPrint('🔄 Retrying orphaned video cleanup (attempt $attempt): $error');
+        debugPrint('🔄 Retrying safe video cleanup (attempt $attempt): $error');
       },
     );
   }

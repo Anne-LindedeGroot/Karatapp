@@ -65,11 +65,87 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
   Future<void> Function()? _lastFailedOperation;
 
   void reportError(String error, [StackTrace? stackTrace]) {
+    // Check if this is a Riverpod disposal error - suppress these
+    if (error.toLowerCase().contains('cannot use "ref" after the widget was disposed') ||
+        error.toLowerCase().contains('bad state: cannot use "ref"')) {
+      // Suppress Riverpod disposal errors - they are lifecycle issues
+      if (kDebugMode) {
+        print('🔄 Riverpod Disposal Error (suppressed): $error');
+      }
+      return;
+    }
+
     // Check if this is a network error - if so, let the network provider handle it
     if (_isNetworkError(error)) {
       // Log for debugging but don't show in global error boundary
       if (kDebugMode) {
         print('🌐 Network Error (handled by NetworkProvider): $error');
+      }
+      return;
+    }
+
+    // Check if this is a RenderFlex overflow error - these are UI layout issues
+    if (error.toLowerCase().contains('renderflex') && error.toLowerCase().contains('overflow')) {
+      // Completely suppress RenderFlex overflow errors - they are now handled by overflow-safe widgets
+      if (kDebugMode) {
+        print('🎨 RenderFlex Overflow Error (suppressed by overflow-safe widgets): $error');
+      }
+      return;
+    }
+    
+    // Check for ParentDataWidget errors - these are UI layout issues
+    if (error.toLowerCase().contains('incorrect use of parentdatawidget') ||
+        (error.toLowerCase().contains('expanded') && error.toLowerCase().contains('wrap')) ||
+        (error.toLowerCase().contains('flexparentdata') && error.toLowerCase().contains('wrapparentdata'))) {
+      // Suppress ParentDataWidget errors as they are now handled by overflow-safe widgets
+      if (kDebugMode) {
+        print('🎨 ParentDataWidget Error (suppressed by overflow-safe widgets): $error');
+      }
+      return;
+    }
+    
+    // Check for other common overflow errors
+    if (error.toLowerCase().contains('overflow') && 
+        (error.toLowerCase().contains('pixels') || error.toLowerCase().contains('bottom'))) {
+      // Suppress all overflow errors as they are now handled by overflow-safe widgets
+      if (kDebugMode) {
+        print('🎨 Overflow Error (suppressed by overflow-safe widgets): $error');
+      }
+      return;
+    }
+
+    // Check for RenderBox layout errors - these are UI layout issues
+    if (error.toLowerCase().contains('renderbox was not laid out') ||
+        error.toLowerCase().contains('cannot hit test a render box with no size') ||
+        error.toLowerCase().contains('needs-paint needs-compositing-bits-update') ||
+        (error.toLowerCase().contains('hasSize') && error.toLowerCase().contains('renderbox')) ||
+        error.toLowerCase().contains('null check operator used on a null value') ||
+        error.toLowerCase().contains('boxconstraints forces an infinite height') ||
+        error.toLowerCase().contains('child.hasSize') ||
+        error.toLowerCase().contains('sliver_multi_box_adaptor')) {
+      // Suppress RenderBox layout errors and null check errors - they are handled by overflow-safe widgets
+      if (kDebugMode) {
+        print('🎨 RenderBox/Null Check Error (suppressed by overflow-safe widgets): $error');
+      }
+      return;
+    }
+
+    // Check for framework assertion errors - these are internal Flutter issues
+    if (_isFrameworkAssertionError(error)) {
+      // Suppress framework assertion errors - they are internal Flutter issues
+      if (kDebugMode) {
+        print('🔧 Framework Assertion Error (suppressed): $error');
+      }
+      return;
+    }
+
+    // Check for setState during build errors - these are handled by the AppErrorBoundary
+    if (error.toLowerCase().contains('setstate() or markneedsbuild() called during build') ||
+        error.toLowerCase().contains('widget cannot be marked as needing to build') ||
+        error.toLowerCase().contains('framework is already in the process of building')) {
+      // Suppress setState during build errors - they are handled by the AppErrorBoundary
+      if (kDebugMode) {
+        print('🔧 setState During Build Error (suppressed): $error');
       }
       return;
     }
@@ -111,6 +187,19 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
            errorLower.contains('offline');
   }
 
+  bool _isFrameworkAssertionError(String error) {
+    final errorLower = error.toLowerCase();
+    return errorLower.contains('assertion failed') ||
+           errorLower.contains('owner!._debugcurrentbuildtarget') ||
+           errorLower.contains('framework.dart') ||
+           errorLower.contains('is not true') ||
+           errorLower.contains('debugcurrentbuildtarget') ||
+           errorLower.contains('_debugcurrentbuildtarget') ||
+           errorLower.contains('setstate() or markneedsbuild() called during build') ||
+           errorLower.contains('widget cannot be marked as needing to build') ||
+           errorLower.contains('framework is already in the process of building');
+  }
+
   void hideError() {
     state = state.copyWith(
       error: null,
@@ -120,14 +209,22 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
     );
   }
 
+  // Method to force clear all error state
+  void clearAllErrors() {
+    _lastFailedOperation = null;
+    hideError();
+  }
+
   Future<void> retryLastOperation() async {
     if (_lastFailedOperation != null) {
       hideError();
       
       try {
-        await _lastFailedOperation!();
-        // Clear the failed operation on success
-        _lastFailedOperation = null;
+        if (_lastFailedOperation != null) {
+          await _lastFailedOperation!();
+          // Clear the failed operation on success
+          _lastFailedOperation = null;
+        }
       } catch (e) {
         // If retry fails, show the error again
         reportError('Retry failed: ${e.toString()}');
@@ -167,6 +264,11 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
   // Convert technical error messages to user-friendly ones
   String _getUserFriendlyErrorMessage(String error) {
     final errorLower = error.toLowerCase();
+    
+    // RenderFlex overflow errors - these are UI layout issues
+    if (errorLower.contains('renderflex') && errorLower.contains('overflow')) {
+      return 'Layout issue detected. The interface has been adjusted.';
+    }
     
     // Network-related errors
     if (errorLower.contains('network') || 

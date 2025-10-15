@@ -14,10 +14,13 @@ class GlobalErrorWidget extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    return Positioned(
-      top: MediaQuery.of(context).padding.top + 10,
-      left: 16,
-      right: 16,
+    // Use a simple container instead of Positioned to avoid render object conflicts
+    return Container(
+      margin: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 10,
+        left: 16,
+        right: 16,
+      ),
       child: Material(
         elevation: 8,
         borderRadius: BorderRadius.circular(12),
@@ -69,7 +72,7 @@ class GlobalErrorWidget extends ConsumerWidget {
                       ref.read(errorBoundaryProvider.notifier).retryLastOperation();
                     },
                     child: Text(
-                      'Retry',
+                      'Opnieuw proberen',
                       style: TextStyle(
                         color: Colors.red.shade700,
                         fontWeight: FontWeight.w600,
@@ -111,10 +114,11 @@ class GlobalErrorBoundary extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Stack(
+    // Use Column instead of Stack to avoid render object conflicts
+    return Column(
       children: [
-        child,
         const GlobalErrorWidget(),
+        Expanded(child: child),
       ],
     );
   }

@@ -463,14 +463,17 @@ class ImageUtils {
     );
   }
 
-  /// Clean up orphaned images in the storage bucket
-  /// This function finds images that don't belong to any existing kata
-  static Future<List<String>> cleanupOrphanedImages(List<int> existingKataIds) async {
+  /// SAFE cleanup function - only removes specific temporary folders with confirmation
+  /// This function is much safer and only targets known temporary folders
+  static Future<List<String>> safeCleanupTempFolders() async {
     return await RetryUtils.executeWithRetry(
       () async {
         try {
           final supabase = Supabase.instance.client;
           List<String> deletedPaths = [];
+          
+          // Only target specific temporary folders that are safe to delete
+          final safeToDeleteFolders = ['temp_upload', 'temp_processing', 'temp_backup'];
           
           // List all folders in the kata_images bucket
           final response = await supabase.storage
@@ -479,74 +482,43 @@ class ImageUtils {
           
           for (final folder in response) {
             if (folder.name.isNotEmpty) {
-              // Try to parse the folder name as a kata ID
-              final folderId = int.tryParse(folder.name);
-              
-              if (folderId != null) {
-                // Check if this kata ID exists in the provided list
-                if (!existingKataIds.contains(folderId)) {
-                  debugPrint('🧹 Found orphaned folder for kata $folderId, cleaning up...');
-                  
-                  // List all files in this orphaned folder
-                  final folderFiles = await supabase.storage
-                      .from('kata_images')
-                      .list(path: folder.name);
-                  
-                  // Delete all files in the orphaned folder
-                  List<String> filesToDelete = [];
-                  for (final file in folderFiles) {
-                    if (file.name.isNotEmpty) {
-                      filesToDelete.add('${folder.name}/${file.name}');
-                    }
-                  }
-                  
-                  if (filesToDelete.isNotEmpty) {
-                    await supabase.storage
-                        .from('kata_images')
-                        .remove(filesToDelete);
-                    deletedPaths.addAll(filesToDelete);
-                    debugPrint('✅ Deleted ${filesToDelete.length} orphaned images from kata $folderId');
+              // Only delete folders that are explicitly in our safe list
+              if (safeToDeleteFolders.contains(folder.name)) {
+                debugPrint('🧹 Found safe temporary folder "${folder.name}", cleaning up...');
+                
+                // List all files in this folder
+                final folderFiles = await supabase.storage
+                    .from('kata_images')
+                    .list(path: folder.name);
+                
+                // Delete all files in the folder
+                List<String> filesToDelete = [];
+                for (final file in folderFiles) {
+                  if (file.name.isNotEmpty) {
+                    filesToDelete.add('${folder.name}/${file.name}');
                   }
                 }
-              } else {
-                // Handle special cases like "0" folder or other non-numeric folders
-                if (folder.name == '0' || folder.name.startsWith('temp_')) {
-                  debugPrint('🧹 Found special orphaned folder "${folder.name}", cleaning up...');
-                  
-                  // List all files in this folder
-                  final folderFiles = await supabase.storage
+                
+                if (filesToDelete.isNotEmpty) {
+                  await supabase.storage
                       .from('kata_images')
-                      .list(path: folder.name);
-                  
-                  // Delete all files in the folder
-                  List<String> filesToDelete = [];
-                  for (final file in folderFiles) {
-                    if (file.name.isNotEmpty) {
-                      filesToDelete.add('${folder.name}/${file.name}');
-                    }
-                  }
-                  
-                  if (filesToDelete.isNotEmpty) {
-                    await supabase.storage
-                        .from('kata_images')
-                        .remove(filesToDelete);
-                    deletedPaths.addAll(filesToDelete);
-                    debugPrint('✅ Deleted ${filesToDelete.length} orphaned images from folder "${folder.name}"');
-                  }
+                      .remove(filesToDelete);
+                  deletedPaths.addAll(filesToDelete);
+                  debugPrint('✅ Deleted ${filesToDelete.length} temporary files from folder "${folder.name}"');
                 }
               }
             }
           }
           
           if (deletedPaths.isNotEmpty) {
-            debugPrint('🎉 Cleanup complete! Deleted ${deletedPaths.length} orphaned images total');
+            debugPrint('🎉 Safe cleanup complete! Deleted ${deletedPaths.length} temporary files total');
           } else {
-            debugPrint('✨ No orphaned images found - storage is clean!');
+            debugPrint('✨ No temporary folders found - storage is clean!');
           }
           
           return deletedPaths;
         } catch (e) {
-          debugPrint('❌ Error during orphaned image cleanup: $e');
+          debugPrint('❌ Error during safe cleanup: $e');
           rethrow;
         }
       },
@@ -554,7 +526,7 @@ class ImageUtils {
       initialDelay: const Duration(seconds: 1),
       shouldRetry: RetryUtils.shouldRetryImageError,
       onRetry: (attempt, error) {
-        debugPrint('🔄 Retrying orphaned image cleanup (attempt $attempt): $error');
+        debugPrint('🔄 Retrying safe cleanup (attempt $attempt): $error');
       },
     );
   }

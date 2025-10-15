@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../main.dart' show ensureSupabaseInitialized, ensureHiveInitialized;
-import '../core/storage/local_storage.dart';
+import '../core/initialization/app_initialization.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/global_tts_overlay.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -18,6 +16,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   bool _isInitialized = false;
+  bool _isDisposed = false;
+  bool _isNavigating = false;
 
   @override
   void initState() {
@@ -43,42 +43,55 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _initializeApp();
   }
 
+  @override
+  void dispose() {
+    _isDisposed = true;
+    _isNavigating = true; // Prevent navigation after disposal
+    _animationController.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeApp() async {
+    if (_isDisposed || _isNavigating) return;
+    
     try {
-      // Add timeout to prevent infinite loading
+      // Simple initialization with timeout
       await Future.any([
         _performInitialization(),
-        Future.delayed(const Duration(seconds: 10)), // 10 second timeout
+        Future.delayed(const Duration(seconds: 3)), // 3 second timeout
       ]);
-      
-      if (mounted) {
-        setState(() {
-          _isInitialized = true;
-        });
-        
-        // Navigate to main app
-        _navigateToApp();
-      }
     } catch (e) {
       // Handle initialization errors gracefully
       debugPrint('Initialization error: $e');
-      if (mounted) {
-        _navigateToApp(); // Continue anyway
-      }
+    }
+    
+    // Always navigate after initialization (success or failure)
+    if (mounted && !_isDisposed && !_isNavigating) {
+      setState(() {
+        _isInitialized = true;
+      });
+      
+      // Navigate immediately
+      _navigateToApp();
     }
   }
 
   Future<void> _performInitialization() async {
-    // Run initialization in parallel for speed
-    await Future.wait([
-      ensureSupabaseInitialized(),
-      _initializeLocalStorage(),
-      // Minimum splash duration for smooth UX
-      Future.delayed(const Duration(milliseconds: 800)),
-    ]);
-    
-    // Wait for auth provider to initialize and restore session
-    await _waitForAuthInitialization();
+    try {
+      // Run initialization in parallel for speed with individual timeouts
+      await Future.wait([
+        ensureSupabaseInitialized().timeout(const Duration(seconds: 2)),
+        _initializeLocalStorage().timeout(const Duration(seconds: 2)),
+        // Minimum splash duration for smooth UX
+        Future.delayed(const Duration(milliseconds: 800)),
+      ]);
+      
+      // Wait for auth provider to initialize and restore session with timeout
+      await _waitForAuthInitialization().timeout(const Duration(seconds: 2));
+    } catch (e) {
+      debugPrint('Initialization step failed: $e');
+      // Continue anyway - the app should work without some services
+    }
   }
 
   Future<void> _waitForAuthInitialization() async {
@@ -106,37 +119,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _initializeLocalStorage() async {
     await ensureHiveInitialized();
-    await LocalStorage.initialize();
+    await initializeLocalStorage();
   }
 
   void _navigateToApp() {
-    // Small delay for smooth transition
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) {
-        // Check auth state and navigate accordingly
-        final authState = ref.read(authNotifierProvider);
-        
-        if (authState.isAuthenticated) {
-          print('🏠 Splash: User is authenticated, navigating to home');
-          context.go('/home');
-        } else {
-          print('🔐 Splash: User not authenticated, navigating to login');
-          context.go('/login');
-        }
+    if (!mounted || _isDisposed || _isNavigating || !context.mounted) return;
+    
+    _isNavigating = true; // Set flag to prevent multiple navigations
+    
+    try {
+      // Check auth state and navigate accordingly
+      final authState = ref.read(authNotifierProvider);
+      
+      if (authState.isAuthenticated) {
+        print('🏠 Splash: User is authenticated, navigating to home');
+        context.go('/home');
+      } else {
+        print('🔐 Splash: User not authenticated, navigating to login');
+        context.go('/login');
       }
-    });
+    } catch (e) {
+      debugPrint('Navigation error in splash screen: $e');
+      // Fallback navigation
+      if (context.mounted && !_isDisposed) {
+        context.go('/login');
+      }
+    }
   }
 
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color(0xFF4CAF50), // Use a fixed green color
         body: Center(
           child: FadeTransition(
@@ -207,7 +221,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ),
           ),
         ),
-    ),
     );
   }
 }

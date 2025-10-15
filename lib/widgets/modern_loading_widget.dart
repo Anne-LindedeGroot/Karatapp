@@ -139,6 +139,8 @@ class ModernKataLoadingList extends StatelessWidget {
     }
 
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: AppTheme.getResponsivePadding(context),
       itemCount: itemCount,
       itemBuilder: (context, index) => items[index],
@@ -236,6 +238,8 @@ class ModernForumPostLoadingList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: AppTheme.getResponsivePadding(context),
       itemCount: itemCount,
       itemBuilder: (context, index) => const ModernForumPostLoadingCard(),

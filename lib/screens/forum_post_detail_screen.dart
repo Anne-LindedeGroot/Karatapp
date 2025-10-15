@@ -6,7 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../widgets/avatar_widget.dart';
-import '../widgets/global_tts_overlay.dart';
+import '../services/unified_tts_service.dart';
 
 class ForumPostDetailScreen extends ConsumerStatefulWidget {
   final int postId;
@@ -152,6 +152,27 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       return '${difference.inMinutes}m geleden';
     } else {
       return 'Zojuist';
+    }
+  }
+
+  /// Read a forum comment using TTS
+  Future<void> _readForumComment(ForumComment comment) async {
+    try {
+      await UnifiedTTSService.readText(
+        context,
+        ref,
+        '${comment.authorName}: ${comment.content}',
+      );
+    } catch (e) {
+      debugPrint('Error reading forum comment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Er was een probleem bij het voorlezen van de reactie.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -701,107 +722,110 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
             canModerateRole // Moderator (host or mediator)
             );
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
+    return GestureDetector(
+      onTap: () => _readForumComment(comment),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
           ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Comment header
-          Row(
-            children: [
-              AvatarWidget(
-                customAvatarUrl: comment.authorAvatar,
-                userName: comment.authorName,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      comment.authorName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatDate(comment.createdAt),
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Comment header
+            Row(
+              children: [
+                AvatarWidget(
+                  customAvatarUrl: comment.authorAvatar,
+                  userName: comment.authorName,
+                  size: 28,
                 ),
-              ),
-              // Edit/Delete menu for comments
-              if (canEditComment)
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    switch (value) {
-                      case 'edit':
-                        _showEditCommentDialog(comment);
-                        break;
-                      case 'delete':
-                        _showDeleteCommentConfirmation(comment);
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    // Only show edit for comment author
-                    if (comment.authorId == currentUser.id)
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        comment.authorName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatDate(comment.createdAt),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ],
+                  ),
+                ),
+                // Edit/Delete menu for comments
+                if (canEditComment)
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      switch (value) {
+                        case 'edit':
+                          _showEditCommentDialog(comment);
+                          break;
+                        case 'delete':
+                          _showDeleteCommentConfirmation(comment);
+                          break;
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      // Only show edit for comment author
+                      if (comment.authorId == currentUser.id)
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, color: Colors.blue, size: 16),
+                              SizedBox(width: 8),
+                              Text('Bewerk'),
+                            ],
+                          ),
+                        ),
                       const PopupMenuItem(
-                        value: 'edit',
+                        value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, color: Colors.blue, size: 16),
+                            Icon(Icons.delete, color: Colors.red, size: 16),
                             SizedBox(width: 8),
-                            Text('Bewerk'),
+                            Text('Verwijder', style: TextStyle(color: Colors.red)),
                           ],
                         ),
                       ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red, size: 16),
-                          SizedBox(width: 8),
-                          Text('Verwijder', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
+                    ],
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                  ],
-                  icon: Icon(
-                    Icons.more_vert,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Comment content
-          Text(
-            comment.content,
-            style: TextStyle(
-              fontSize: 15, 
-              height: 1.5,
-              color: Theme.of(context).colorScheme.onSurface,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+
+            // Comment content
+            Text(
+              comment.content,
+              style: TextStyle(
+                fontSize: 15, 
+                height: 1.5,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1159,8 +1183,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       );
     }
 
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(
           title: const Text('Forum Post'),
         ),
@@ -1252,7 +1275,6 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
             ),
         ],
       ),
-    ),
     );
   }
 }

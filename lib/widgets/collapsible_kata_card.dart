@@ -18,6 +18,8 @@ import 'video_gallery.dart';
 import 'video_player_widget.dart';
 import 'avatar_widget.dart';
 import 'responsive_layout.dart';
+import 'overflow_safe_widgets.dart';
+import '../services/unified_tts_service.dart';
 import 'kata_card/kata_card_media.dart';
 import 'kata_card/kata_card_interactions.dart';
 import 'kata_card/kata_card_layout.dart';
@@ -107,120 +109,126 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
             // Header row with drag handle, name and action buttons
-            Row(
-              children: [
-                // Drag handle with tooltip - Made more compact
-                Semantics(
-                  label: 'Sleep handvat om kata te herordenen',
-                  child: Container(
-                    width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
-                    height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      borderRadius: AppTheme.getResponsiveBorderRadius(context, multiplier: 0.75),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return OverflowSafeRow(
+                  children: [
+                    // Drag handle with tooltip - Made more compact
+                    Semantics(
+                      label: 'Sleep handvat om kata te herordenen',
+                      child: Container(
+                        width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                        height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: AppTheme.getResponsiveBorderRadius(context, multiplier: 0.75),
+                        ),
+                        child: Icon(
+                          Icons.drag_handle,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
+                        ),
+                      ),
                     ),
-                    child: Icon(
-                      Icons.drag_handle,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
+                    SizedBox(width: context.responsiveSpacing(SpacingSize.sm)),
+                    // Use OverflowSafeFlexible to prevent overflow
+                    OverflowSafeFlexible(
+                      flex: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Display name with overflow handling
+                          Semantics(
+                            label: 'Kata naam: ${kata.name}',
+                            child: OverflowSafeText(
+                              kata.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                              maxLines: 1,
+                            ),
+                          ),
+                          SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
+                          // Display style with overflow handling
+                          Semantics(
+                            label: 'Karate stijl: ${kata.style}',
+                            child: OverflowSafeText(
+                              kata.style,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Colors.blueGrey,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                              maxLines: 1,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-                SizedBox(width: context.responsiveSpacing(SpacingSize.sm)),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    SizedBox(width: context.responsiveSpacing(SpacingSize.sm)),
+                    // Action buttons with fixed width to prevent overflow
+                    OverflowSafeRow(
+                      mainAxisSize: MainAxisSize.min,
+                      enableWrapping: false,
                       children: [
-                        // Display name
+                        // Edit button - Responsive
                         Semantics(
-                          label: 'Kata naam: ${kata.name}',
-                          child: Text(
-                            kata.name,
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineSmall
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                            // Show full name without truncation
+                          label: 'Bewerk kata ${kata.name}',
+                          button: true,
+                          child: SizedBox(
+                            width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                            height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.edit,
+                                color: Colors.blue,
+                                size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EditKataScreen(kata: kata),
+                                  ),
+                                );
+                              },
+                              tooltip: 'Bewerk kata',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
                           ),
                         ),
-                        SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
-                        // Display style
+                        SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                        // Delete button - Responsive
                         Semantics(
-                          label: 'Karate stijl: ${kata.style}',
-                          child: Text(
-                            kata.style,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: Colors.blueGrey,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                            // Show full style without truncation
+                          label: 'Verwijder kata ${kata.name}',
+                          button: true,
+                          child: SizedBox(
+                            width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                            height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.delete,
+                                color: Colors.red,
+                                size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
+                              ),
+                              onPressed: widget.onDelete,
+                              tooltip: 'Verwijder kata',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                // Action buttons with flexible width to prevent overflow
-                Flexible(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                    // Edit button - Responsive
-                    Semantics(
-                      label: 'Bewerk kata ${kata.name}',
-                      button: true,
-                      child: SizedBox(
-                        width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
-                        height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.edit,
-                            color: Colors.blue,
-                            size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => EditKataScreen(kata: kata),
-                              ),
-                            );
-                          },
-                          tooltip: 'Bewerk kata',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
-                    // Delete button - Responsive
-                    Semantics(
-                      label: 'Verwijder kata ${kata.name}',
-                      button: true,
-                      child: SizedBox(
-                        width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
-                        height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.delete,
-                            color: Colors.red,
-                            size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
-                          ),
-                          onPressed: widget.onDelete,
-                          tooltip: 'Verwijder kata',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
-                      ),
-                    ),
                   ],
-                    ),
-                ),
-              ],
+                );
+              },
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
             
@@ -440,46 +448,51 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
               children: [
                 // Images button
                 if (hasImages)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ImageGallery(
-                              imageUrls: cachedImages,
-                              title: '${kata.name} - Images',
-                              kataId: kata.id,
+                  OverflowSafeButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ImageGallery(
+                            imageUrls: cachedImages,
+                            title: '${kata.name} - Images',
+                            kataId: kata.id,
+                          ),
+                        ),
+                      ).then((_) {
+                        ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
+                      });
+                    },
+                    isElevated: true,
+                    fullWidth: true,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.photo, 
+                          size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
+                        ),
+                        SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                        OverflowSafeText(
+                          'Afbeeldingen (${cachedImages.length})',
+                          style: TextStyle(
+                            fontSize: context.responsiveValue(
+                              mobile: 12.0,
+                              tablet: 13.0,
+                              desktop: 14.0,
                             ),
                           ),
-                        ).then((_) {
-                          ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
-                        });
-                      },
-                      icon: Icon(
-                        Icons.photo, 
-                        size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
-                      ),
-                      label: Text(
-                        'Afbeeldingen (${cachedImages.length})', 
-                        style: TextStyle(
-                          fontSize: context.responsiveValue(
-                            mobile: 12.0,
-                            tablet: 13.0,
-                            desktop: 14.0,
-                          ),
                         ),
+                      ],
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.responsiveSpacing(SpacingSize.sm),
+                        vertical: context.responsiveSpacing(SpacingSize.sm),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.responsiveSpacing(SpacingSize.sm),
-                          vertical: context.responsiveSpacing(SpacingSize.sm),
-                        ),
-                        minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
-                      ),
+                      minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
                     ),
                   ),
                 
@@ -488,44 +501,49 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                 
                 // Videos button
                 if (hasVideos)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VideoGallery(
-                              videoUrls: videoUrls,
-                              title: '${kata.name} - Videos',
-                              kataId: kata.id,
+                  OverflowSafeButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VideoGallery(
+                            videoUrls: videoUrls,
+                            title: '${kata.name} - Videos',
+                            kataId: kata.id,
+                          ),
+                        ),
+                      );
+                    },
+                    isElevated: true,
+                    fullWidth: true,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.videocam, 
+                          size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
+                        ),
+                        SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                        OverflowSafeText(
+                          'Video\'s (${videoUrls.length})',
+                          style: TextStyle(
+                            fontSize: context.responsiveValue(
+                              mobile: 12.0,
+                              tablet: 13.0,
+                              desktop: 14.0,
                             ),
                           ),
-                        );
-                      },
-                      icon: Icon(
-                        Icons.videocam, 
-                        size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
-                      ),
-                      label: Text(
-                        'Video\'s (${videoUrls.length})', 
-                        style: TextStyle(
-                          fontSize: context.responsiveValue(
-                            mobile: 12.0,
-                            tablet: 13.0,
-                            desktop: 14.0,
-                          ),
                         ),
+                      ],
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.responsiveSpacing(SpacingSize.sm),
+                        vertical: context.responsiveSpacing(SpacingSize.sm),
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: context.responsiveSpacing(SpacingSize.sm),
-                          vertical: context.responsiveSpacing(SpacingSize.sm),
-                        ),
-                        minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
-                      ),
+                      minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
                     ),
                   ),
               ],
@@ -882,7 +900,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Action buttons row
-            Row(
+            OverflowSafeRow(
               children: [
                 // Like button
                 IconButton(
@@ -905,7 +923,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                     color: isLiked ? Colors.red : Colors.grey,
                   ),
                 ),
-                Text('$likeCount'),
+                OverflowSafeText('$likeCount'),
                 const SizedBox(width: 16),
                 
                 // Favorite button
@@ -957,9 +975,9 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   ),
                   tooltip: _isCommentsExpanded ? 'Sluit reacties' : 'Open reacties',
                 ),
-                Text('$commentCount'),
+                OverflowSafeText('$commentCount'),
                 
-                const Spacer(),
+                const OverflowSafeSpacer(),
               ],
             ),
             
@@ -1016,7 +1034,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Spacer(),
+                const OverflowSafeSpacer(),
                 // Collapse button
                 IconButton(
                   onPressed: () {
@@ -1163,122 +1181,125 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
         final theme = Theme.of(context);
         final isDark = theme.brightness == Brightness.dark;
 
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade200),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  AvatarWidget(
-                    customAvatarUrl: comment.authorAvatar,
-                    userName: comment.authorName,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          comment.authorName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        Text(
-                          _formatDate(comment.createdAt),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
+        return GestureDetector(
+          onTap: () => _readKataComment(comment),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    AvatarWidget(
+                      customAvatarUrl: comment.authorAvatar,
+                      userName: comment.authorName,
+                      size: 20,
                     ),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          _showEditKataCommentDialog(comment);
-                          break;
-                        case 'delete':
-                          _showDeleteKataCommentConfirmation(comment);
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) {
-                      List<PopupMenuEntry<String>> items = [];
-                      
-                      // Add edit option if user is the comment author OR has edit permissions (mediator/host)
-                      if (comment.authorId == currentUser?.id || canDeleteComment) {
-                        items.add(
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit, color: Colors.blue, size: 14),
-                                SizedBox(width: 8),
-                                Text('Bewerk', style: TextStyle(fontSize: 12)),
-                              ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            comment.authorName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
                             ),
                           ),
-                        );
-                      }
-                      
-                      // Add delete option if user has permission
-                      if (canDeleteComment) {
-                        items.add(
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Row(
-                              children: [
-                                Icon(Icons.delete, color: Colors.red, size: 14),
-                                SizedBox(width: 8),
-                                Text('Verwijder', style: TextStyle(color: Colors.red, fontSize: 12)),
-                              ],
+                          Text(
+                            _formatDate(comment.createdAt),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 11,
                             ),
                           ),
-                        );
-                      }
-                      
-                      // If no items available, show a disabled "No actions" item
-                      if (items.isEmpty) {
-                        items.add(
-                          const PopupMenuItem(
-                            enabled: false,
-                            value: 'none',
-                            child: Text(
-                              'Geen acties beschikbaar',
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
-                            ),
-                          ),
-                        );
-                      }
-                      
-                      return items;
-                    },
-                    icon: Icon(
-                      Icons.more_vert,
-                      size: 16,
-                      color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.grey[600],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                comment.content,
-                style: const TextStyle(fontSize: 13),
-              ),
-            ],
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'edit':
+                            _showEditKataCommentDialog(comment);
+                            break;
+                          case 'delete':
+                            _showDeleteKataCommentConfirmation(comment);
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) {
+                        List<PopupMenuEntry<String>> items = [];
+                        
+                        // Add edit option if user is the comment author OR has edit permissions (mediator/host)
+                        if (comment.authorId == currentUser?.id || canDeleteComment) {
+                          items.add(
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, color: Colors.blue, size: 14),
+                                  SizedBox(width: 8),
+                                  Text('Bewerk', style: TextStyle(fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        // Add delete option if user has permission
+                        if (canDeleteComment) {
+                          items.add(
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, color: Colors.red, size: 14),
+                                  SizedBox(width: 8),
+                                  Text('Verwijder', style: TextStyle(color: Colors.red, fontSize: 12)),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        // If no items available, show a disabled "No actions" item
+                        if (items.isEmpty) {
+                          items.add(
+                            const PopupMenuItem(
+                              enabled: false,
+                              value: 'none',
+                              child: Text(
+                                'Geen acties beschikbaar',
+                                style: TextStyle(color: Colors.grey, fontSize: 12),
+                              ),
+                            ),
+                          );
+                        }
+                        
+                        return items;
+                      },
+                      icon: Icon(
+                        Icons.more_vert,
+                        size: 16,
+                        color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  comment.content,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -1337,6 +1358,27 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     );
   }
 
+
+  /// Read a kata comment using TTS
+  Future<void> _readKataComment(KataComment comment) async {
+    try {
+      await UnifiedTTSService.readText(
+        context,
+        ref,
+        '${comment.authorName}: ${comment.content}',
+      );
+    } catch (e) {
+      debugPrint('Error reading kata comment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Er was een probleem bij het voorlezen van de reactie.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
   Future<void> _showEditKataCommentDialog(KataComment comment) async {
     final TextEditingController editController = TextEditingController(text: comment.content);
@@ -1467,13 +1509,13 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     final difference = now.difference(date);
     
     if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
+      return '${difference.inDays} dagen geleden';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
+      return '${difference.inHours} uren geleden';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
+      return '${difference.inMinutes} minuten geleden';
     } else {
-      return 'Just now';
+      return 'Zojuist';
     }
   }
 

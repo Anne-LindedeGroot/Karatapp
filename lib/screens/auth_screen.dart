@@ -2,9 +2,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
+import '../models/auth_state.dart';
 import '../utils/responsive_utils.dart';
-import '../widgets/global_tts_overlay.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -66,8 +67,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         _loginPasswordController.text,
       );
       
-      // Navigation will be handled automatically by the router
-      // since it watches the auth state changes
+      // Navigate to home screen after successful login
+      if (mounted && context.mounted) {
+        context.go('/home');
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -98,21 +101,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         _signupNameController.text.trim(),
       );
       
-      // Show success message and switch to login tab
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account succesvol aangemaakt! Controleer je e-mail om je account te bevestigen.'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 4),
-          ),
-        );
-        
-        // Switch to login tab
-        _tabController.animateTo(0);
-        
-        // Pre-fill email in login form
-        _loginEmailController.text = _signupEmailController.text;
+      // Check if user is immediately authenticated (some signup flows auto-login)
+      final authState = ref.read(authNotifierProvider);
+      if (authState.isAuthenticated) {
+        // Navigate to home screen if immediately authenticated
+        if (mounted && context.mounted) {
+          context.go('/home');
+        }
+      } else {
+        // Show success message and switch to login tab
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Account succesvol aangemaakt! Controleer je e-mail om je account te bevestigen.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          
+          // Switch to login tab
+          _tabController.animateTo(0);
+          
+          // Pre-fill email in login form
+          _loginEmailController.text = _signupEmailController.text;
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -453,8 +465,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    // Listen to auth state changes for automatic navigation
+    ref.listen<AuthState>(authNotifierProvider, (previous, next) {
+      if (next.isAuthenticated && mounted && context.mounted) {
+        // Navigate to home screen when user becomes authenticated
+        context.go('/home');
+      }
+    });
+    
+    return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
@@ -517,7 +536,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           ],
         ),
       ),
-    ),
     );
   }
 }

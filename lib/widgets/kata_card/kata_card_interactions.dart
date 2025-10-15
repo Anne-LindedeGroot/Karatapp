@@ -8,6 +8,8 @@ import '../../services/role_service.dart';
 import '../../screens/edit_kata_screen.dart';
 import '../../utils/responsive_utils.dart';
 import '../../core/theme/app_theme.dart';
+import '../global_tts_overlay.dart';
+import '../tts_clickable_text.dart';
 
 /// Kata Card Interactions - Handles interaction logic for kata cards
 class KataCardInteractions {
@@ -96,17 +98,22 @@ class KataCardInteractions {
   static void _showPermissionDeniedDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Geen Toegang'),
-        content: const Text(
-          'Je hebt geen toestemming om deze kata te bewerken of verwijderen.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+      builder: (context) => DialogTTSOverlay(
+        child: AlertDialog(
+          title: const TTSClickableText('Geen Toegang'),
+          content: const TTSClickableText(
+            'Je hebt geen toestemming om deze kata te bewerken of verwijderen.',
           ),
-        ],
+          actions: [
+            TTSClickableWidget(
+              ttsText: 'OK knop',
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -115,14 +122,16 @@ class KataCardInteractions {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Laden...'),
-          ],
+      builder: (context) => DialogTTSOverlay(
+        child: const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              TTSClickableText('Laden...'),
+            ],
+          ),
         ),
       ),
     );
@@ -131,15 +140,20 @@ class KataCardInteractions {
   static void _showErrorDialog(BuildContext context, String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Fout'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
+      builder: (context) => DialogTTSOverlay(
+        child: AlertDialog(
+          title: const TTSClickableText('Fout'),
+          content: TTSClickableText(message),
+          actions: [
+            TTSClickableWidget(
+              ttsText: 'OK knop',
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -147,24 +161,32 @@ class KataCardInteractions {
   static Future<bool> _showDeleteConfirmationDialog(BuildContext context, String kataName) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Kata Verwijderen'),
-        content: Text(
-          'Weet je zeker dat je "$kataName" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Annuleren'),
+      builder: (context) => DialogTTSOverlay(
+        child: AlertDialog(
+          title: const TTSClickableText('Kata Verwijderen'),
+          content: TTSClickableText(
+            'Weet je zeker dat je "$kataName" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+          actions: [
+            TTSClickableWidget(
+              ttsText: 'Annuleren knop',
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Annuleren'),
+              ),
             ),
-            child: const Text('Verwijderen'),
-          ),
-        ],
+            TTSClickableWidget(
+              ttsText: 'Verwijderen knop',
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                ),
+                child: const Text('Verwijderen'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
 

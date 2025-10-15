@@ -204,6 +204,8 @@ class SkeletonKataList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 80.0),
       itemCount: itemCount,
       itemBuilder: (context, index) {

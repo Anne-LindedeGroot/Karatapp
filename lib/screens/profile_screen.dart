@@ -10,7 +10,6 @@ import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
 import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
-import '../widgets/global_tts_overlay.dart';
 import 'avatar_selection_screen.dart';
 import 'data_usage_settings_screen.dart';
 
@@ -122,8 +121,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isLoading = authState.isLoading;
     final errorMessage = authState.error;
 
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: const AccessibleText(
           'Profiel',
@@ -272,14 +270,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             children: [
                               Icon(roleIcon, color: roleColor, size: 18),
                               const SizedBox(width: 8),
-                              AccessibleText(
-                                role.displayName,
-                                style: TextStyle(
-                                  color: roleColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
+                              Flexible(
+                                child: AccessibleText(
+                                  role.displayName,
+                                  style: TextStyle(
+                                    color: roleColor,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                  enableTextToSpeech: true,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                enableTextToSpeech: true,
                               ),
                             ],
                           ),
@@ -384,7 +385,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4), // Reduced from 8 to 4
                     SizedBox(
                       height: 56, // Match TextField height
                       child: const SizedBox.shrink(),
@@ -496,26 +497,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const AccessibleText(
-                                  'Status:',
-                                  enableTextToSpeech: true,
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: networkState.isConnected 
-                                        ? Colors.green.withOpacity(0.1) 
-                                        : Colors.red.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                const Flexible(
                                   child: AccessibleText(
-                                    networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
-                                    style: TextStyle(
-                                      color: networkState.isConnected ? Colors.green : Colors.red,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
+                                    'Status:',
                                     enableTextToSpeech: true,
+                                  ),
+                                ),
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced horizontal padding
+                                    decoration: BoxDecoration(
+                                      color: networkState.isConnected 
+                                          ? Colors.green.withOpacity(0.1) 
+                                          : Colors.red.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: AccessibleText(
+                                      networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
+                                      style: TextStyle(
+                                        color: networkState.isConnected ? Colors.green : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                      enableTextToSpeech: true,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -527,17 +533,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const AccessibleText(
-                                  'Dataverbruik modus:',
-                                  enableTextToSpeech: true,
-                                ),
-                                AccessibleText(
-                                  _getDataUsageModeText(dataUsageState.mode),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12,
+                                const Flexible(
+                                  child: AccessibleText(
+                                    'Dataverbruik modus:',
+                                    enableTextToSpeech: true,
                                   ),
-                                  enableTextToSpeech: true,
+                                ),
+                                Flexible(
+                                  child: AccessibleText(
+                                    _getDataUsageModeText(dataUsageState.mode),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 12,
+                                    ),
+                                    enableTextToSpeech: true,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -548,17 +559,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const AccessibleText(
-                                  'Maandelijks verbruik:',
-                                  enableTextToSpeech: true,
-                                ),
-                                AccessibleText(
-                                  '${dataUsageState.stats.formattedTotalUsage} / ${dataUsageState.monthlyDataLimit} MB',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12,
+                                const Flexible(
+                                  child: AccessibleText(
+                                    'Maandelijks verbruik:',
+                                    enableTextToSpeech: true,
                                   ),
-                                  enableTextToSpeech: true,
+                                ),
+                                Flexible(
+                                  child: AccessibleText(
+                                    '${dataUsageState.stats.formattedTotalUsage} / ${dataUsageState.monthlyDataLimit} MB',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 12,
+                                    ),
+                                    enableTextToSpeech: true,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
@@ -587,7 +603,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 child: const Row(
                                   children: [
                                     Icon(Icons.warning, color: Colors.orange, size: 16),
-                                    SizedBox(width: 8),
+                                    SizedBox(width: 6), // Reduced from 8 to 6
                                     Expanded(
                                       child: AccessibleText(
                                         'Nadert maandelijks dataverbruik limiet',
@@ -597,6 +613,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           fontWeight: FontWeight.w500,
                                         ),
                                         enableTextToSpeech: true,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                   ],
@@ -644,7 +661,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-    ),
     );
   }
   

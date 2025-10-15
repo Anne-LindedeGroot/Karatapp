@@ -7,8 +7,9 @@ import '../providers/mute_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../services/unified_tts_service.dart';
 import '../widgets/connection_error_widget.dart';
-import '../widgets/global_tts_overlay.dart';
 import '../core/navigation/app_router.dart';
+import '../widgets/global_tts_overlay.dart';
+import '../widgets/tts_clickable_text.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -99,26 +100,34 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Rol Wijzigen voor $userName'),
-        content: Text(
-          'Weet je zeker dat je $userName\'s rol wilt wijzigen naar ${newRole.displayName}?\n\n'
-          '${newRole.description}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuleren'),
+      builder: (context) => DialogTTSOverlay(
+        child: AlertDialog(
+          title: TTSClickableText('Rol Wijzigen voor $userName'),
+          content: TTSClickableText(
+            'Weet je zeker dat je $userName\'s rol wilt wijzigen naar ${newRole.displayName}?\n\n'
+            '${newRole.description}',
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _getRoleColor(newRole),
-              foregroundColor: Colors.white,
+          actions: [
+            TTSClickableWidget(
+              ttsText: 'Annuleren knop',
+              child: TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuleren'),
+              ),
             ),
-            child: const Text('Rol Wijzigen'),
-          ),
-        ],
+            TTSClickableWidget(
+              ttsText: 'Rol Wijzigen knop',
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _getRoleColor(newRole),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Rol Wijzigen'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -587,23 +596,31 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   Future<void> _unmuteUser(String userId, String userName) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('$userName Ontdempen'),
-        content: Text('Weet je zeker dat je $userName wilt ontdempen?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuleren'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
+      builder: (context) => DialogTTSOverlay(
+        child: AlertDialog(
+          title: TTSClickableText('$userName Ontdempen'),
+          content: TTSClickableText('Weet je zeker dat je $userName wilt ontdempen?'),
+          actions: [
+            TTSClickableWidget(
+              ttsText: 'Annuleren knop',
+              child: TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuleren'),
+              ),
             ),
-            child: const Text('Ontdempen'),
-          ),
-        ],
+            TTSClickableWidget(
+              ttsText: 'Ontdempen knop',
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Ontdempen'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -881,8 +898,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     // Check if current user is host
     final userRoleAsync = ref.watch(currentUserRoleProvider);
 
-    return GlobalTTSOverlay(
-      child: userRoleAsync.when(
+    return userRoleAsync.when(
       data: (userRole) {
         if (userRole != UserRole.host && userRole != UserRole.mediator) {
           return Scaffold(
@@ -1204,7 +1220,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           ),
         ),
       ),
-    ),
     );
   }
 }

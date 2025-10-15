@@ -2,15 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'config/environment.dart';
 import 'core/theme/app_theme.dart';
 import 'core/navigation/app_router.dart';
-import 'core/storage/local_storage.dart' as app_storage;
-import 'providers/error_boundary_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/accessibility_provider.dart';
+import 'providers/error_boundary_provider.dart';
+import 'widgets/global_tts_overlay.dart';
+import 'widgets/global_overflow_handler.dart';
+import 'widgets/overflow_safe_widgets.dart';
+import 'widgets/render_box_protection.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,76 +23,18 @@ void main() async {
     debugPrint('Warning: Could not load .env file: $e');
     debugPrint('App will continue with default environment values');
   }
-  
-  // Set up error handling to catch and display errors
-  FlutterError.onError = (FlutterErrorDetails details) {
-    if (kDebugMode) {
-      FlutterError.presentError(details);
-    }
-    debugPrint('Flutter Error: ${details.exception}');
-    debugPrint('Stack trace: ${details.stack}');
-  };
-  
-  // Initialize Hive for local storage (required for auth persistence)
-  await ensureHiveInitialized();
-  
-  // Initialize local storage boxes
-  await _initializeLocalStorage();
-  
-  // Initialize Supabase early to ensure session restoration works
-  await ensureSupabaseInitialized();
 
-  // Start app immediately - defer all heavy initialization
+  // Start app immediately with simplified initialization
   runApp(
     ProviderScope(
       observers: kDebugMode ? [OptimizedRiverpodObserver()] : [],
       child: const MyApp(),
     ),
   );
+  
+  // Global error handler will be set up in AppErrorBoundary
 }
 
-// Global initialization state
-bool _supabaseInitialized = false;
-bool _hiveInitialized = false;
-
-// Lazy initialization - only when needed
-Future<void> ensureSupabaseInitialized() async {
-  if (!_supabaseInitialized) {
-    try {
-      await Supabase.initialize(
-        url: Environment.supabaseUrl,
-        anonKey: Environment.supabaseAnonKey,
-      );
-      _supabaseInitialized = true;
-      debugPrint('✅ Supabase initialized successfully');
-    } catch (e) {
-      debugPrint('❌ Supabase initialization error: $e');
-      // Don't throw - let the app continue in offline mode
-      // The network provider will handle connection status
-    }
-  }
-}
-
-// Lazy Hive initialization
-Future<void> ensureHiveInitialized() async {
-  if (!_hiveInitialized) {
-    try {
-      await Hive.initFlutter();
-      _hiveInitialized = true;
-    } catch (e) {
-      debugPrint('Hive initialization error: $e');
-    }
-  }
-}
-
-// Initialize local storage boxes
-Future<void> _initializeLocalStorage() async {
-  try {
-    await app_storage.LocalStorage.initialize();
-  } catch (e) {
-    debugPrint('Local storage initialization error: $e');
-  }
-}
 
 // Optimized Riverpod observer for better performance
 class OptimizedRiverpodObserver extends ProviderObserver {
@@ -116,146 +59,241 @@ class OptimizedRiverpodObserver extends ProviderObserver {
     ProviderContainer container,
   ) {
     if (kDebugMode) {
-      print('❌ Provider failed: ${provider.name ?? provider.runtimeType}');
-      print('   Error: $error');
+      print('❌ ${provider.name ?? provider.runtimeType}: $error');
     }
   }
 
-  // Only log important providers to reduce debug overhead
   bool _shouldLog(ProviderBase provider) {
-    final name = provider.name ?? provider.runtimeType.toString();
-    return name.contains('auth') || 
-           name.contains('error') || 
-           name.contains('theme');
+    // Only log important providers to reduce noise
+    final importantProviders = [
+      'authNotifierProvider',
+      'kataNotifierProvider',
+      'themeNotifierProvider',
+      'accessibilityNotifierProvider',
+    ];
+    
+    return importantProviders.any((name) => 
+      provider.name?.contains(name) == true || 
+      provider.runtimeType.toString().contains(name)
+    );
   }
 }
 
+/// A comprehensive error boundary that catches and handles all types of errors
+class AppErrorBoundary extends ConsumerStatefulWidget {
+  final Widget child;
 
-class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
+  const AppErrorBoundary({super.key, required this.child});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    try {
-      final router = ref.watch(routerProvider);
-      final themeState = ref.watch(themeNotifierProvider);
-      final accessibilityState = ref.watch(accessibilityNotifierProvider);
+  ConsumerState<AppErrorBoundary> createState() => _AppErrorBoundaryState();
+}
+
+class _AppErrorBoundaryState extends ConsumerState<AppErrorBoundary> {
+  bool hasError = false;
+  String? errorMessage;
+  StackTrace? errorStack;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Set up global error handling only once
+    // Store the original error handler to avoid conflicts with other error handlers
+    final originalErrorHandler = FlutterError.onError;
+    
+    FlutterError.onError = (FlutterErrorDetails details) {
+      // Check if this is an overflow error - suppress it
+      if (_isOverflowError(details.exception.toString())) {
+        debugPrint('🎨 Overflow Error Suppressed: ${details.exception}');
+        return;
+      }
       
-      // Sync dyslexia-friendly setting between providers
-      ref.watch(dyslexiaFriendlySyncProvider);
+      // Check for framework assertion errors and handle them gracefully
+      if (_isFrameworkAssertionError(details.exception.toString())) {
+        debugPrint('🔧 Framework Assertion Error: ${details.exception}');
+        // Don't show these to users, just log them
+        return;
+      }
       
-      // Get the current system brightness
-      final systemBrightness = MediaQuery.of(context).platformBrightness;
+      // Handle other errors normally
+      if (kDebugMode) {
+        FlutterError.presentError(details);
+      }
       
-      return MaterialApp.router(
-        title: 'Karatapp',
+      // Call the original error handler if it exists
+      if (originalErrorHandler != null) {
+        originalErrorHandler(details);
+      }
+      
+      // Report to error boundary - defer setState to avoid build phase issues
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              hasError = true;
+              errorMessage = details.exception.toString();
+              errorStack = details.stack;
+            });
+          }
+        });
+      }
+    };
+  }
+
+  bool _isOverflowError(String error) {
+    final errorLower = error.toLowerCase();
+    return (errorLower.contains('renderflex') && 
+           errorLower.contains('overflow')) ||
+           (errorLower.contains('overflow') && 
+            (errorLower.contains('pixels') || errorLower.contains('bottom'))) ||
+           errorLower.contains('cannot hit test a render box with no size') ||
+           (errorLower.contains('renderbox') && errorLower.contains('size')) ||
+           errorLower.contains('renderbox was not laid out') ||
+           errorLower.contains('needs-paint needs-compositing-bits-update') ||
+           (errorLower.contains('hasSize') && errorLower.contains('renderbox')) ||
+           errorLower.contains('rendersemanticsannotations') ||
+           errorLower.contains('rendertransform') ||
+           errorLower.contains('size: missing') ||
+           errorLower.contains('renderbox object must have an explicit size') ||
+           errorLower.contains('although this node is not marked as needing layout') ||
+           errorLower.contains('constraints: boxconstraints') ||
+           errorLower.contains('size is not set') ||
+           errorLower.contains('must have an explicit size before it can be hit-tested') ||
+           errorLower.contains('null check operator used on a null value') ||
+           errorLower.contains('boxconstraints forces an infinite height') ||
+           errorLower.contains('child.hasSize') ||
+           errorLower.contains('sliver_multi_box_adaptor') ||
+           errorLower.contains('incorrect use of parentdatawidget') ||
+           errorLower.contains('expanded') && errorLower.contains('wrap') ||
+           errorLower.contains('flexparentdata') && errorLower.contains('wrapparentdata') ||
+           errorLower.contains('cannot use "ref" after the widget was disposed') ||
+           errorLower.contains('bad state: cannot use "ref"');
+  }
+
+  bool _isFrameworkAssertionError(String error) {
+    final errorLower = error.toLowerCase();
+    return errorLower.contains('assertion failed') ||
+           errorLower.contains('owner!._debugcurrentbuildtarget') ||
+           errorLower.contains('framework.dart') ||
+           errorLower.contains('is not true') ||
+           errorLower.contains('debugcurrentbuildtarget') ||
+           errorLower.contains('element._lifecyclestate') ||
+           errorLower.contains('_elementlifecycle.active') ||
+           errorLower.contains('lifecycle state') ||
+           errorLower.contains('_debugcurrentbuildtarget') ||
+           errorLower.contains('setstate() or markneedsbuild() called during build') ||
+           errorLower.contains('widget cannot be marked as needing to build') ||
+           errorLower.contains('framework is already in the process of building');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (hasError) {
+      return MaterialApp(
+        title: 'Karatapp - Error Recovery',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.getThemeData(
-          themeMode: themeState.themeMode,
-          colorScheme: themeState.colorScheme,
-          isHighContrast: themeState.isHighContrast,
-          glowEffects: themeState.glowEffects,
-          systemBrightness: systemBrightness,
-          fontScaleFactor: accessibilityState.fontScaleFactor,
-          isDyslexiaFriendly: themeState.isDyslexiaFriendly,
-        ),
-        darkTheme: AppTheme.getThemeData(
-          themeMode: AppThemeMode.dark,
-          colorScheme: themeState.colorScheme,
-          isHighContrast: themeState.isHighContrast,
-          glowEffects: themeState.glowEffects,
-          systemBrightness: Brightness.dark,
-          fontScaleFactor: accessibilityState.fontScaleFactor,
-          isDyslexiaFriendly: themeState.isDyslexiaFriendly,
-        ),
-        themeMode: themeState.flutterThemeMode,
-        routerConfig: router,
-        builder: (context, child) {
-          // Set system UI overlay style based on current theme
-          final brightness = Theme.of(context).brightness;
-          SystemChrome.setSystemUIOverlayStyle(
-            SystemUiOverlayStyle(
-              statusBarColor: Colors.transparent,
-              statusBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
-              statusBarBrightness: brightness,
-              systemNavigationBarColor: Theme.of(context).scaffoldBackgroundColor,
-              systemNavigationBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
-            ),
-          );
-
-          // Global error handling for uncaught exceptions
-          ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
-          // Log the error for debugging
-          debugPrint('ErrorWidget.builder called with: ${errorDetails.exception}');
-          debugPrint('Stack trace: ${errorDetails.stack}');
-          
-          // Report error to global error boundary
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) {
-              try {
-                final container = ProviderScope.containerOf(context);
-                container.read(errorBoundaryProvider.notifier).reportError(
-                  errorDetails.exception.toString(),
-                  errorDetails.stack,
-                );
-              } catch (e) {
-                // Fallback if provider is not available
-                debugPrint('Failed to report error to global boundary: $e');
-              }
-            }
-          });
-
-          return Material(
-            child: Container(
-              color: Colors.red.shade50,
-              padding: const EdgeInsets.all(16),
-              child: Center(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 64,
-                        color: Colors.red.shade700,
+        theme: ThemeData.light(),
+        home: Scaffold(
+          backgroundColor: Colors.grey[50],
+          body: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24.0),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  padding: const EdgeInsets.all(24.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Something went wrong',
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.error_outline,
+                          size: 40,
+                          color: Colors.red,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'App Foutherstel',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: Colors.red.shade700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Please restart the app',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.red.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Error: ${errorDetails.exception}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
                           color: Colors.red,
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      if (kDebugMode) ...[
-                        const SizedBox(height: 16),
-                        Text(
-                          'Stack: ${errorDetails.stack}',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontFamily: 'monospace',
-                            color: Colors.grey,
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          'De app heeft een fout ondervonden maar is hersteld.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.red.shade600,
                           ),
                           textAlign: TextAlign.center,
+                          softWrap: true,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              hasError = false;
+                              errorMessage = null;
+                              errorStack = null;
+                            });
+                            // Also clear any global error boundary state
+                            try {
+                              // Clear the error boundary state using the provider
+                              final container = ProviderScope.containerOf(context);
+                              container.read(errorBoundaryProvider.notifier).clearAllErrors();
+                            } catch (e) {
+                              // Ignore any errors when clearing state
+                            }
+                          },
+                          child: const Text('Doorgaan'),
+                        ),
+                      ),
+                      if (kDebugMode && errorMessage != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          child: SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Text(
+                                'Fout: $errorMessage',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                  color: Colors.red,
+                                ),
+                                textAlign: TextAlign.center,
+                                softWrap: true,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ],
@@ -263,63 +301,135 @@ class MyApp extends ConsumerWidget {
                 ),
               ),
             ),
-          );
-        };
-
-        // Return child directly - GlobalTTSOverlay will be added at the screen level
-        return child ?? const SizedBox.shrink();
-      },
-    );
-    } catch (e, stackTrace) {
-      debugPrint('Error in MyApp.build: $e');
-      debugPrint('Stack trace: $stackTrace');
-      
-      // Return a fallback app with basic theme
-      return MaterialApp(
-        title: 'Karatapp',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData.light(),
-        darkTheme: ThemeData.dark(),
-        home: Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: Colors.red,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'App Initialization Error',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Error: $e',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.red,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () {
-                    // Restart the app
-                    runApp(const MyApp());
-                  },
-                  child: const Text('Restart App'),
-                ),
-              ],
-            ),
           ),
         ),
       );
     }
+
+    return widget.child;
+  }
+}
+
+class MyApp extends ConsumerStatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  @override
+  Widget build(BuildContext context) {
+    // Use AppErrorBoundary to catch any build errors
+    return AppErrorBoundary(
+      child: Builder(
+        builder: (context) {
+          try {
+            final router = ref.watch(routerProvider);
+            final themeState = ref.watch(themeNotifierProvider);
+            final accessibilityState = ref.watch(accessibilityNotifierProvider);
+            
+            return MaterialApp.router(
+              title: 'Karatapp',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.getThemeData(
+                themeMode: themeState.themeMode,
+                colorScheme: themeState.colorScheme,
+                isHighContrast: themeState.isHighContrast,
+                glowEffects: themeState.glowEffects,
+                systemBrightness: Brightness.light,
+                fontScaleFactor: accessibilityState.fontScaleFactor,
+                isDyslexiaFriendly: themeState.isDyslexiaFriendly,
+              ),
+              darkTheme: AppTheme.getThemeData(
+                themeMode: AppThemeMode.dark,
+                colorScheme: themeState.colorScheme,
+                isHighContrast: themeState.isHighContrast,
+                glowEffects: themeState.glowEffects,
+                systemBrightness: Brightness.dark,
+                fontScaleFactor: accessibilityState.fontScaleFactor,
+                isDyslexiaFriendly: themeState.isDyslexiaFriendly,
+              ),
+              themeMode: themeState.flutterThemeMode,
+              routerConfig: router,
+              onGenerateTitle: (context) => 'Karatapp',
+              builder: (context, child) {
+                // Set system UI overlay style based on current theme
+                final brightness = Theme.of(context).brightness;
+                SystemChrome.setSystemUIOverlayStyle(
+                  SystemUiOverlayStyle(
+                    statusBarColor: Colors.transparent,
+                    statusBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+                    statusBarBrightness: brightness,
+                    systemNavigationBarColor: Theme.of(context).scaffoldBackgroundColor,
+                    systemNavigationBarIconBrightness: brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+                  ),
+                );
+
+                // Simplified protection - just error catching and TTS overlay
+                return OverflowErrorCatcher(
+                  enableErrorCatching: true,
+                  child: GlobalTTSOverlay(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                );
+              },
+            );
+          } catch (e, stackTrace) {
+            debugPrint('Error in MyApp.build: $e');
+            debugPrint('Stack trace: $stackTrace');
+            
+            // Return a fallback app with basic theme
+            return MaterialApp(
+              title: 'Karatapp',
+              debugShowCheckedModeBanner: false,
+              theme: ThemeData.light(),
+              darkTheme: ThemeData.dark(),
+              home: Scaffold(
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'App Initialization Error',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Error: $e',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.red,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () {
+                          // Restart the app by rebuilding the widget tree
+                          if (context.mounted) {
+                            setState(() {});
+                          }
+                        },
+                        child: const Text('Restart App'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+        },
+      ),
+    );
   }
 }

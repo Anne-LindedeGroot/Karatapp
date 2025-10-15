@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/responsive_utils.dart';
+import '../providers/accessibility_provider.dart';
+import 'overflow_safe_widgets.dart';
 
 /// A responsive layout wrapper that adapts to different screen sizes
 class ResponsiveLayout extends StatelessWidget {
@@ -307,6 +310,145 @@ class ResponsiveDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return OverflowSafeDialog(
+      title: title,
+      actions: actions,
+      contentPadding: contentPadding,
+      scrollable: scrollable,
+      child: child,
+    );
+  }
+}
+
+/// A TTS-enabled responsive dialog that automatically reads content when shown
+class TTSResponsiveDialog extends ConsumerStatefulWidget {
+  final Widget child;
+  final String? title;
+  final List<Widget>? actions;
+  final EdgeInsetsGeometry? contentPadding;
+  final bool scrollable;
+  final bool autoReadContent;
+
+  const TTSResponsiveDialog({
+    super.key,
+    required this.child,
+    this.title,
+    this.actions,
+    this.contentPadding,
+    this.scrollable = true,
+    this.autoReadContent = true,
+  });
+
+  @override
+  ConsumerState<TTSResponsiveDialog> createState() => _TTSResponsiveDialogState();
+}
+
+class _TTSResponsiveDialogState extends ConsumerState<TTSResponsiveDialog> {
+  @override
+  void initState() {
+    super.initState();
+    // Auto-read dialog content when it appears
+    if (widget.autoReadContent) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Use a try-catch to prevent any initialization errors from crashing the dialog
+        try {
+          _readDialogContent();
+        } catch (e) {
+          debugPrint('TTS Responsive Dialog: Error during initialization: $e');
+        }
+      });
+    }
+  }
+
+  Future<void> _readDialogContent() async {
+    try {
+      // Add a small delay to ensure the dialog is fully rendered
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      
+      // Only proceed if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('TTS Responsive Dialog: TTS is not enabled, skipping auto-read');
+        return;
+      }
+      
+      // Build the text to read
+      final List<String> contentParts = [];
+      
+      if (widget.title != null) {
+        contentParts.add('Titel: ${widget.title}');
+      }
+      
+      // Extract text from child widget
+      final childText = _extractTextFromWidget(widget.child);
+      if (childText.isNotEmpty) {
+        contentParts.add('Inhoud: $childText');
+      }
+      
+      // Extract text from action buttons
+      final actionTexts = _extractTextFromActions(widget.actions);
+      if (actionTexts.isNotEmpty) {
+        contentParts.add('Knoppen: ${actionTexts.join(', ')}');
+      }
+      
+      final fullText = contentParts.join('. ');
+      
+      if (fullText.isNotEmpty) {
+        debugPrint('TTS Responsive Dialog: Reading content: $fullText');
+        
+        // Stop any current speech
+        if (accessibilityNotifier.isSpeaking()) {
+          await accessibilityNotifier.stopSpeaking();
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+        
+        // Speak the dialog content
+        await accessibilityNotifier.speak(fullText);
+      } else {
+        debugPrint('TTS Responsive Dialog: No content to read');
+      }
+    } catch (e) {
+      debugPrint('TTS Responsive Dialog Error: $e');
+      // Don't rethrow the error to prevent dialog from crashing
+    }
+  }
+
+  String _extractTextFromWidget(Widget widget) {
+    if (widget is Text) {
+      return widget.data ?? '';
+    } else if (widget is RichText) {
+      return widget.text.toPlainText();
+    } else if (widget is Container) {
+      return widget.child != null ? _extractTextFromWidget(widget.child!) : '';
+    } else if (widget is Padding) {
+      return widget.child != null ? _extractTextFromWidget(widget.child!) : '';
+    } else if (widget is Column) {
+      return widget.children.map(_extractTextFromWidget).where((text) => text.isNotEmpty).join(' ');
+    } else if (widget is Row) {
+      return widget.children.map(_extractTextFromWidget).where((text) => text.isNotEmpty).join(' ');
+    }
+    return '';
+  }
+
+  List<String> _extractTextFromActions(List<Widget>? actions) {
+    if (actions == null) return [];
+    
+    return actions.map((action) {
+      if (action is TextButton) {
+        return action.child != null ? _extractTextFromWidget(action.child!) : '';
+      } else if (action is ElevatedButton) {
+        return action.child != null ? _extractTextFromWidget(action.child!) : '';
+      } else if (action is OutlinedButton) {
+        return action.child != null ? _extractTextFromWidget(action.child!) : '';
+      }
+      return '';
+    }).where((text) => text.isNotEmpty).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: context.responsiveBorderRadius,
@@ -316,29 +458,56 @@ class ResponsiveDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (title != null)
+            if (widget.title != null)
               Padding(
                 padding: context.responsivePadding,
                 child: Text(
-                  title!,
+                  widget.title!,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
             Flexible(
               child: SingleChildScrollView(
-                physics: scrollable ? null : const NeverScrollableScrollPhysics(),
-                padding: contentPadding ?? context.responsivePadding,
-                child: child,
+                physics: widget.scrollable ? null : const NeverScrollableScrollPhysics(),
+                padding: widget.contentPadding ?? context.responsivePadding,
+                child: widget.child,
               ),
             ),
-            if (actions != null)
+            if (widget.actions != null)
               Padding(
                 padding: context.responsivePadding,
-                child: Wrap(
-                  alignment: WrapAlignment.end,
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  children: actions!,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Check if buttons would overflow
+                    final buttonCount = widget.actions!.length;
+                    final estimatedButtonWidth = 100.0; // Rough estimate per button
+                    final spacing = 8.0 * (buttonCount - 1);
+                    final totalEstimatedWidth = (buttonCount * estimatedButtonWidth) + spacing;
+                    
+                    if (totalEstimatedWidth > constraints.maxWidth) {
+                      // Stack buttons vertically if they would overflow
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: widget.actions!.map((action) => 
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: action,
+                            ),
+                          )
+                        ).toList(),
+                      );
+                    } else {
+                      // Use horizontal layout if buttons fit
+                      return Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 8.0,
+                        runSpacing: 8.0,
+                        children: widget.actions!,
+                      );
+                    }
+                  },
                 ),
               ),
           ],

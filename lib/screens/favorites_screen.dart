@@ -10,7 +10,6 @@ import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
-import '../widgets/global_tts_overlay.dart';
 import '../core/navigation/app_router.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
@@ -114,8 +113,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     final favoriteKatasAsync = ref.watch(userFavoriteKatasProvider);
     final favoriteForumPostsAsync = ref.watch(userFavoriteForumPostsProvider);
 
-    return GlobalTTSOverlay(
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: Semantics(
           label: 'Mijn Favorieten pagina. Gebruik de tabbladen om tussen favoriete kata\'s en forumberichten te wisselen.',
@@ -234,7 +232,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           ),
         ],
       ),
-    ),
     );
   }
 
