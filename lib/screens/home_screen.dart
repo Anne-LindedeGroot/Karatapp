@@ -7,7 +7,6 @@ import '../widgets/collapsible_kata_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/modern_loading_widget.dart';
-import '../widgets/cleaning_animation_widget.dart';
 import '../widgets/global_tts_overlay.dart';
 import '../widgets/overflow_safe_widgets.dart';
 import '../providers/auth_provider.dart';
@@ -59,141 +58,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await ref.read(kataNotifierProvider.notifier).refreshKatas();
   }
 
-  Future<void> _safeCleanupTempFolders() async {
-    if (!context.mounted) return;
-    
-    try {
-      // Show confirmation dialog with enhanced styling
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => DialogTTSOverlay(
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Container(
-              constraints: BoxConstraints(
-                maxWidth: context.isTablet ? 450 : 350,
-                maxHeight: context.isTablet ? 400 : 300,
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Warning icon
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.orange.shade50,
-                    ),
-                    child: Icon(
-                      Icons.cleaning_services,
-                      size: 40,
-                      color: Colors.orange.shade600,
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 20),
-                  
-                  // Title
-                  Text(
-                    'Tijdelijke bestanden opruimen?',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange.shade700,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Description
-                  Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    'Dit zal alleen tijdelijke mappen opruimen zoals "temp_upload", "temp_processing" en "temp_backup". '
-                    'Uw kata afbeeldingen blijven volledig veilig. Deze actie kan niet ongedaan worden gemaakt.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade700,
-                      height: 1.4,
-                    ),
-                    textAlign: TextAlign.center,
-                    softWrap: true,
-                    overflow: TextOverflow.visible,
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Action buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Annuleren',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text(
-                          'Opruimen',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-      if (confirmed == true && context.mounted) {
-        // Use the enhanced cleaning service with animations
-        await EnhancedCleaningService.performCleaningWithAnimation(context, ref);
-      }
-    } catch (e) {
-      debugPrint('Error in _safeCleanupTempFolders: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Fout bij opruimen: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   Future<void> _deleteKata(int kataId, String kataName) async {
     // Show confirmation dialog
@@ -886,42 +750,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       });
                     },
                   ),
-                  if (isHost)
-                    PopupMenuItem<String>(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.cleaning_services, size: 20),
-                          const SizedBox(width: 12),
-                          const Flexible(
-                            child: Text(
-                              'Afbeeldingen opruimen',
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                      onTap: () {
-                        // Add a slight delay to ensure the popup menu closes first
-                        Future.microtask(() {
-                          if (context.mounted) {
-                            try {
-                              _safeCleanupTempFolders();
-                            } catch (e) {
-                              debugPrint('Error in cleanup: $e');
-                              // Show a simple error message if cleanup fails
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Fout bij opruimen: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        });
-                      },
-                    ),
                   const PopupMenuDivider(),
                   // Theme switcher
                   PopupMenuItem<String>(
