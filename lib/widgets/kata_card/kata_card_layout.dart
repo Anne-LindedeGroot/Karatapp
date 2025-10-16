@@ -4,7 +4,6 @@ import '../../utils/responsive_utils.dart';
 import '../../core/theme/app_theme.dart';
 import '../formatted_text.dart';
 import '../avatar_widget.dart';
-import '../responsive_layout.dart';
 
 /// Kata Card Layout - Handles responsive layout for kata cards
 class KataCardLayout {

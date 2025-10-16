@@ -103,7 +103,7 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
-                    color: networkState.isConnected ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                    color: networkState.isConnected ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -137,7 +137,7 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -180,8 +180,10 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               title: Text(_getDataUsageModeTitle(mode)),
               subtitle: Text(_getDataUsageModeDescription(mode)),
               value: mode,
+              // ignore: deprecated_member_use
               groupValue: dataUsageState.mode,
-              onChanged: (value) {
+              // ignore: deprecated_member_use
+              onChanged: (DataUsageMode? value) {
                 if (value != null) {
                   ref.read(dataUsageProvider.notifier).setMode(value);
                 }
@@ -218,7 +220,7 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<DataUsageQuality>(
-              value: dataUsageState.videoQuality,
+              initialValue: dataUsageState.videoQuality,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -245,7 +247,7 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<DataUsageQuality>(
-              value: dataUsageState.imageQuality,
+              initialValue: dataUsageState.imageQuality,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -333,7 +335,7 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               const SizedBox(height: 8),
               LinearProgressIndicator(
                 value: (dataUsageState.stats.totalBytesUsed / (1024 * 1024)) / dataUsageState.monthlyDataLimit,
-                backgroundColor: Colors.grey.withOpacity(0.3),
+                backgroundColor: Colors.grey.withValues(alpha: 0.3),
                 valueColor: AlwaysStoppedAnimation<Color>(
                   dataUsageState.shouldShowDataWarning ? Colors.red : Colors.green,
                 ),

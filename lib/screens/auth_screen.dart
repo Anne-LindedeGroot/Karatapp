@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../models/auth_state.dart';
 import '../utils/responsive_utils.dart';
-import '../services/unified_tts_service.dart';
 import '../providers/accessibility_provider.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {

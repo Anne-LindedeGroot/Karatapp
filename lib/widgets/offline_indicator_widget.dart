@@ -43,10 +43,10 @@ class OfflineIndicatorWidget extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: _getStatusColor(networkState, dataUsageState, syncState).withOpacity(0.1),
+        color: _getStatusColor(networkState, dataUsageState, syncState).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _getStatusColor(networkState, dataUsageState, syncState).withOpacity(0.3),
+          color: _getStatusColor(networkState, dataUsageState, syncState).withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -152,7 +152,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: syncState.progress,
-                    backgroundColor: Colors.grey.withOpacity(0.3),
+                    backgroundColor: Colors.grey.withValues(alpha: 0.3),
                     valueColor: AlwaysStoppedAnimation<Color>(
                       _getStatusColor(networkState, dataUsageState, syncState),
                     ),
@@ -167,10 +167,10 @@ class OfflineIndicatorWidget extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: Colors.orange.withOpacity(0.3),
+                    color: Colors.orange.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -411,7 +411,7 @@ class DataUsageWarningBanner extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: usagePercentage > 0.9 ? Colors.red.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+        color: usagePercentage > 0.9 ? Colors.red.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
         border: Border(
           bottom: BorderSide(
             color: usagePercentage > 0.9 ? Colors.red : Colors.orange,

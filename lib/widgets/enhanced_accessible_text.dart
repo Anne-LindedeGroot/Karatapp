@@ -52,7 +52,6 @@ class EnhancedAccessibleText extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-    final accessibilityState = ref.watch(accessibilityNotifierProvider);
     
     // Use theme-based styling (font scaling is already applied at theme level)
     final baseStyle = style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();

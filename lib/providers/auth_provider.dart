@@ -152,13 +152,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     
     try {
+      // Use the enhanced signup method that handles email confirmations reliably and creates user profiles
       final response = await _authService.signUpWithPersistence(email, password, name);
+      
       if (response.user != null) {
+        // Check if email confirmation is required
+        if (response.user!.emailConfirmedAt != null) {
+          // User is immediately authenticated (email auto-confirmed)
+          state = state.copyWith(
+            user: response.user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          );
+        } else {
+          // User needs to confirm email
+          state = state.copyWith(
+            user: response.user,
+            isAuthenticated: false,
+            isLoading: false,
+            error: 'Je account is aangemaakt maar nog niet geactiveerd. Controleer je e-mail (inclusief spam/junk folder) en klik op de bevestigingslink. Als je geen e-mail hebt ontvangen, probeer opnieuw in te loggen of neem contact op met de beheerder.',
+          );
+        }
+      } else {
+        // No user returned (likely email was resent)
         state = state.copyWith(
-          user: response.user,
-          isAuthenticated: true,
+          user: null,
+          isAuthenticated: false,
           isLoading: false,
-          error: null,
+          error: 'Een bevestigingsmail is verzonden naar $email. Controleer je e-mail (inclusief spam/junk folder) en klik op de bevestigingslink om je account te activeren.',
         );
       }
     } catch (e) {

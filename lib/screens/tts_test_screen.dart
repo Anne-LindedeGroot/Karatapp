@@ -5,11 +5,16 @@ import '../widgets/global_tts_overlay.dart';
 import '../widgets/tts_clickable_text.dart';
 
 /// Test screen to demonstrate TTS functionality in popups and dialogs
-class TTSTestScreen extends ConsumerWidget {
+class TTSTestScreen extends ConsumerStatefulWidget {
   const TTSTestScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TTSTestScreen> createState() => _TTSTestScreenState();
+}
+
+class _TTSTestScreenState extends ConsumerState<TTSTestScreen> {
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const TTSClickableText('TTS Popup Test'),
@@ -93,6 +98,7 @@ class TTSTestScreen extends ConsumerWidget {
   }
 
   void _showConfirmationDialog(BuildContext context) {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     DialogTTSHelper.showConfirmationDialog(
       context: context,
       title: 'Bevestiging Vereist',
@@ -101,8 +107,8 @@ class TTSTestScreen extends ConsumerWidget {
       cancelText: 'Nee, Annuleren',
       confirmButtonColor: Colors.green,
     ).then((confirmed) {
-      if (confirmed) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (confirmed && mounted) {
+        scaffoldMessenger.showSnackBar(
           const SnackBar(content: Text('Actie bevestigd!')),
         );
       }
@@ -126,6 +132,7 @@ class TTSTestScreen extends ConsumerWidget {
   }
 
   void _showLoadingDialog(BuildContext context) {
+    final navigator = Navigator.of(context);
     DialogTTSHelper.showLoadingDialog(
       context: context,
       message: 'Bezig met laden van gegevens...',
@@ -133,12 +140,17 @@ class TTSTestScreen extends ConsumerWidget {
     
     // Close the loading dialog after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        DialogTTSHelper.showSuccessDialog(
-          context: context,
-          message: 'Laden voltooid!',
-        );
+      if (mounted) {
+        navigator.pop();
+        // Use a different approach to avoid BuildContext async gap
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            DialogTTSHelper.showSuccessDialog(
+              context: context,
+              message: 'Laden voltooid!',
+            );
+          }
+        });
       }
     });
   }

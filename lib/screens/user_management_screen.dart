@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/role_service.dart';
 import '../services/mute_service.dart';
 import '../providers/role_provider.dart';
 import '../providers/mute_provider.dart';
 import '../providers/accessibility_provider.dart';
-import '../services/unified_tts_service.dart';
 import '../widgets/connection_error_widget.dart';
 import '../core/navigation/app_router.dart';
 import '../widgets/global_tts_overlay.dart';
@@ -35,14 +35,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     // });
   }
 
-  Future<void> _announcePageLoad() async {
-    try {
-      // Use the unified TTS service to read actual screen content
-      await UnifiedTTSService.readCurrentScreen(context, ref);
-    } catch (e) {
-      debugPrint('Error announcing page load: $e');
-    }
-  }
 
   Future<void> _speakUserContent(Map<String, dynamic> user, int index) async {
     try {
@@ -89,6 +81,81 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         _error = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _debugDatabase() async {
+    try {
+      print('🔍 DEBUG: Starting database debug...');
+      
+      // Test direct Supabase connection
+      final client = Supabase.instance.client;
+      print('🔍 DEBUG: Supabase client initialized');
+      
+      // Test user_profiles table
+      try {
+        final profiles = await client.from('user_profiles').select('*').limit(10);
+        print('🔍 DEBUG: user_profiles table - Found ${profiles.length} records');
+        print('🔍 DEBUG: user_profiles data: $profiles');
+      } catch (e) {
+        print('🔍 DEBUG: user_profiles table error: $e');
+      }
+      
+      // Test user_roles table
+      try {
+        final roles = await client.from('user_roles').select('*').limit(10);
+        print('🔍 DEBUG: user_roles table - Found ${roles.length} records');
+        print('🔍 DEBUG: user_roles data: $roles');
+      } catch (e) {
+        print('🔍 DEBUG: user_roles table error: $e');
+      }
+      
+      // Test user_roles_overview view
+      try {
+        final overview = await client.from('user_roles_overview').select('*').limit(10);
+        print('🔍 DEBUG: user_roles_overview view - Found ${overview.length} records');
+        print('🔍 DEBUG: user_roles_overview data: $overview');
+      } catch (e) {
+        print('🔍 DEBUG: user_roles_overview view error: $e');
+      }
+      
+      // Test current user
+      final currentUser = client.auth.currentUser;
+      print('🔍 DEBUG: Current user: ${currentUser?.email} (${currentUser?.id})');
+      
+      // Test RoleService method
+      final users = await _roleService.getAllUsersWithRoles();
+      print('🔍 DEBUG: RoleService.getAllUsersWithRoles() returned ${users.length} users');
+      print('🔍 DEBUG: RoleService users data: $users');
+      
+      // Try to create missing user profiles
+      print('🔍 DEBUG: Attempting to create missing user profiles...');
+      await _roleService.createMissingUserProfiles();
+      
+      // Test again after creating profiles
+      final usersAfter = await _roleService.getAllUsersWithRoles();
+      print('🔍 DEBUG: After creating profiles - Found ${usersAfter.length} users');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Debug complete - Found ${users.length} users initially, ${usersAfter.length} after creating profiles. Check console for details.'),
+            duration: const Duration(seconds: 8),
+          ),
+        );
+      }
+      
+    } catch (e) {
+      print('🔍 DEBUG: General error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Debug error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 
@@ -497,6 +564,91 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         );
       },
     );
+  }
+
+  Widget _buildDeleteButton(String userId, String userName) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final iconColor = isDarkMode ? Colors.red.shade300 : Colors.red;
+
+    return IconButton(
+      icon: Icon(Icons.delete, color: iconColor, size: 20),
+      tooltip: 'Gebruiker Verwijderen',
+      onPressed: () => _showDeleteConfirmation(userId, userName),
+    );
+  }
+
+  Future<void> _showDeleteConfirmation(String userId, String userName) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Gebruiker Verwijderen'),
+        content: Text(
+          'Weet je zeker dat je "$userName" wilt verwijderen?\n\n'
+          'Deze actie kan niet ongedaan worden gemaakt en alle gegevens van deze gebruiker zullen permanent worden verwijderd.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Annuleren'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Verwijderen'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _deleteUser(userId, userName);
+    }
+  }
+
+  Future<void> _deleteUser(String userId, String userName) async {
+    try {
+      // Show loading
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gebruiker wordt verwijderd...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Call the delete function we created in the database
+      await Supabase.instance.client.rpc('delete_user_from_overview', params: {
+        'target_user_id': userId,
+      });
+
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$userName is succesvol verwijderd'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Reload the users list
+        _loadUsers();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout bij verwijderen gebruiker: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleMuteAction(
@@ -948,6 +1100,11 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                 onPressed: _loadUsers,
                 tooltip: 'Gebruikers Verversen',
               ),
+              IconButton(
+                icon: const Icon(Icons.bug_report),
+                onPressed: _debugDatabase,
+                tooltip: 'Debug Database',
+              ),
             ],
           ),
           body: Column(
@@ -1152,6 +1309,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                             ),
                                           // Both hosts and mediators can mute users
                                           _buildMuteButton(userId, userName),
+                                          // Only hosts can delete users
+                                          if (ref.watch(currentUserRoleProvider).value == UserRole.host)
+                                            _buildDeleteButton(userId, userName),
                                         ],
                                       ),
                                     ),

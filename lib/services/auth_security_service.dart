@@ -135,25 +135,60 @@ class AuthSecurityService {
     return await RetryUtils.executeWithRetry(
       () async {
         try {
+          print('📧 Attempting signup with password validation for: $email');
+          
           final response = await _supabase.auth.signUp(
             email: email,
             password: password,
             data: {
               'full_name': name,
             },
+            emailRedirectTo: _getEmailConfirmationUrl(),
           );
+          
+          if (response.user != null) {
+            print('✅ User created successfully: ${response.user!.id}');
+            print('📧 Email confirmed: ${response.user!.emailConfirmedAt != null ? "Yes" : "No"}');
+            
+            if (response.user!.emailConfirmedAt == null) {
+              print('📬 Email confirmation sent to: $email');
+              print('ℹ️ User must confirm email before they can sign in');
+            }
+          }
+          
           return response;
         } on AuthException catch (e) {
+          // Handle specific cases for email reuse
+          if (e.message.contains('email') && e.message.contains('already')) {
+            print('⚠️ Email already exists, attempting to resend confirmation...');
+            // Try to resend confirmation email for existing unconfirmed user
+            try {
+              await _supabase.auth.resend(
+                type: OtpType.signup,
+                email: email,
+                emailRedirectTo: _getEmailConfirmationUrl(),
+              );
+              print('📧 Confirmation email resent to: $email');
+              // Return a mock response indicating email was sent
+              return AuthResponse(
+                user: null,
+                session: null,
+              );
+            } catch (resendError) {
+              print('❌ Failed to resend confirmation: $resendError');
+              throw _handleAuthException(e);
+            }
+          }
           throw _handleAuthException(e);
         } catch (e) {
           throw Exception('Sign up failed: $e');
         }
       },
-      maxRetries: 2,
+      maxRetries: 3,
       initialDelay: const Duration(milliseconds: 500),
       shouldRetry: RetryUtils.shouldRetryAuthError,
       onRetry: (attempt, error) {
-        // Retry attempt for sign up
+        print('🔄 Retry attempt $attempt for signup: $error');
       },
     );
   }
@@ -177,6 +212,7 @@ class AuthSecurityService {
             data: {
               'full_name': name,
             },
+            emailRedirectTo: _getEmailConfirmationUrl(),
           );
           return response;
         } on AuthException catch (e) {
@@ -297,6 +333,12 @@ class AuthSecurityService {
     }
   }
 
+
+  /// Get the email confirmation URL for professional email links
+  String _getEmailConfirmationUrl() {
+    // Use the Supabase verify URL that's configured in the dashboard for email confirmations
+    return 'https://asvyjiuphcqfmwdpivsr.supabase.co/auth/v1/verify';
+  }
 
   /// Handle general auth exceptions
   Exception _handleAuthException(AuthException e) {

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
-import '../services/unified_tts_service.dart';
 
 /// A widget that makes text clickable for TTS functionality
 /// This is especially useful in dialogs and popups where TTS might not work automatically

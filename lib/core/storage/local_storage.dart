@@ -227,13 +227,20 @@ class LocalStorage {
     final session = getAuthSession();
     final timestamp = getAuthSessionTimestamp();
     
-    // Check if we have required tokens and session is not older than 30 days
-    if (session['access_token'] == null || session['refresh_token'] == null || timestamp == null) {
+    // Check if we have required tokens
+    if (session['refresh_token'] == null) {
       return false;
     }
     
-    final daysSinceAuth = DateTime.now().difference(timestamp).inDays;
-    return daysSinceAuth < 30;
+    // If we have a timestamp, check if session is not older than 60 days
+    if (timestamp != null) {
+      final daysSinceAuth = DateTime.now().difference(timestamp).inDays;
+      return daysSinceAuth < 60; // Increased from 30 to 60 days
+    }
+    
+    // If no timestamp but we have refresh token, consider it valid
+    // (for backward compatibility with existing sessions)
+    return true;
   }
   
   // Utility methods

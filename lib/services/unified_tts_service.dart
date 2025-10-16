@@ -20,6 +20,13 @@ class UnifiedTTSService {
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
+    // Check if TTS button is visible - if not, don't read anything
+    if (!accessibilityState.showTTSButton) {
+      debugPrint('TTS: TTS button is hidden, not reading screen content');
+      print('❌ TTS: TTS button is hidden, not reading screen content');
+      return;
+    }
+    
     // Ensure TTS is enabled
     if (!accessibilityState.isTextToSpeechEnabled) {
       await accessibilityNotifier.setTextToSpeechEnabled(true);
@@ -141,68 +148,6 @@ class UnifiedTTSService {
     }
   }
 
-  /// Extract comprehensive content from the current screen
-  static String _extractComprehensiveScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      debugPrint('TTS: Starting comprehensive content extraction...');
-      
-      // First try comprehensive text extraction
-      final allVisibleText = _extractAllVisibleTextComprehensive(context);
-      if (allVisibleText.isNotEmpty) {
-        contentParts.addAll(allVisibleText);
-        debugPrint('TTS: Found ${allVisibleText.length} text elements using comprehensive extraction');
-      } else {
-        // Fallback to structured extraction if comprehensive fails
-        // 1. Check for overlays, dialogs, and popups first
-        final overlayContent = _extractOverlayContent(context);
-        if (overlayContent.isNotEmpty) {
-          contentParts.add(overlayContent);
-          debugPrint('TTS: Found overlay content: $overlayContent');
-        }
-        
-        // 2. Extract page title and navigation
-        final pageInfo = _extractPageInformation(context);
-        if (pageInfo.isNotEmpty) {
-          contentParts.add(pageInfo);
-          debugPrint('TTS: Found page info: $pageInfo');
-        }
-        
-        // 3. Extract main content using multiple strategies
-        final mainContent = _extractMainContent(context);
-        if (mainContent.isNotEmpty) {
-          contentParts.add(mainContent);
-          debugPrint('TTS: Found main content: ${mainContent.length} characters');
-        }
-        
-        // 4. Extract interactive elements
-        final interactiveElements = _extractInteractiveElements(context);
-        if (interactiveElements.isNotEmpty) {
-          contentParts.add(interactiveElements);
-          debugPrint('TTS: Found interactive elements: $interactiveElements');
-        }
-        
-        // 5. Extract form content if present
-        final formContent = _extractFormContent(context);
-        if (formContent.isNotEmpty) {
-          contentParts.add(formContent);
-          debugPrint('TTS: Found form content: $formContent');
-        }
-      }
-      
-      // Combine all content parts
-      final combinedContent = contentParts.join('. ');
-      debugPrint('TTS: Combined content length: ${combinedContent.length}');
-      
-      return combinedContent;
-      
-    } catch (e) {
-      debugPrint('TTS: Error in comprehensive extraction: $e');
-      print('❌ TTS: Error in comprehensive extraction: $e');
-      return ''; // Return empty string instead of fake content
-    }
-  }
 
   /// Process content for better Dutch speech pronunciation
   static String _processContentForDutchSpeech(String content) {
@@ -899,7 +844,7 @@ class UnifiedTTSService {
         }
       } else if (widget is Switch) {
         // Extract text from switch labels
-        if (widget.activeColor != null) {
+        if (widget.activeThumbColor != null) {
           textContent.add('Schakelaar');
           debugPrint('TTS: Found Switch');
         }
@@ -1321,13 +1266,9 @@ class UnifiedTTSService {
           _extractTextFromWidgetEnhanced(widget.child!, textContent);
         }
       } else if (widget is Expanded) {
-        if (widget.child != null) {
-          _extractTextFromWidgetEnhanced(widget.child!, textContent);
-        }
+        _extractTextFromWidgetEnhanced(widget.child, textContent);
       } else if (widget is Flexible) {
-        if (widget.child != null) {
-          _extractTextFromWidgetEnhanced(widget.child!, textContent);
-        }
+        _extractTextFromWidgetEnhanced(widget.child, textContent);
       } else if (widget is SizedBox) {
         if (widget.child != null) {
           _extractTextFromWidgetEnhanced(widget.child!, textContent);
@@ -1415,8 +1356,15 @@ class UnifiedTTSService {
     
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
-    // Ensure TTS is enabled
+    // Check if TTS button is visible - if not, don't read anything
     final accessibilityState = ref.read(accessibilityNotifierProvider);
+    if (!accessibilityState.showTTSButton) {
+      debugPrint('TTS: TTS button is hidden, not reading text');
+      print('❌ TTS: TTS button is hidden, not reading text');
+      return;
+    }
+    
+    // Ensure TTS is enabled
     if (!accessibilityState.isTextToSpeechEnabled) {
       await accessibilityNotifier.setTextToSpeechEnabled(true);
       await Future.delayed(const Duration(milliseconds: 500));
@@ -1452,8 +1400,15 @@ class UnifiedTTSService {
     
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
-    // Ensure TTS is enabled
+    // Check if TTS button is visible - if not, don't read anything
     final accessibilityState = ref.read(accessibilityNotifierProvider);
+    if (!accessibilityState.showTTSButton) {
+      debugPrint('TTS: TTS button is hidden, not reading widget');
+      print('❌ TTS: TTS button is hidden, not reading widget');
+      return;
+    }
+    
+    // Ensure TTS is enabled
     if (!accessibilityState.isTextToSpeechEnabled) {
       await accessibilityNotifier.setTextToSpeechEnabled(true);
       await Future.delayed(const Duration(milliseconds: 500));
@@ -1585,6 +1540,7 @@ class UnifiedTTSService {
       await Future.delayed(const Duration(milliseconds: 1000));
       
       // Extract comprehensive content in organized sections
+      if (!context.mounted) return;
       final comprehensiveContent = _extractComprehensiveWebpageContent(context);
       
       debugPrint('TTS: Comprehensive webpage extraction found ${comprehensiveContent.length} characters');
@@ -1602,7 +1558,9 @@ class UnifiedTTSService {
         // Fallback to regular screen reading
         debugPrint('TTS: Comprehensive webpage extraction found little content, falling back to regular screen reading');
         print('⚠️ TTS: Comprehensive webpage extraction found little content, falling back to regular screen reading');
-        await readCurrentScreen(context, ref);
+        if (context.mounted) {
+          await readCurrentScreen(context, ref);
+        }
       }
       
     } catch (e) {
@@ -1612,7 +1570,9 @@ class UnifiedTTSService {
       
       // Try fallback method
       try {
-        await readEverythingOnScreen(context, ref);
+        if (context.mounted) {
+          await readEverythingOnScreen(context, ref);
+        }
       } catch (fallbackError) {
         debugPrint('TTS: Fallback method also failed: $fallbackError');
         await accessibilityNotifier.speak('Het scannen van de pagina is mislukt. Probeer het opnieuw.');
@@ -2172,42 +2132,6 @@ class UnifiedTTSService {
   }
 
   /// Extract content from dialogs and popups
-  static String _extractDialogContent(BuildContext context) {
-    try {
-      // Check if context is still mounted
-      if (!context.mounted) {
-        debugPrint('TTS: Context no longer mounted in _extractDialogContent');
-        return '';
-      }
-      
-      // Check for dialogs
-      final dialog = context.findAncestorWidgetOfExactType<Dialog>() ?? 
-                     context.findAncestorWidgetOfExactType<AlertDialog>();
-      
-      if (dialog != null) {
-        return 'Dialog geopend met verschillende opties';
-      }
-      
-      // Check for bottom sheets
-      if (!context.mounted) return '';
-      final bottomSheet = context.findAncestorWidgetOfExactType<BottomSheet>();
-      if (bottomSheet != null) {
-        return 'Onderste menu geopend';
-      }
-      
-      // Check for snack bars
-      if (!context.mounted) return '';
-      final snackBar = context.findAncestorWidgetOfExactType<SnackBar>();
-      if (snackBar != null) {
-        return 'Melding getoond';
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting dialog content: $e');
-    }
-    
-    return '';
-  }
 
   /// Extract all actual text content from the screen using element tree traversal
   static String _extractAllTextFromScreen(BuildContext context) {
@@ -2476,13 +2400,9 @@ class UnifiedTTSService {
           _extractTextFromWidget(widget.child!, textContent);
         }
       } else if (widget is Expanded) {
-        if (widget.child != null) {
-          _extractTextFromWidget(widget.child!, textContent);
-        }
+        _extractTextFromWidget(widget.child, textContent);
       } else if (widget is Flexible) {
-        if (widget.child != null) {
-          _extractTextFromWidget(widget.child!, textContent);
-        }
+        _extractTextFromWidget(widget.child, textContent);
       } else if (widget is SizedBox) {
         if (widget.child != null) {
           _extractTextFromWidget(widget.child!, textContent);
@@ -2716,8 +2636,8 @@ class UnifiedTTSService {
       
       // Check for Semantics widgets which often contain accessibility labels
       if (widget is Semantics && widget.properties.label != null) {
-        final label = widget.properties.label!;
-        if (label!.trim().isNotEmpty && label.trim() != 'Pagina geladen') {
+        final label = widget.properties.label;
+        if (label != null && label.trim().isNotEmpty && label.trim() != 'Pagina geladen') {
           textContent.add(label.trim());
           debugPrint('TTS: Found Semantics label: "$label"');
         }
@@ -2784,286 +2704,18 @@ class UnifiedTTSService {
   }
 
   /// Generate helpful fallback content based on page type
-  static String _generateFallbackContent(String pageName) {
-    switch (pageName.toLowerCase()) {
-      case 'forum':
-        return 'Dit is de forum pagina waar je berichten kunt lezen en schrijven. Gebruik de zoekbalk om berichten te vinden, of maak een nieuw bericht met de plus knop.';
-      case 'hoofdpagina':
-        return 'Dit is de hoofdpagina van de app. Hier vind je verschillende opties om te navigeren naar andere delen van de app.';
-      case 'profiel':
-        return 'Dit is je profiel pagina waar je je persoonlijke informatie kunt bekijken en bewerken.';
-      case 'favorieten':
-        return 'Dit is je favorieten pagina waar je je opgeslagen items kunt bekijken.';
-      case 'gebruikersbeheer':
-        return 'Dit is de gebruikersbeheer pagina waar je gebruikers kunt beheren.';
-      case 'nieuw forum bericht maken':
-        return 'Dit is de pagina om een nieuw forum bericht te maken. Je kunt hier een titel en inhoud invoeren voor je bericht.';
-      case 'forum bericht details':
-        return 'Dit is de detail pagina van een forum bericht waar je het volledige bericht kunt lezen en reageren.';
-      case 'toegankelijkheidsinstellingen':
-        return 'Dit is de toegankelijkheidsinstellingen pagina waar je spraak, lettergrootte en andere toegankelijkheidsopties kunt aanpassen.';
-      case 'kata formulier':
-        return 'Dit is het kata formulier waar je nieuwe kata technieken kunt toevoegen.';
-      case 'avatar selectie':
-        return 'Dit is de avatar selectie pagina waar je je profiel avatar kunt kiezen.';
-      default:
-        return 'Deze pagina bevat verschillende interactieve elementen. Gebruik de navigatie om door de app te bewegen.';
-    }
-  }
 
   /// Get fallback content based on current route
-  static String _getFallbackContentForCurrentRoute(BuildContext context) {
-    try {
-      // Check if context is still mounted
-      if (!context.mounted) {
-        debugPrint('TTS: Context no longer mounted in _getFallbackContentForCurrentRoute');
-        return 'Karate app pagina geladen. Gebruik de navigatie knoppen om door de app te bewegen.';
-      }
-      
-      final modalRoute = ModalRoute.of(context);
-      if (modalRoute?.settings.name != null) {
-        final routeName = modalRoute!.settings.name!;
-        final pageDescription = _getRouteDescription(routeName);
-        if (pageDescription.isNotEmpty) {
-          return _generateFallbackContent(pageDescription);
-        }
-      }
-    } catch (e) {
-      debugPrint('TTS: Error getting route for fallback: $e');
-    }
-    
-    return 'Karate app pagina geladen. Gebruik de navigatie knoppen om door de app te bewegen. Er zijn verschillende functies beschikbaar zoals het forum, profiel en favorieten.';
-  }
 
-  /// Detect the current screen type for intelligent content reading
-  static ScreenType _detectCurrentScreenType(BuildContext context) {
-    try {
-      // Check if context is still mounted
-      if (!context.mounted) {
-        debugPrint('TTS: Context no longer mounted in _detectCurrentScreenType');
-        return ScreenType.generic;
-      }
-      
-      // First check for overlays and dialogs
-      if (_hasOverlay(context)) {
-        return ScreenType.overlay;
-      }
-      
-      // Check for forms
-      if (_hasForm(context)) {
-        return ScreenType.form;
-      }
-      
-      // Get route information
-      final modalRoute = ModalRoute.of(context);
-      if (modalRoute?.settings.name != null) {
-        final routeName = modalRoute!.settings.name!;
-        return _getScreenTypeFromRoute(routeName);
-      }
-      
-      // Fallback to generic screen
-      return ScreenType.generic;
-    } catch (e) {
-      debugPrint('TTS: Error detecting screen type: $e');
-      return ScreenType.generic;
-    }
-  }
 
-  /// Check if there's an overlay (dialog, bottom sheet, etc.)
-  static bool _hasOverlay(BuildContext context) {
-    try {
-      // Check if context is still mounted
-      if (!context.mounted) {
-        debugPrint('TTS: Context no longer mounted in _hasOverlay');
-        return false;
-      }
-      
-      return context.findAncestorWidgetOfExactType<AlertDialog>() != null ||
-             context.findAncestorWidgetOfExactType<Dialog>() != null ||
-             context.findAncestorWidgetOfExactType<BottomSheet>() != null ||
-             context.findAncestorWidgetOfExactType<SnackBar>() != null;
-    } catch (e) {
-      debugPrint('TTS: Error checking for overlay: $e');
-      return false;
-    }
-  }
 
-  /// Check if there's a form on the screen
-  static bool _hasForm(BuildContext context) {
-    try {
-      if (!context.mounted) {
-        debugPrint('TTS: Context no longer mounted in _hasForm');
-        return false;
-      }
-      
-      // Look for common form elements
-      final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
-      if (scaffold?.body != null) {
-        final List<String> formElements = [];
-        _extractTextFromWidget(scaffold!.body!, formElements);
-        return formElements.any((text) => 
-          text.contains('Invoerveld:') || 
-          text.contains('Ingevoerde tekst:') ||
-          text.toLowerCase().contains('email') ||
-          text.toLowerCase().contains('wachtwoord') ||
-          text.toLowerCase().contains('password'));
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
 
-  /// Get screen type from route name
-  static ScreenType _getScreenTypeFromRoute(String routeName) {
-    switch (routeName.toLowerCase()) {
-      case '/':
-      case '/home':
-        return ScreenType.home;
-      case '/login':
-      case '/signup':
-        return ScreenType.auth;
-      case '/profile':
-        return ScreenType.profile;
-      case '/forum':
-        return ScreenType.forum;
-      case '/forum/post/':
-        return ScreenType.forumDetail;
-      case '/forum/create':
-        return ScreenType.createPost;
-      case '/favorites':
-        return ScreenType.favorites;
-      case '/user-management':
-        return ScreenType.userManagement;
-      case '/avatar-selection':
-        return ScreenType.avatarSelection;
-      case '/accessibility-demo':
-        return ScreenType.accessibility;
-      default:
-        return ScreenType.generic;
-    }
-  }
 
 
 
   /// Extract content from form screens
-  static String _extractFormScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      // Extract ALL visible text content comprehensively
-      final allVisibleText = _extractAllVisibleTextComprehensive(context);
-      if (allVisibleText.isNotEmpty) {
-        contentParts.addAll(allVisibleText);
-      } else {
-        // Fallback to structured extraction if comprehensive fails
-        contentParts.add('Formulier pagina');
-        
-        // Extract form fields and labels
-        final formContent = _extractFormContent(context);
-        if (formContent.isNotEmpty) {
-          contentParts.add(formContent);
-        }
-        
-        // Extract buttons
-        final interactiveElements = _extractInteractiveElements(context);
-        if (interactiveElements.isNotEmpty) {
-          contentParts.add(interactiveElements);
-        }
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting form content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
-  /// Extract content from authentication screens
-  static String _extractAuthScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      // Extract ALL visible text content comprehensively
-      final allVisibleText = _extractAllVisibleTextComprehensive(context);
-      if (allVisibleText.isNotEmpty) {
-        contentParts.addAll(allVisibleText);
-      } else {
-        // Fallback to structured extraction if comprehensive fails
-        contentParts.add('Inlog of registratie pagina');
-        
-        // Extract form fields
-        final formContent = _extractFormContent(context);
-        if (formContent.isNotEmpty) {
-          contentParts.add(formContent);
-        }
-        
-        // Extract buttons and links
-        final interactiveElements = _extractInteractiveElements(context);
-        if (interactiveElements.isNotEmpty) {
-          contentParts.add(interactiveElements);
-        }
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting auth content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
-  /// Extract content from home screen with enhanced kata-specific content
-  static String _extractHomeScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      debugPrint('TTS: Starting home screen content extraction');
-      
-      // First, try to extract kata cards content specifically
-      final kataContent = _extractKataCardsContent(context);
-      if (kataContent.isNotEmpty) {
-        debugPrint('TTS: Found kata content: $kataContent');
-        contentParts.add(kataContent);
-      } else {
-        debugPrint('TTS: No kata content found, trying comprehensive extraction');
-        
-        // Extract ALL visible text content comprehensively
-        final allVisibleText = _extractAllVisibleTextComprehensive(context);
-        if (allVisibleText.isNotEmpty) {
-          debugPrint('TTS: Found comprehensive content: ${allVisibleText.length} items');
-          contentParts.addAll(allVisibleText);
-        } else {
-          debugPrint('TTS: No comprehensive content found, using structured extraction');
-          
-          // Fallback to structured extraction if comprehensive fails
-          contentParts.add('Hoofdpagina van de Karate app');
-          
-          // Extract search functionality
-          final searchContent = _extractSearchBarsAndFilters(context);
-          if (searchContent.isNotEmpty) {
-            contentParts.add('Zoek functionaliteit: $searchContent');
-          }
-          
-          // Extract main content as fallback
-          final mainContent = _extractMainContent(context);
-          if (mainContent.isNotEmpty) {
-            contentParts.add(mainContent);
-          }
-        }
-      }
-      
-      // Extract navigation options
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting home content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract ALL visible text content comprehensively from the current screen
   static List<String> _extractAllVisibleTextComprehensive(BuildContext context) {
@@ -3117,7 +2769,7 @@ class UnifiedTTSService {
           .where((text) => text.trim().isNotEmpty && 
                          text.trim() != 'Pagina geladen' &&
                          text.trim() != ' ' && // Filter out single spaces
-                         text.trim().length > 0 && // Allow any non-empty text
+                         text.trim().isNotEmpty && // Allow any non-empty text
                          !text.startsWith('Knop:') &&
                          !text.startsWith('Zwevende knop:') &&
                          !text.startsWith('Filter:') &&
@@ -3514,350 +3166,26 @@ class UnifiedTTSService {
   }
 
   /// Extract content specifically from kata cards
-  static String _extractKataCardsContent(BuildContext context) {
-    final List<String> kataParts = [];
-    
-    try {
-      if (!context.mounted) return '';
-      
-      debugPrint('TTS: Starting kata cards content extraction');
-      
-      // Use comprehensive text extraction to find all visible text
-      final elementTexts = <String>[];
-      _extractTextFromElementTreeEnhanced(context, elementTexts);
-      
-      // Also try aggressive extraction to find more content
-      if (elementTexts.isEmpty) {
-        _extractTextAggressively(context, elementTexts);
-      }
-      
-      // Filter for meaningful content (not just kata-related)
-      final meaningfulTexts = elementTexts
-          .where((text) => text.trim().isNotEmpty && 
-                         text.trim().length > 2 && // At least 3 characters
-                         !_isStrangeUnicodeCharacter(text.trim()) &&
-                         !text.toLowerCase().contains('scan hele pagina') &&
-                         !text.toLowerCase().contains('voorlezen') &&
-                         !text.toLowerCase().contains('spraak') &&
-                         !text.toLowerCase().contains('welkom bij de karate app') &&
-                         !text.toLowerCase().contains('loading') &&
-                         !text.toLowerCase().contains('laden') &&
-                         !text.toLowerCase().contains('error') &&
-                         !text.toLowerCase().contains('fout') &&
-                         !text.startsWith('Knop:') &&
-                         !text.startsWith('Zwevende knop:') &&
-                         !text.startsWith('Filter:') &&
-                         !text.startsWith('Invoerveld:') &&
-                         !text.startsWith('Pagina:') &&
-                         !text.startsWith('Beschikbare knoppen') &&
-                         !text.startsWith('Navigatie'))
-          .map((text) => text.trim())
-          .toSet() // Remove duplicates
-          .toList();
-      
-      debugPrint('TTS: Found ${meaningfulTexts.length} meaningful text elements');
-      print('🔍 TTS: Found ${meaningfulTexts.length} meaningful text elements: $meaningfulTexts');
-      
-      if (meaningfulTexts.isNotEmpty) {
-        // Sort by length (longer text first) to prioritize meaningful content
-        meaningfulTexts.sort((a, b) => b.length.compareTo(a.length));
-        
-        // Take the most meaningful content (up to 10 items to avoid overwhelming speech)
-        final limitedTexts = meaningfulTexts.take(10).toList();
-        kataParts.addAll(limitedTexts);
-        
-        if (meaningfulTexts.length > 10) {
-          kataParts.add('En nog ${meaningfulTexts.length - 10} meer items');
-        }
-      } else {
-        debugPrint('TTS: No meaningful content found in kata cards');
-        print('⚠️ TTS: No meaningful content found in kata cards');
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting kata cards content: $e');
-      print('❌ TTS: Error extracting kata cards content: $e');
-    }
-    
-    return kataParts.join('. ');
-  }
 
   /// Extract content from profile screen
-  static String _extractProfileScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      // Extract ALL visible text content comprehensively
-      final allVisibleText = _extractAllVisibleTextComprehensive(context);
-      if (allVisibleText.isNotEmpty) {
-        contentParts.addAll(allVisibleText);
-      } else {
-        // Fallback to structured extraction if comprehensive fails
-        contentParts.add('Profiel pagina');
-        
-        // Extract user information
-        final mainContent = _extractMainContent(context);
-        if (mainContent.isNotEmpty) {
-          contentParts.add(mainContent);
-        }
-        
-        // Extract profile options
-        final interactiveElements = _extractInteractiveElements(context);
-        if (interactiveElements.isNotEmpty) {
-          contentParts.add(interactiveElements);
-        }
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting profile content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract content from forum screen with enhanced post-specific content
-  static String _extractForumScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      // Extract ALL visible text content comprehensively
-      final allVisibleText = _extractAllVisibleTextComprehensive(context);
-      if (allVisibleText.isNotEmpty) {
-        contentParts.addAll(allVisibleText);
-      } else {
-        // Fallback to structured extraction if comprehensive fails
-        contentParts.add('Forum pagina met berichten');
-        
-        // Extract forum posts with enhanced information
-        final forumPosts = _extractForumPostsContent(context);
-        if (forumPosts.isNotEmpty) {
-          contentParts.add('Forum berichten: $forumPosts');
-        }
-        
-        // Extract main content as fallback
-        final mainContent = _extractMainContent(context);
-        if (mainContent.isNotEmpty && forumPosts.isEmpty) {
-          contentParts.add(mainContent);
-        }
-        
-        // Extract forum actions
-        final interactiveElements = _extractInteractiveElements(context);
-        if (interactiveElements.isNotEmpty) {
-          contentParts.add(interactiveElements);
-        }
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting forum content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract content specifically from forum posts
-  static String _extractForumPostsContent(BuildContext context) {
-    final List<String> postParts = [];
-    
-    try {
-      if (!context.mounted) return '';
-      
-      // Use element tree traversal to find forum-specific content
-      final elementTexts = <String>[];
-      _extractTextFromElementTreeEnhanced(context, elementTexts);
-      
-      // Filter for forum-related content
-      final forumTexts = elementTexts
-          .where((text) => text.toLowerCase().contains('bericht') ||
-                          text.toLowerCase().contains('post') ||
-                          text.toLowerCase().contains('reactie') ||
-                          text.toLowerCase().contains('discussie') ||
-                          text.toLowerCase().contains('forum') ||
-                          text.length > 15) // Include longer descriptive text
-          .toList();
-      
-      if (forumTexts.isNotEmpty) {
-        // Limit to first 3 forum posts to avoid overwhelming speech
-        final limitedForumTexts = forumTexts.take(3).toList();
-        postParts.addAll(limitedForumTexts);
-        
-        if (forumTexts.length > 3) {
-          postParts.add('En nog ${forumTexts.length - 3} meer forum berichten');
-        }
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting forum posts content: $e');
-    }
-    
-    return postParts.join('. ');
-  }
 
   /// Extract content from forum detail screen
-  static String _extractForumDetailScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      contentParts.add('Forum bericht detail pagina');
-      
-      // Extract post content
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
-        contentParts.add(mainContent);
-      }
-      
-      // Extract reply options
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting forum detail content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract content from create post screen
-  static String _extractCreatePostScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      contentParts.add('Nieuw forum bericht maken');
-      
-      // Extract form fields
-      final formContent = _extractFormContent(context);
-      if (formContent.isNotEmpty) {
-        contentParts.add(formContent);
-      }
-      
-      // Extract action buttons
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting create post content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract content from favorites screen
-  static String _extractFavoritesScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      contentParts.add('Favorieten pagina');
-      
-      // Extract favorite items
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
-        contentParts.add(mainContent);
-      }
-      
-      // Extract favorite actions
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting favorites content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract content from user management screen
-  static String _extractUserManagementScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      contentParts.add('Gebruikersbeheer pagina');
-      
-      // Extract user list
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
-        contentParts.add(mainContent);
-      }
-      
-      // Extract management options
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting user management content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract content from avatar selection screen
-  static String _extractAvatarSelectionScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      contentParts.add('Avatar selectie pagina');
-      
-      // Extract avatar options
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
-        contentParts.add(mainContent);
-      }
-      
-      // Extract selection options
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting avatar selection content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Extract content from accessibility screen
-  static String _extractAccessibilityScreenContent(BuildContext context) {
-    final List<String> contentParts = [];
-    
-    try {
-      contentParts.add('Toegankelijkheidsinstellingen pagina');
-      
-      // Extract accessibility options
-      final mainContent = _extractMainContent(context);
-      if (mainContent.isNotEmpty) {
-        contentParts.add(mainContent);
-      }
-      
-      // Extract setting controls
-      final interactiveElements = _extractInteractiveElements(context);
-      if (interactiveElements.isNotEmpty) {
-        contentParts.add(interactiveElements);
-      }
-      
-    } catch (e) {
-      debugPrint('TTS: Error extracting accessibility content: $e');
-    }
-    
-    return contentParts.join('. ');
-  }
 
   /// Generate cache key for content caching
-  static String _generateCacheKey(BuildContext context, ScreenType screenType) {
-    try {
-      final route = ModalRoute.of(context);
-      final routeName = route?.settings.name ?? 'unknown';
-      return '${screenType.name}_$routeName';
-    } catch (e) {
-      return '${screenType.name}_unknown';
-    }
-  }
 
   /// Clear all cached content (useful for memory management)
   static void clearCache() {

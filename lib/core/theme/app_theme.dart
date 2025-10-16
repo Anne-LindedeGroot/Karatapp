@@ -12,16 +12,14 @@ class AppTheme {
   static const Color _primaryGreen = Color(0xFF2E7D32);
   static const Color _primaryGreenDark = Color(0xFF1B5E20);
   static const Color _primaryGreenLight = Color(0xFF4CAF50);
-  static const Color _primaryGreenAccent = Color(0xFF66BB6A);
   
   static const Color _secondaryOrange = Color(0xFFFF8F00);
   static const Color _secondaryOrangeDark = Color(0xFFE65100);
   static const Color _secondaryOrangeLight = Color(0xFFFFB74D);
-  static const Color _secondaryOrangeAccent = Color(0xFFFFA726);
   
   static const Color _errorRed = Color(0xFFD32F2F);
-  static const Color _warningAmber = Color(0xFFF57C00);
-  static const Color _successGreen = Color(0xFF388E3C);
+  
+  // These colors are used in the color palettes below
   static const Color _infoBlue = Color(0xFF1976D2);
   
   // Enhanced neutral colors with better contrast ratios
@@ -29,18 +27,12 @@ class AppTheme {
   static const Color _neutral800 = Color(0xFF161B22);
   static const Color _neutral700 = Color(0xFF21262D);
   static const Color _neutral600 = Color(0xFF30363D);
-  static const Color _neutral500 = Color(0xFF484F58);
   static const Color _neutral400 = Color(0xFF656D76);
   static const Color _neutral300 = Color(0xFF8B949E);
-  static const Color _neutral200 = Color(0xFFB1BAC4);
   static const Color _neutral100 = Color(0xFFD0D7DE);
-  static const Color _neutral50 = Color(0xFFF6F8FA);
   
-  // Surface colors for better depth and hierarchy
-  static const Color _surfaceLight = Color(0xFFFFFFFF);
-  static const Color _surfaceLightVariant = Color(0xFFF8F9FA);
-  static const Color _surfaceDark = Color(0xFF0D1117);
-  static const Color _surfaceDarkVariant = Color(0xFF161B22);
+  
+  // These colors are used in the color schemes below
 
   // Typography
   static const String _fontFamily = 'Roboto';

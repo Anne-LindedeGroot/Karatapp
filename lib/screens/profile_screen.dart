@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/role_provider.dart';
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
 import '../services/role_service.dart';
+import '../services/auth_service.dart';
+import '../services/forum_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
 import '../utils/responsive_utils.dart';
@@ -25,6 +28,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _nameFocusNode = FocusNode();
   String? _successMessage;
   bool _isNameFieldFocused = false;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -204,6 +208,285 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           SnackBar(
             content: Text('Fout bij bijwerken naam: $e'),
             backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    // Speak the action once when button is pressed
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      await accessibilityNotifier.speak('Account verwijderen gestart. Bevestigingsdialoog wordt getoond.');
+    } catch (e) {
+      // Ignore TTS errors
+    }
+
+    // Show confirmation dialog
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Account verwijderen'),
+          content: SingleChildScrollView(
+            child: Text(
+              'Weet je zeker dat je je account wilt verwijderen? Dit zal alle je gegevens permanent verwijderen en kan niet ongedaan worden gemaakt.',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Annuleren'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Verwijderen'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) {
+      // Speak cancellation message
+      try {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Account verwijderen geannuleerd.');
+      } catch (e) {
+        // Ignore TTS errors
+      }
+      return;
+    }
+
+    // Speak confirmation for second dialog
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      await accessibilityNotifier.speak('Laatste bevestiging vereist. Wees voorzichtig, dit kan niet ongedaan worden gemaakt.');
+    } catch (e) {
+      // Ignore TTS errors
+    }
+
+    // Show second confirmation dialog
+    if (!mounted) return;
+    final finalConfirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Laatste waarschuwing'),
+          content: SingleChildScrollView(
+            child: Text(
+              'Dit is je laatste kans om te annuleren. Klik op "Verwijder mijn account" om je account definitief te verwijderen.',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Annuleren'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Ik begrijp het, verwijder mijn account'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (finalConfirmed != true) {
+      // Speak final cancellation message
+      try {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Account verwijderen definitief geannuleerd.');
+      } catch (e) {
+        // Ignore TTS errors
+      }
+      return;
+    }
+
+    // Check if user is still authenticated before starting deletion
+    final currentUser = ref.read(authUserProvider);
+    if (currentUser == null) {
+      // Speak error message
+      try {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Je bent niet ingelogd. Log eerst in om je account te verwijderen.');
+      } catch (e) {
+        // Ignore TTS errors
+      }
+      
+      // Show error message and navigate to login
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Je bent niet ingelogd. Log eerst in om je account te verwijderen.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        context.go('/login');
+      }
+      return;
+    }
+
+    try {
+      // Speak deletion start message
+      try {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Account wordt nu verwijderd. Dit kan even duren.');
+      } catch (e) {
+        // Ignore TTS errors
+      }
+
+      // Show loading dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            content: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 16),
+                Flexible(
+                  child: Text(
+                    'Account wordt verwijderd...',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Delete the account
+      await _authService.deleteAccount();
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Speak success message
+      try {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Account succesvol verwijderd. Je wordt doorgestuurd naar het inlogscherm.');
+      } catch (e) {
+        // Ignore TTS errors
+      }
+
+      // Show success message and navigate to login
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Je account is succesvol verwijderd. Je wordt doorgestuurd naar het inlogscherm.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Navigate to login screen
+        context.go('/login');
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
+      // Speak error message
+      try {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Fout bij verwijderen account. Probeer het opnieuw.');
+      } catch (e) {
+        // Ignore TTS errors
+      }
+      
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout bij verwijderen account: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Debug method to assign host role to current user
+  Future<void> _assignHostRole() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Host rol toewijzen...'),
+            ],
+          ),
+        ),
+      );
+
+      final forumService = ForumService();
+      final success = await forumService.debugInsertHostRole();
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      if (success) {
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Host rol succesvol toegewezen!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+
+        // Refresh the role provider to update the UI
+        ref.invalidate(currentUserRoleProvider);
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Fout bij toewijzen host rol'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -440,6 +723,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 ),
                 SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+                // Debug button to assign host role (temporary)
+                Consumer(
+                  builder: (context, ref, child) {
+                    final userRoleAsync = ref.watch(currentUserRoleProvider);
+                    
+                    return userRoleAsync.when(
+                      data: (role) {
+                        // Only show debug button if user is not already a host
+                        if (role != UserRole.host) {
+                          return Column(
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () => _assignHostRole(),
+                                icon: const Icon(Icons.admin_panel_settings),
+                                label: const Text('Debug: Maak Host'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.purple,
+                                  foregroundColor: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Debug: Deze knop geeft je host rechten',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (error, stack) => const SizedBox.shrink(),
+                    );
+                  },
+                ),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
                 // Role description
                 Consumer(
                   builder: (context, ref, child) {
@@ -604,8 +927,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced horizontal padding
                                     decoration: BoxDecoration(
                                       color: networkState.isConnected 
-                                          ? Colors.green.withOpacity(0.1) 
-                                          : Colors.red.withOpacity(0.1),
+                                          ? Colors.green.withValues(alpha: 0.1) 
+                                          : Colors.red.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: AccessibleText(
@@ -680,7 +1003,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               const SizedBox(height: 8),
                               LinearProgressIndicator(
                                 value: (dataUsageState.stats.totalBytesUsed / (1024 * 1024)) / dataUsageState.monthlyDataLimit,
-                                backgroundColor: Colors.grey.withOpacity(0.3),
+                                backgroundColor: Colors.grey.withValues(alpha: 0.3),
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   dataUsageState.shouldShowDataWarning ? Colors.red : Colors.green,
                                 ),
@@ -693,7 +1016,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.1),
+                                  color: Colors.orange.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Row(
@@ -749,6 +1072,51 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     );
                   },
+                ),
+                
+                SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
+                
+                // Account Deletion Section
+                const AccessibleText(
+                  'Account beheer',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  enableTextToSpeech: true,
+                ),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
+                
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Gevaarlijke acties',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Deze acties kunnen niet ongedaan worden gemaakt.',
+                          style: TextStyle(color: Colors.red, fontSize: 14),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _deleteAccount,
+                            icon: const Icon(Icons.delete_forever, size: 18),
+                            label: const Text('Account verwijderen'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              minimumSize: const Size(double.infinity, 48),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 
                 SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),

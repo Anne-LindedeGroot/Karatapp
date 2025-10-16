@@ -4,7 +4,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/kata_model.dart';
 import '../../providers/image_provider.dart';
 import '../../utils/responsive_utils.dart';
-import '../../core/theme/app_theme.dart';
 import '../image_gallery.dart';
 import '../video_gallery.dart';
 import '../video_player_widget.dart';

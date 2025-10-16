@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/global_tts_overlay.dart';
 import '../widgets/tts_clickable_text.dart';
 

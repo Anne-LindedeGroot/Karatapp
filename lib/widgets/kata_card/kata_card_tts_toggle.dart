@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/accessibility_provider.dart';
 import '../../utils/responsive_utils.dart';
-import '../../core/theme/app_theme.dart';
 
 /// Toggle widget for controlling TTS general information skipping in kata cards
 class KataCardTTSToggle extends ConsumerWidget {
@@ -38,8 +37,8 @@ class KataCardTTSToggle extends ConsumerWidget {
               onChanged: (value) async {
                 await accessibilityNotifier.toggleSkipGeneralInfoInTTS();
               },
-              activeColor: Theme.of(context).colorScheme.primary,
-              activeTrackColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+              activeThumbColor: Theme.of(context).colorScheme.primary,
+              activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
               inactiveThumbColor: Theme.of(context).colorScheme.onSurfaceVariant,
               inactiveTrackColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
@@ -83,8 +82,8 @@ class CompactKataCardTTSToggle extends ConsumerWidget {
           onChanged: (value) async {
             await accessibilityNotifier.toggleSkipGeneralInfoInTTS();
           },
-          activeColor: Theme.of(context).colorScheme.primary,
-          activeTrackColor: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          activeThumbColor: Theme.of(context).colorScheme.primary,
+          activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
           inactiveThumbColor: Theme.of(context).colorScheme.onSurfaceVariant,
           inactiveTrackColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         ),

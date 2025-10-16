@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/kata_model.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/role_provider.dart';
 import '../../providers/accessibility_provider.dart';
 import '../../services/role_service.dart';
@@ -50,7 +49,6 @@ class KataCardInteractions {
   }
 
   static Future<void> handleEditKata(BuildContext context, WidgetRef ref, Kata kata) async {
-    final currentUser = ref.read(authUserProvider);
     final userRoleAsync = ref.read(currentUserRoleProvider);
     
     await userRoleAsync.when(
@@ -78,7 +76,6 @@ class KataCardInteractions {
   }
 
   static Future<bool> handleDeleteKata(BuildContext context, WidgetRef ref, Kata kata) async {
-    final currentUser = ref.read(authUserProvider);
     final userRoleAsync = ref.read(currentUserRoleProvider);
     
     return await userRoleAsync.when(

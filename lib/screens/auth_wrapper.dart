@@ -24,6 +24,27 @@ class AuthWrapper extends ConsumerStatefulWidget {
 class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   bool _hasTimedOut = false;
 
+  /// Check if an error is a critical system error that should show full-screen
+  /// Auth errors (login/signup) should be handled in the AuthScreen UI
+  bool _isCriticalSystemError(String error) {
+    final errorLower = error.toLowerCase();
+    
+    // Critical system errors that need full-screen display
+    if (errorLower.contains('initialization') ||
+        errorLower.contains('supabase') ||
+        errorLower.contains('database') ||
+        errorLower.contains('connection') ||
+        errorLower.contains('network') ||
+        errorLower.contains('timeout') ||
+        errorLower.contains('server error') ||
+        errorLower.contains('internal error')) {
+      return true;
+    }
+    
+    // Auth errors should be handled in AuthScreen UI, not full-screen
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -91,7 +112,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
       return const AuthScreen();
     }
 
-    if (authState.error != null) {
+    // Only show full-screen error for critical system errors, not auth errors
+    // Auth errors are handled properly in the AuthScreen UI
+    if (authState.error != null && _isCriticalSystemError(authState.error!)) {
       return Scaffold(
         body: Center(
           child: Column(
@@ -104,7 +127,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Authenticatie Fout',
+                'Systeem Fout',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),

@@ -189,7 +189,7 @@ class ResponsiveImage extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant,
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: borderRadius,
       ),
       child: Center(
@@ -261,7 +261,6 @@ class ResponsiveImageGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final columns = _getColumnCount(context);
-    final responsiveSpacing = context.responsiveSpacing(SpacingSize.sm);
 
     return GridView.builder(
       padding: padding ?? context.responsivePadding,

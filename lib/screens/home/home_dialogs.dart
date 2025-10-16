@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../providers/kata_provider.dart';
 import '../../providers/role_provider.dart';
 import '../../services/role_service.dart';
-import '../../utils/responsive_utils.dart';
-import '../../core/theme/app_theme.dart';
 import '../../widgets/global_tts_overlay.dart';
 import '../../widgets/tts_clickable_text.dart';
 

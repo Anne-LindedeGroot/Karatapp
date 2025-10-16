@@ -20,9 +20,6 @@ import 'avatar_widget.dart';
 import 'responsive_layout.dart';
 import 'overflow_safe_widgets.dart';
 import '../services/unified_tts_service.dart';
-import 'kata_card/kata_card_media.dart';
-import 'kata_card/kata_card_interactions.dart';
-import 'kata_card/kata_card_layout.dart';
 import 'kata_card/kata_card_tts_toggle.dart';
 
 class CollapsibleKataCard extends ConsumerStatefulWidget {
@@ -46,7 +43,6 @@ class CollapsibleKataCard extends ConsumerStatefulWidget {
 class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
   bool _isExpanded = false;
   bool _isCommentsExpanded = false;
-  static const int _maxCollapsedLines = 3;
 
   String _getTruncatedDescription(String description) {
     // Always return the full description - no truncation

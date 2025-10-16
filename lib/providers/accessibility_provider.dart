@@ -556,6 +556,12 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
       return;
     }
     
+    if (!state.showTTSButton) {
+      debugPrint('TTS: TTS button is hidden, not speaking');
+      print('❌ TTS: TTS button is hidden, not speaking');
+      return;
+    }
+    
     // Clean and validate text
     final cleanText = text.trim();
     if (cleanText.isEmpty) {

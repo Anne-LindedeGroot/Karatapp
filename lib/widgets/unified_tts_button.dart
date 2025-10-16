@@ -432,6 +432,7 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       // If no specific content found, use fallback
       if (content.isEmpty) {
         // Try to get more specific content based on current screen
+        if (!context.mounted) return;
         final route = ModalRoute.of(context);
         if (route?.settings.name != null) {
           final routeName = route!.settings.name!;
@@ -738,7 +739,9 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
     } catch (e) {
       debugPrint('UnifiedTTS: Error reading comprehensive auth screen content: $e');
       // Fallback to the old method
-      await _readAuthScreenContentWithTabDetection(context, ref);
+      if (context.mounted) {
+        await _readAuthScreenContentWithTabDetection(context, ref);
+      }
     }
   }
 

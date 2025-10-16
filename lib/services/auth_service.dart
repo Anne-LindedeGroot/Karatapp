@@ -368,4 +368,25 @@ class AuthService {
   
   // Check if user is logged in
   bool get isLoggedIn => currentUser != null;
+  
+  // Delete user account
+  Future<void> deleteAccount() async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          await _supabase.auth.admin.deleteUser(currentUser!.id);
+        } on AuthException catch (e) {
+          throw _handleAuthException(e, 'Account deletion failed');
+        } catch (e) {
+          throw Exception('Account deletion failed: $e');
+        }
+      },
+      maxRetries: 2,
+      initialDelay: const Duration(milliseconds: 500),
+      shouldRetry: RetryUtils.shouldRetryAuthError,
+      onRetry: (attempt, error) {
+        // Retry attempt for account deletion
+      },
+    );
+  }
 }

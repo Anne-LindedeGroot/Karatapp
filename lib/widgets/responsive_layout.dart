@@ -643,8 +643,6 @@ class FoldableLayout extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final hingeBounds = hingeInfo.bounds;
-        final screenWidth = constraints.maxWidth;
-        final screenHeight = constraints.maxHeight;
 
         // If hinge is vertical (portrait fold)
         if (hingeBounds.width < hingeBounds.height) {
@@ -658,7 +656,7 @@ class FoldableLayout extends StatelessWidget {
               // Hinge area (could be used for navigation or status)
               Container(
                 height: hingeBounds.height,
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Center(
                   child: Icon(
                     Icons.swipe_up,
@@ -684,7 +682,7 @@ class FoldableLayout extends StatelessWidget {
               // Hinge area
               Container(
                 width: hingeBounds.width,
-                color: Theme.of(context).colorScheme.surfaceVariant,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Center(
                   child: Icon(
                     Icons.swipe,

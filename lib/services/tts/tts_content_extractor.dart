@@ -324,13 +324,6 @@ class TTSContentExtractor {
     return cardContent;
   }
 
-  /// Extract text field content including labels and values
-  /// Note: This method is kept for compatibility but the specialized TTSTextFieldReader is preferred
-  static List<String> _extractTextFieldContent(BuildContext context) {
-    // This method is deprecated in favor of TTSTextFieldReader
-    // Return empty list to avoid errors
-    return [];
-  }
 
   /// Extract form labels
   static List<String> _extractFormLabels(BuildContext context) {
@@ -431,7 +424,7 @@ class TTSContentExtractor {
         } else if (widget is DropdownButtonFormField) {
           // Extract dropdown label and selected value
           final decoration = widget.decoration;
-          if (decoration?.hintText != null && decoration!.hintText!.isNotEmpty) {
+          if (decoration.hintText?.isNotEmpty == true) {
             dropdownContent.add('Dropdown: ${decoration.hintText}');
           }
         }
