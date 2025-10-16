@@ -42,7 +42,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     
-    // Auto-read page content when screen loads (similar to logout popup)
+    // Add tab change listener to read content when switching tabs
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        // Tab is changing, wait for it to complete
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _readPageContent();
+          }
+        });
+      }
+    });
+    
+    // Auto-read page content when screen loads (similar to profile page)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _readPageContent();
     });
@@ -62,12 +74,113 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         return;
       }
       
-      // Use the unified TTS service to read the current screen (same as TTS button)
-      await UnifiedTTSService.readCurrentScreen(context, ref);
+      // Read only the relevant auth screen content, not the entire screen
+      await readAuthScreenContent();
       
     } catch (e) {
       debugPrint('AuthScreen TTS Error: $e');
       // Don't rethrow the error to prevent screen from crashing
+    }
+  }
+
+  /// Read only the auth screen content (similar to profile page approach)
+  /// This method is public so it can be called by the TTS button
+  Future<void> readAuthScreenContent() async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      
+      // Build the text to read based on current tab
+      final List<String> contentParts = [];
+      
+      // Add app title and branding
+      contentParts.add('Welkom bij Karatapp');
+      contentParts.add('Karate sportieve vechtkunst applicatie');
+      
+      // Get current tab index safely
+      final currentTabIndex = _tabController.index;
+      debugPrint('AuthScreen TTS: Current tab index: $currentTabIndex');
+      
+      if (currentTabIndex == 0) {
+        // Login tab - comprehensive content reading
+        contentParts.add('Inloggen pagina');
+        contentParts.add('Welkom Terug titel');
+        contentParts.add('Log in op je account instructie');
+        contentParts.add('Voer je e-mailadres en wachtwoord in om in te loggen');
+        
+        // Add form field information
+        contentParts.add('E-mail invoerveld: Voer je e-mailadres in');
+        contentParts.add('Wachtwoord invoerveld: Voer je wachtwoord in, minimaal 6 tekens');
+        
+        // Add button information
+        contentParts.add('Inloggen knop: Klik om in te loggen op je account');
+        contentParts.add('Nog geen account tekst met Registreren knop om naar registratie te gaan');
+        
+        // Add error information if present
+        if (_loginError != null) {
+          contentParts.add('Foutmelding: $_loginError');
+        }
+        
+        // Add loading state if present
+        if (_isLoginLoading) {
+          contentParts.add('Bezig met inloggen, even geduld');
+        }
+        
+      } else if (currentTabIndex == 1) {
+        // Signup tab - comprehensive content reading
+        contentParts.add('Registreren pagina');
+        contentParts.add('Account Aanmaken titel');
+        contentParts.add('Word lid van de Karate gemeenschap beschrijving');
+        contentParts.add('Voer je gegevens in om een nieuw account aan te maken');
+        
+        // Add form field information
+        contentParts.add('Volledige Naam invoerveld: Voer je volledige naam in, minimaal 2 tekens');
+        contentParts.add('E-mail invoerveld: Voer je e-mailadres in');
+        contentParts.add('Wachtwoord invoerveld: Voer een wachtwoord in, minimaal 6 tekens');
+        contentParts.add('Bevestig Wachtwoord invoerveld: Bevestig je wachtwoord');
+        
+        // Add button information
+        contentParts.add('Account Aanmaken knop: Klik om een nieuw account te registreren');
+        contentParts.add('Al een account tekst met Inloggen knop om naar inloggen te gaan');
+        
+        // Add error information if present
+        if (_signupError != null) {
+          contentParts.add('Foutmelding: $_signupError');
+        }
+        
+        // Add loading state if present
+        if (_isSignupLoading) {
+          contentParts.add('Bezig met account aanmaken, even geduld');
+        }
+        
+      } else {
+        // Fallback for any other tab
+        contentParts.add('Authenticatie pagina');
+        contentParts.add('Log in of registreer je account');
+        contentParts.add('Gebruik de tabs om te wisselen tussen inloggen en registreren');
+      }
+      
+      // Add tab navigation information
+      contentParts.add('Tab navigatie: Inloggen en Registreren tabs beschikbaar');
+      contentParts.add('Gebruik de tabs om te wisselen tussen inloggen en registreren');
+      
+      final fullText = contentParts.join('. ');
+      
+      if (fullText.isNotEmpty) {
+        debugPrint('AuthScreen TTS: Reading content: $fullText');
+        
+        // Stop any current speech
+        if (accessibilityNotifier.isSpeaking()) {
+          await accessibilityNotifier.stopSpeaking();
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+        
+        // Speak the auth screen content
+        await accessibilityNotifier.speak(fullText);
+      } else {
+        debugPrint('AuthScreen TTS: No content to read');
+      }
+    } catch (e) {
+      debugPrint('AuthScreen TTS Error: $e');
     }
   }
 
