@@ -130,11 +130,16 @@ class RetryUtils {
   static bool shouldRetryImageError(dynamic error) {
     final errorString = error.toString().toLowerCase();
     
-    // Don't retry file not found or permission errors
+    // Don't retry file not found, permission errors, or file descriptor errors
     if (errorString.contains('not found') ||
         errorString.contains('permission denied') ||
         errorString.contains('access denied') ||
-        errorString.contains('file does not exist')) {
+        errorString.contains('file does not exist') ||
+        errorString.contains('bad file descriptor') ||
+        errorString.contains('errno = 9') ||
+        errorString.contains('file descriptor') ||
+        errorString.contains('ebadf') ||
+        errorString.contains('invalid file descriptor')) {
       return false;
     }
 

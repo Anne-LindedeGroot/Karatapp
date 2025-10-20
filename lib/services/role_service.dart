@@ -80,13 +80,13 @@ class RoleService {
     }
   }
 
-  // Check if current user can assign roles (only hosts can assign roles)
+  // Check if current user can assign roles (hosts and mediators can assign roles)
   Future<bool> canAssignRoles() async {
     final currentRole = await getCurrentUserRole();
-    return currentRole == UserRole.host;
+    return currentRole == UserRole.host || currentRole == UserRole.mediator;
   }
 
-  // Assign role to a user (only hosts can do this)
+  // Assign role to a user (hosts and mediators can do this)
   Future<bool> assignRole(String userId, UserRole role) async {
     try {
       final currentUser = _client.auth.currentUser;
@@ -122,225 +122,113 @@ class RoleService {
   // Get all users with their roles (for admin interface)
   Future<List<Map<String, dynamic>>> getAllUsersWithRoles() async {
     try {
-      print('RoleService: Fetching all users with roles...');
+      print('RoleService: Starting getAllUsersWithRoles (profiles + roles only)...');
       
-      // First, try to use the user_roles_overview view if it exists
-      // This view should contain all users with their roles and profile information
-      try {
-        print('RoleService: Attempting to fetch from user_roles_overview view...');
-        final overviewResponse = await _client
-            .from('user_roles_overview')
-            .select('user_id, full_name, user_role, role_granted_at, user_created_at');
-        
-        final usersWithRoles = List<Map<String, dynamic>>.from(overviewResponse);
-        print('RoleService: Found ${usersWithRoles.length} users in user_roles_overview view');
-        print('RoleService: Raw data from user_roles_overview: $usersWithRoles');
-        
-        // Transform the data to match the expected format
-        return usersWithRoles.map((user) => {
-          'id': user['user_id'],
-          'email': (user['full_name'] as String?)?.split(' ').last ?? 'Unknown',
-          'full_name': user['full_name'] ?? 'Unknown User',
-          'role': user['user_role'] ?? 'user',
-          'role_granted_at': user['role_granted_at'],
-          'created_at': user['user_created_at'],
-        }).toList();
-        
-      } catch (e) {
-        print('RoleService: user_roles_overview view not found or error: $e');
-        
-        // Fallback: Try to get all users from user_profiles table
-        try {
-          print('RoleService: Attempting to fetch from user_profiles table...');
-          final profilesResponse = await _client
-              .from('user_profiles')
-              .select('user_id, full_name, email, created_at');
-          
-          final allUsers = List<Map<String, dynamic>>.from(profilesResponse);
-          print('RoleService: Found ${allUsers.length} users in user_profiles table');
-          print('RoleService: Raw user_profiles data: $allUsers');
-          
-          // Now get all user roles
-          final rolesResponse = await _client
-              .from('user_roles')
-              .select('user_id, role, granted_at');
-
-          final roles = List<Map<String, dynamic>>.from(rolesResponse);
-          print('RoleService: Found ${roles.length} role assignments');
-          print('RoleService: Raw user_roles data: $roles');
-
-          // Combine user data with role data
-          final usersWithRoles = <Map<String, dynamic>>[];
-          
-          for (final user in allUsers) {
-            final userId = user['user_id'] as String;
-            
-            // Get user roles for this user
-            final userRoles = roles.where((role) => role['user_id'] == userId).toList();
-            final latestRole = userRoles.isNotEmpty 
-                ? userRoles.reduce((a, b) => 
-                    DateTime.parse(a['granted_at']).isAfter(DateTime.parse(b['granted_at'])) ? a : b)
-                : null;
-
-            usersWithRoles.add({
-              'id': userId,
-              'email': user['email'] ?? 'Unknown',
-              'full_name': user['full_name'] ?? (user['email'] as String?)?.split('@')[0] ?? 'Unknown User',
-              'role': latestRole?['role'] ?? 'user',
-              'role_granted_at': latestRole?['granted_at'],
-              'created_at': user['created_at'],
-            });
-          }
-
-          print('RoleService: Returning ${usersWithRoles.length} users with roles');
-          print('RoleService: Final users with roles data: $usersWithRoles');
-          return usersWithRoles;
-          
-        } catch (e) {
-          print('RoleService: user_profiles table not found or error: $e');
-          
-          // Final fallback: Try to get users from any table that references user_id
-          try {
-            print('RoleService: Trying to find users from user activity...');
-            
-            // Get unique user IDs from various tables where users might have activity
-            final Set<String> userIds = <String>{};
-            
-            // Try to get user IDs from common tables
-            try {
-              final kataUsers = await _client
-                  .from('katas')
-                  .select('created_by')
-                  .not('created_by', 'is', null);
-              for (final kata in kataUsers) {
-                if (kata['created_by'] != null) {
-                  userIds.add(kata['created_by'] as String);
-                }
-              }
-              print('RoleService: Found ${userIds.length} users from katas table');
-            } catch (e) {
-              print('RoleService: Could not fetch from katas table: $e');
-            }
-            
-            try {
-              final forumUsers = await _client
-                  .from('forum_posts')
-                  .select('author_id')
-                  .not('author_id', 'is', null);
-              for (final post in forumUsers) {
-                if (post['author_id'] != null) {
-                  userIds.add(post['author_id'] as String);
-                }
-              }
-              print('RoleService: Found ${userIds.length} total users including forum posts');
-            } catch (e) {
-              print('RoleService: Could not fetch from forum_posts table: $e');
-            }
-            
-            // Add current user to ensure they appear in the list
-            final currentUser = _client.auth.currentUser;
-            if (currentUser != null) {
-              userIds.add(currentUser.id);
-            }
-            
-            // Convert user IDs to user objects with basic info
-            final allUsers = userIds.map((userId) {
-              if (currentUser != null && currentUser.id == userId) {
-                return {
-                  'user_id': userId,
-                  'full_name': currentUser.userMetadata?['full_name'] ?? 
-                              currentUser.userMetadata?['name'] ?? 
-                              currentUser.email?.split('@')[0] ?? 'Unknown User',
-                  'email': currentUser.email ?? 'Unknown',
-                  'created_at': DateTime.now().toIso8601String(),
-                };
-              } else {
-                return {
-                  'user_id': userId,
-                  'full_name': 'User ${userId.substring(0, 8)}...',
-                  'email': 'user-${userId.substring(0, 8)}@unknown.com',
-                  'created_at': DateTime.now().toIso8601String(),
-                };
-              }
-            }).toList();
-            
-            // Now get all user roles
-            final rolesResponse = await _client
-                .from('user_roles')
-                .select('user_id, role, granted_at');
-
-            final roles = List<Map<String, dynamic>>.from(rolesResponse);
-            print('RoleService: Found ${roles.length} role assignments');
-
-            // Combine user data with role data
-            final usersWithRoles = <Map<String, dynamic>>[];
-            
-            for (final user in allUsers) {
-              final userId = user['user_id'] as String;
-              
-              // Get user roles for this user
-              final userRoles = roles.where((role) => role['user_id'] == userId).toList();
-              final latestRole = userRoles.isNotEmpty 
-                  ? userRoles.reduce((a, b) => 
-                      DateTime.parse(a['granted_at']).isAfter(DateTime.parse(b['granted_at'])) ? a : b)
-                  : null;
-
-              usersWithRoles.add({
-                'id': userId,
-                'email': user['email'] ?? 'Unknown',
-                'full_name': user['full_name'] ?? (user['email'] as String?)?.split('@')[0] ?? 'Unknown User',
-                'role': latestRole?['role'] ?? 'user',
-                'role_granted_at': latestRole?['granted_at'],
-                'created_at': user['created_at'],
-              });
-            }
-
-            print('RoleService: Returning ${usersWithRoles.length} users with roles');
-            return usersWithRoles;
-            
-          } catch (e) {
-            print('RoleService: Could not find users from activity tables: $e');
-            
-            // Final fallback: just show current user
-            final currentUser = _client.auth.currentUser;
-            if (currentUser != null) {
-              final currentRole = await getCurrentUserRole();
-              return [{
-                'id': currentUser.id,
-                'email': currentUser.email ?? 'Unknown',
-                'full_name': currentUser.userMetadata?['full_name'] ?? 
-                            currentUser.userMetadata?['name'] ?? 
-                            currentUser.email?.split('@')[0] ?? 'Unknown User',
-                'role': currentRole.value,
-                'role_granted_at': DateTime.now().toIso8601String(),
-                'created_at': DateTime.now().toIso8601String(),
-              }];
-            }
-            
-            return [];
-          }
-        }
+      final currentUser = _client.auth.currentUser;
+      final currentUserRole = await getCurrentUserRole();
+      
+      // Fetch all visible profiles (RLS should allow host/mediator to see all)
+      final profilesResponse = await _client
+          .from('user_profiles')
+          .select('user_id, full_name, email, created_at');
+      
+      final allUsers = List<Map<String, dynamic>>.from(profilesResponse).map((profile) => {
+        'id': profile['user_id'] as String,
+        'email': profile['email'] ?? 'Unknown',
+        'full_name': profile['full_name'] ?? 'Unknown User',
+        'created_at': profile['created_at'],
+        'email_confirmed': true,
+        'last_sign_in': null,
+        'is_deleted': false,
+        'deleted_at': null,
+      }).toList();
+      
+      print('RoleService: Loaded ${allUsers.length} users from user_profiles');
+      
+      // Ensure current user appears at least once
+      if (currentUser != null && !allUsers.any((u) => u['id'] == currentUser.id)) {
+        allUsers.insert(0, {
+          'id': currentUser.id,
+          'email': currentUser.email ?? 'Unknown',
+          'full_name': currentUser.userMetadata?['full_name'] ?? 
+                      currentUser.userMetadata?['name'] ?? 
+                      currentUser.email?.split('@')[0] ?? 'Unknown User',
+          'created_at': currentUser.createdAt,
+          'email_confirmed': currentUser.emailConfirmedAt != null,
+          'last_sign_in': currentUser.lastSignInAt,
+          'is_deleted': false,
+          'deleted_at': null,
+        });
       }
       
-    } catch (e) {
-      print('RoleService: Error fetching users with roles: $e');
+      // Fetch roles once and map latest per user
+      List<Map<String, dynamic>> roles = [];
+      try {
+        final rolesResponse = await _client
+            .from('user_roles')
+            .select('user_id, role, granted_at');
+        roles = List<Map<String, dynamic>>.from(rolesResponse);
+        print('RoleService: Loaded ${roles.length} role rows');
+      } catch (e) {
+        print('RoleService: Could not read user_roles: $e');
+      }
       
-      // Fallback: at least show current user
+      final usersWithRoles = <Map<String, dynamic>>[];
+      for (final user in allUsers) {
+        final userId = user['id'] as String;
+        final userRoles = roles.where((r) => r['user_id'] == userId).toList();
+        final latestRole = userRoles.isNotEmpty
+            ? userRoles.reduce((a, b) =>
+                DateTime.parse(a['granted_at']).isAfter(DateTime.parse(b['granted_at'])) ? a : b)
+            : null;
+        
+        String roleValue = latestRole?['role'] ?? 'user';
+        if (currentUser != null && userId == currentUser.id) {
+          roleValue = currentUserRole.value;
+        }
+        
+        usersWithRoles.add({
+          'id': userId,
+          'email': user['email'],
+          'full_name': user['full_name'],
+          'role': roleValue,
+          'role_granted_at': latestRole?['granted_at'],
+          'created_at': user['created_at'],
+          'email_confirmed': user['email_confirmed'],
+          'last_sign_in': user['last_sign_in'],
+          'is_deleted': user['is_deleted'],
+          'deleted_at': user['deleted_at'],
+        });
+      }
+      
+      usersWithRoles.sort((a, b) {
+        final aCreated = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime(1970);
+        final bCreated = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime(1970);
+        return bCreated.compareTo(aCreated);
+      });
+      
+      print('RoleService: Returning ${usersWithRoles.length} users');
+      return usersWithRoles;
+    } catch (e) {
+      print('RoleService: getAllUsersWithRoles failed: $e');
       final currentUser = _client.auth.currentUser;
       if (currentUser != null) {
-        final currentRole = await getCurrentUserRole();
+        final currentUserRole = await getCurrentUserRole();
         return [{
           'id': currentUser.id,
           'email': currentUser.email ?? 'Unknown',
           'full_name': currentUser.userMetadata?['full_name'] ?? 
                       currentUser.userMetadata?['name'] ?? 
                       currentUser.email?.split('@')[0] ?? 'Unknown User',
-          'role': currentRole.value,
+          'role': currentUserRole.value,
           'role_granted_at': DateTime.now().toIso8601String(),
-          'created_at': DateTime.now().toIso8601String(),
+          'created_at': currentUser.createdAt,
+          'email_confirmed': currentUser.emailConfirmedAt != null,
+          'last_sign_in': currentUser.lastSignInAt,
+          'is_deleted': false,
+          'deleted_at': null,
         }];
       }
-      
       return [];
     }
   }
@@ -380,41 +268,216 @@ class RoleService {
   // Create profiles for existing users who don't have them
   Future<void> createMissingUserProfiles() async {
     try {
-      print('RoleService: Checking for missing user profiles...');
+      print('RoleService: Creating missing user profiles...');
       
-      // Get all authenticated users from Supabase auth
-      final authUsers = await _client.auth.admin.listUsers();
-      print('RoleService: Found ${authUsers.length} auth users');
-      
-      for (final authUser in authUsers) {
+      // Get current user first
+      final currentUser = _client.auth.currentUser;
+      if (currentUser != null) {
         try {
-          // Check if profile exists
+          // Check if current user profile exists
           final existingProfile = await _client
               .from('user_profiles')
               .select('user_id')
-              .eq('user_id', authUser.id)
+              .eq('user_id', currentUser.id)
               .maybeSingle();
           
           if (existingProfile == null) {
+            print('RoleService: Creating profile for current user: ${currentUser.email}');
             // Create missing profile
-            final fullName = authUser.userMetadata?['full_name'] ?? 
-                           authUser.userMetadata?['name'] ?? 
-                           authUser.email?.split('@')[0] ?? 'Unknown User';
+            final fullName = currentUser.userMetadata?['full_name'] ?? 
+                           currentUser.userMetadata?['name'] ?? 
+                           currentUser.email?.split('@')[0] ?? 'Unknown User';
             
             await createUserProfile(
-              authUser.id, 
-              authUser.email ?? 'unknown@example.com', 
+              currentUser.id, 
+              currentUser.email ?? 'unknown@example.com', 
               fullName
             );
-            print('RoleService: Created missing profile for ${authUser.email}');
+          }
+          
+          // Also ensure user has a default role if none exists
+          final existingRole = await _client
+              .from('user_roles')
+              .select('user_id')
+              .eq('user_id', currentUser.id)
+              .maybeSingle();
+              
+          if (existingRole == null) {
+            print('RoleService: Creating default role for current user');
+            await _client
+                .from('user_roles')
+                .insert({
+                  'user_id': currentUser.id,
+                  'role': 'user',
+                  'granted_by': currentUser.id, // Self-granted default role
+                  'granted_at': DateTime.now().toIso8601String(),
+                });
           }
         } catch (e) {
-          print('RoleService: Error processing user ${authUser.email}: $e');
+          print('RoleService: Error creating profile for current user: $e');
         }
       }
+      
+      // Try to get all authenticated users and create profiles for them
+      try {
+        print('RoleService: Attempting to create profiles for all users...');
+        
+        // First, try to get users from auth.users table
+        List<Map<String, dynamic>> authUsers = [];
+        try {
+          final authUsersResponse = await _client
+              .from('auth.users')
+              .select('id, email, created_at, user_metadata')
+              .limit(100);
+          
+          authUsers = List<Map<String, dynamic>>.from(authUsersResponse);
+          print('RoleService: Found ${authUsers.length} auth users to process');
+        } catch (authError) {
+          print('RoleService: Could not fetch auth users: $authError');
+        }
+        
+        // If we couldn't get auth users, try to get them from admin API
+        if (authUsers.isEmpty) {
+          try {
+            final adminUsers = await _client.auth.admin.listUsers();
+            print('RoleService: Found ${adminUsers.length} users via admin API');
+            
+            for (final adminUser in adminUsers) {
+              authUsers.add({
+                'id': adminUser.id,
+                'email': adminUser.email ?? 'unknown@example.com',
+                'created_at': adminUser.createdAt,
+                'user_metadata': adminUser.userMetadata,
+              });
+            }
+          } catch (adminError) {
+            print('RoleService: Could not fetch users via admin API: $adminError');
+          }
+        }
+        
+        // Process each user to ensure they have profiles and roles
+        for (final authUser in authUsers) {
+          try {
+            final userId = authUser['id'] as String;
+            final email = authUser['email'] as String;
+            
+            // Check if profile exists
+            final existingProfile = await _client
+                .from('user_profiles')
+                .select('user_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+            
+            if (existingProfile == null) {
+              print('RoleService: Creating profile for user: $email');
+              final fullName = authUser['user_metadata']?['full_name'] ?? 
+                             authUser['user_metadata']?['name'] ?? 
+                             email.split('@')[0];
+              
+              await createUserProfile(userId, email, fullName);
+            }
+            
+            // Check if role exists
+            final existingRole = await _client
+                .from('user_roles')
+                .select('user_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+                
+            if (existingRole == null) {
+              print('RoleService: Creating default role for user: $email');
+              await _client
+                  .from('user_roles')
+                  .insert({
+                    'user_id': userId,
+                    'role': 'user',
+                    'granted_by': userId, // Self-granted default role
+                    'granted_at': DateTime.now().toIso8601String(),
+                  });
+            }
+          } catch (e) {
+            print('RoleService: Error processing user ${authUser['email']}: $e');
+            // Continue processing other users if one fails
+          }
+        }
+      } catch (e) {
+        print('RoleService: Error in bulk profile creation: $e');
+      }
     } catch (e) {
-      print('RoleService: Error creating missing user profiles: $e');
+      print('RoleService: Error in createMissingUserProfiles: $e');
+      // Silently fail - this is not critical for app functionality
     }
+  }
+
+  // Debug method to test user fetching
+  Future<void> debugUserFetching() async {
+    print('=== DEBUG USER FETCHING ===');
+    
+    try {
+      // Test 1: Try admin API first (most comprehensive)
+      print('Test 1: Admin API');
+      final adminUsers = await _client.auth.admin.listUsers();
+      print('Found ${adminUsers.length} users via admin API');
+      for (final user in adminUsers) {
+        print('  - ${user.email} (${user.id}) - Created: ${user.createdAt}');
+      }
+    } catch (e) {
+      print('Admin API failed: $e');
+    }
+    
+    try {
+      // Test 2: Try auth.users table
+      print('Test 2: auth.users table');
+      final authUsers = await _client
+          .from('auth.users')
+          .select('id, email, created_at, email_confirmed_at, last_sign_in_at')
+          .limit(20);
+      print('Found ${authUsers.length} users in auth.users');
+      for (final user in authUsers) {
+        print('  - ${user['email']} (${user['id']}) - Created: ${user['created_at']}');
+      }
+    } catch (e) {
+      print('auth.users table failed: $e');
+    }
+    
+    try {
+      // Test 3: Try profiles table
+      print('Test 3: user_profiles table');
+      final profiles = await _client
+          .from('user_profiles')
+          .select('user_id, email, full_name, created_at')
+          .limit(20);
+      print('Found ${profiles.length} profiles');
+      for (final profile in profiles) {
+        print('  - ${profile['email']} (${profile['user_id']}) - Created: ${profile['created_at']}');
+      }
+    } catch (e) {
+      print('user_profiles table failed: $e');
+    }
+    
+    try {
+      // Test 4: Try forum_posts table (only for reference)
+      print('Test 4: forum_posts table');
+      final posts = await _client
+          .from('forum_posts')
+          .select('author_id, author_name, created_at')
+          .limit(10);
+      print('Found ${posts.length} forum posts');
+      final uniqueUserIds = <String>{};
+      for (final post in posts) {
+        if (post['author_id'] != null) {
+          uniqueUserIds.add(post['author_id'] as String);
+        }
+      }
+      print('Found ${uniqueUserIds.length} unique user IDs from forum posts');
+      for (final post in posts) {
+        print('  - ${post['author_name']} (${post['author_id']}) - Created: ${post['created_at']}');
+      }
+    } catch (e) {
+      print('forum_posts table failed: $e');
+    }
+    
+    print('=== END DEBUG ===');
   }
 
   // Check specific permissions based on role
@@ -427,7 +490,7 @@ class RoleService {
       case 'mute_users':
         return userRole == UserRole.mediator || userRole == UserRole.host;
       case 'assign_roles':
-        return userRole == UserRole.host;
+        return userRole == UserRole.mediator || userRole == UserRole.host;
       case 'pin_posts':
         return userRole == UserRole.mediator || userRole == UserRole.host;
       case 'lock_posts':

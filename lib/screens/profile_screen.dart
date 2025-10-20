@@ -8,7 +8,6 @@ import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
 import '../services/role_service.dart';
 import '../services/auth_service.dart';
-import '../services/forum_service.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/accessible_text.dart';
 import '../utils/responsive_utils.dart';
@@ -421,77 +420,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  /// Debug method to assign host role to current user
-  Future<void> _assignHostRole() async {
-    try {
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('Host rol toewijzen...'),
-            ],
-          ),
-        ),
-      );
-
-      final forumService = ForumService();
-      final success = await forumService.debugInsertHostRole();
-
-      // Close loading dialog
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      if (success) {
-        // Show success message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Host rol succesvol toegewezen!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-
-        // Refresh the role provider to update the UI
-        ref.invalidate(currentUserRoleProvider);
-      } else {
-        // Show error message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Fout bij toewijzen host rol'),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      // Close loading dialog if still open
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Fout: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -719,46 +647,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ],
                         ),
                       ),
-                    );
-                  },
-                ),
-                SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
-                // Debug button to assign host role (temporary)
-                Consumer(
-                  builder: (context, ref, child) {
-                    final userRoleAsync = ref.watch(currentUserRoleProvider);
-                    
-                    return userRoleAsync.when(
-                      data: (role) {
-                        // Only show debug button if user is not already a host
-                        if (role != UserRole.host) {
-                          return Column(
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: () => _assignHostRole(),
-                                icon: const Icon(Icons.admin_panel_settings),
-                                label: const Text('Debug: Maak Host'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.purple,
-                                  foregroundColor: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Debug: Deze knop geeft je host rechten',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                      loading: () => const SizedBox.shrink(),
-                      error: (error, stack) => const SizedBox.shrink(),
                     );
                   },
                 ),

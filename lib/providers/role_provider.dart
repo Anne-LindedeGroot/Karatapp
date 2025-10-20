@@ -10,11 +10,16 @@ final roleServiceProvider = Provider<RoleService>((ref) {
 // Provider for current user's role
 final currentUserRoleProvider = FutureProvider.autoDispose<UserRole>((ref) async {
   final user = ref.watch(authUserProvider);
-  if (user == null) return UserRole.user;
+  print('RoleProvider: Current user: ${user?.email ?? 'null'}');
+  if (user == null) {
+    print('RoleProvider: No user found, returning default role');
+    return UserRole.user;
+  }
   
   try {
     final roleService = ref.read(roleServiceProvider);
     final role = await roleService.getCurrentUserRole();
+    print('RoleProvider: Retrieved role: ${role.value}');
     return role;
   } catch (e) {
     // Only default to user if there's a real error, not network issues
@@ -42,7 +47,7 @@ final refreshCurrentUserRoleProvider = FutureProvider.family<UserRole, int>((ref
 // Provider for checking if current user can assign roles
 final canAssignRolesProvider = FutureProvider<bool>((ref) async {
   final userRole = await ref.watch(currentUserRoleProvider.future);
-  return userRole == UserRole.host;
+  return userRole == UserRole.host || userRole == UserRole.mediator;
 });
 
 // Provider for checking if current user is a host

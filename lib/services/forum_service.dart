@@ -27,55 +27,6 @@ class ForumService {
     }
   }
 
-  // Debug function to manually insert host role
-  Future<bool> debugInsertHostRole() async {
-    try {
-      final currentUser = _client.auth.currentUser;
-      if (currentUser == null) {
-        print('ForumService: No authenticated user found for debug host role insertion');
-        return false;
-      }
-      
-      print('ForumService: Inserting host role for user: ${currentUser.email}');
-      
-      // First check if user already has a role
-      final existingRole = await _client
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', currentUser.id)
-          .maybeSingle();
-      
-      if (existingRole != null) {
-        print('ForumService: User already has role: ${existingRole['role']}');
-        // Update existing role to host
-        await _client
-            .from('user_roles')
-            .update({
-              'role': 'host',
-              'granted_by': currentUser.id,
-              'granted_at': DateTime.now().toIso8601String(),
-            })
-            .eq('user_id', currentUser.id);
-        print('ForumService: Updated existing role to host');
-      } else {
-        // Insert new host role
-        await _client
-            .from('user_roles')
-            .insert({
-              'user_id': currentUser.id,
-              'role': 'host',
-              'granted_by': currentUser.id,
-              'granted_at': DateTime.now().toIso8601String(),
-            });
-        print('ForumService: Inserted new host role');
-      }
-      
-      return true;
-    } catch (e) {
-      print('ForumService: Error inserting host role: $e');
-      return false;
-    }
-  }
 
   // Grant host role to a user (only existing hosts can do this)
   Future<bool> grantHostRole(String userEmail) async {

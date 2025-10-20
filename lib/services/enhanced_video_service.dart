@@ -102,8 +102,17 @@ class EnhancedVideoService {
           final supabase = Supabase.instance.client;
           
           // Validate file exists and is readable
-          if (!await videoFile.exists()) {
-            throw Exception('Video file does not exist: ${videoFile.path}');
+          try {
+            if (!await videoFile.exists()) {
+              throw Exception('Video file does not exist: ${videoFile.path}');
+            }
+          } catch (e) {
+            // Handle file descriptor errors gracefully
+            if (e.toString().toLowerCase().contains('bad file descriptor') ||
+                e.toString().toLowerCase().contains('errno = 9')) {
+              throw Exception('File access error: ${videoFile.path}');
+            }
+            rethrow;
           }
           
           // Validate video file

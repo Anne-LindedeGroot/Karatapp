@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/kata_model.dart';
@@ -51,7 +52,8 @@ class KataNotifier extends StateNotifier<KataState> {
               final imageUrls = await ImageUtils.fetchKataImagesFromBucket(kata.id);
               katasWithImages.add(kata.copyWith(imageUrls: imageUrls));
             } catch (e) {
-              // If image loading fails, add kata without images
+              // If image loading fails (including file descriptor errors), add kata without images
+              debugPrint('⚠️ Failed to load images for kata ${kata.id}: $e');
               katasWithImages.add(kata);
             }
           }

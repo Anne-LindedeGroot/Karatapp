@@ -506,7 +506,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final userRoleAsync = ref.watch(currentUserRoleProvider);
     final isHost = userRoleAsync.when(
       data: (role) {
-        return role == UserRole.host;
+        return role == UserRole.host || role == UserRole.mediator;
       },
       loading: () {
         return false;
@@ -723,7 +723,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       });
                     },
                   ),
-                  // Only show admin options for hosts
+                  // Show admin options for hosts and mediators
                   if (isHost)
                     PopupMenuItem<String>(
                     child: Row(

@@ -74,8 +74,18 @@ class OptimizedImageService {
             throw Exception('Upload not allowed in current network state');
           }
 
-          // Get file size for data usage tracking
-          final fileSize = await imageFile.length();
+          // Get file size for data usage tracking with error handling
+          int fileSize = 0;
+          try {
+            fileSize = await imageFile.length();
+          } catch (e) {
+            // Handle file descriptor errors gracefully
+            if (e.toString().toLowerCase().contains('bad file descriptor') ||
+                e.toString().toLowerCase().contains('errno = 9')) {
+              throw Exception('File access error: ${imageFile.path}');
+            }
+            rethrow;
+          }
           
           // Check if file size is acceptable for current data usage mode
           if (!_isImageFileSizeAcceptable(fileSize, dataUsageState)) {
@@ -97,8 +107,18 @@ class OptimizedImageService {
             debugPrint('Image bucket creation attempt: $e');
           }
           
-          // Read the file as bytes
-          final bytes = await imageFile.readAsBytes();
+          // Read the file as bytes with error handling
+          List<int> bytes = [];
+          try {
+            bytes = await imageFile.readAsBytes();
+          } catch (e) {
+            // Handle file descriptor errors gracefully
+            if (e.toString().toLowerCase().contains('bad file descriptor') ||
+                e.toString().toLowerCase().contains('errno = 9')) {
+              throw Exception('File read error: ${imageFile.path}');
+            }
+            rethrow;
+          }
           
           if (bytes.isEmpty) {
             throw Exception('Image file is empty: ${imageFile.path}');

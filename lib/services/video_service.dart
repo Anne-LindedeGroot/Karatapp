@@ -95,8 +95,17 @@ class VideoService {
           final supabase = Supabase.instance.client;
           
           // Validate file exists and is readable
-          if (!await videoFile.exists()) {
-            throw Exception('Video file does not exist: ${videoFile.path}');
+          try {
+            if (!await videoFile.exists()) {
+              throw Exception('Video file does not exist: ${videoFile.path}');
+            }
+          } catch (e) {
+            // Handle file descriptor errors gracefully
+            if (e.toString().toLowerCase().contains('bad file descriptor') ||
+                e.toString().toLowerCase().contains('errno = 9')) {
+              throw Exception('File access error: ${videoFile.path}');
+            }
+            rethrow;
           }
           
           // Validate video file
@@ -123,8 +132,18 @@ class VideoService {
           // Create a folder structure: kata_videos/{kata_id}/filename
           final filePath = '$kataId/$fileName';
           
-          // Read the file as bytes
-          final bytes = await videoFile.readAsBytes();
+          // Read the file as bytes with error handling
+          List<int> bytes = [];
+          try {
+            bytes = await videoFile.readAsBytes();
+          } catch (e) {
+            // Handle file descriptor errors gracefully
+            if (e.toString().toLowerCase().contains('bad file descriptor') ||
+                e.toString().toLowerCase().contains('errno = 9')) {
+              throw Exception('File read error: ${videoFile.path}');
+            }
+            rethrow;
+          }
           
           if (bytes.isEmpty) {
             throw Exception('Video file is empty: ${videoFile.path}');

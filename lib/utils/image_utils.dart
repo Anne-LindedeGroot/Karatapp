@@ -219,9 +219,9 @@ class ImageUtils {
           } catch (e) {
             debugPrint('⚠️ kata_images bucket not found or not accessible: $e');
             
-            // Check if this is a network error
-            if (_isNetworkError(e)) {
-              debugPrint('🌐 Network error detected, returning empty list for offline mode');
+            // Check if this is a network error or file descriptor error
+            if (_isNetworkError(e) || _isFileDescriptorError(e)) {
+              debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
               return [];
             }
             
@@ -233,9 +233,9 @@ class ImageUtils {
             } catch (createError) {
               debugPrint('❌ Failed to create kata_images bucket: $createError');
               
-              // If it's a network error, return empty list instead of throwing
-              if (_isNetworkError(createError)) {
-                debugPrint('🌐 Network error during bucket creation, returning empty list');
+              // If it's a network or file descriptor error, return empty list instead of throwing
+              if (_isNetworkError(createError) || _isFileDescriptorError(createError)) {
+                debugPrint('🌐 Network/file error during bucket creation, returning empty list');
                 return [];
               }
               
@@ -243,11 +243,26 @@ class ImageUtils {
             }
           }
           
-          // List all files in the kata's folder
+          // List all files in the kata's folder with proper error handling
           debugPrint('🔍 Listing files for kata $kataId...');
-          final response = await supabase.storage
-              .from('kata_images')
-              .list(path: kataId.toString());
+          List<dynamic> response = [];
+          
+          try {
+            response = await supabase.storage
+                .from('kata_images')
+                .list(path: kataId.toString());
+          } catch (listError) {
+            debugPrint('❌ Error listing files for kata $kataId: $listError');
+            
+            // If it's a file descriptor error, return empty list
+            if (_isFileDescriptorError(listError)) {
+              debugPrint('🔧 File descriptor error detected, returning empty list');
+              return [];
+            }
+            
+            // For other errors, rethrow
+            rethrow;
+          }
           
           debugPrint('📁 Found ${response.length} files in kata $kataId folder');
           
@@ -273,6 +288,13 @@ class ImageUtils {
                 debugPrint('✅ Generated signed URL for ${file.name}');
               } catch (signedUrlError) {
                 debugPrint('❌ Failed to create signed URL for ${file.name}: $signedUrlError');
+                
+                // If it's a file descriptor error, skip this file
+                if (_isFileDescriptorError(signedUrlError)) {
+                  debugPrint('🔧 File descriptor error for ${file.name}, skipping');
+                  continue;
+                }
+                
                 // Try public URL as fallback (in case bucket is actually public)
                 try {
                   final publicUrl = supabase.storage
@@ -290,6 +312,12 @@ class ImageUtils {
                   }
                 } catch (publicUrlError) {
                   debugPrint('❌ Failed to create any URL for ${file.name}: $publicUrlError');
+                  
+                  // If it's a file descriptor error, skip this file
+                  if (_isFileDescriptorError(publicUrlError)) {
+                    debugPrint('🔧 File descriptor error for ${file.name}, skipping');
+                    continue;
+                  }
                 }
               }
             } else {
@@ -313,9 +341,9 @@ class ImageUtils {
         } catch (e) {
           debugPrint('❌ Error fetching kata images from bucket: $e');
           
-          // Check if this is a network error - if so, return empty list for offline mode
-          if (_isNetworkError(e)) {
-            debugPrint('🌐 Network error detected, returning empty list for offline mode');
+          // Check if this is a network error or file descriptor error - if so, return empty list for offline mode
+          if (_isNetworkError(e) || _isFileDescriptorError(e)) {
+            debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
             return [];
           }
           
@@ -559,5 +587,15 @@ class ImageUtils {
            errorString.contains('host') ||
            errorString.contains('no internet') ||
            errorString.contains('unreachable');
+  }
+
+  /// Check if an error is a file descriptor error
+  static bool _isFileDescriptorError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('bad file descriptor') ||
+           errorString.contains('errno = 9') ||
+           errorString.contains('file descriptor') ||
+           errorString.contains('ebadf') ||
+           errorString.contains('invalid file descriptor');
   }
 }
