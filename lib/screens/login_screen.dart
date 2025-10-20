@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../core/navigation/scaffold_messenger.dart';
 import '../core/navigation/app_router.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -18,6 +19,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   String? _errorMessage;
+
+  String _mapLoginErrorToDutch(String raw) {
+    final e = raw.toLowerCase();
+    if (e.contains('e-mailadres of wachtwoord is onjuist') || e.contains('invalid email or password')) {
+      return 'E-mailadres of wachtwoord is onjuist. Opnieuw proberen.';
+    }
+    if (e.contains('verbinding') || e.contains('network') || e.contains('connection') || e.contains('timeout') || e.contains('socket')) {
+      return 'Verbindingsprobleem. Controleer je internet en probeer opnieuw.';
+    }
+    if (e.contains('te veel') || e.contains('too many requests') || e.contains('429')) {
+      return 'Te veel pogingen. Wacht even en probeer opnieuw.';
+    }
+    if (e.contains('server')) {
+      return 'Serverfout. Probeer het later opnieuw.';
+    }
+    return 'Verkeerde logininformatie. Opnieuw proberen.';
+  }
+
+  void _showLoginErrorDialog(String message) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final dialogContext = rootScaffoldMessengerKey.currentContext ?? context;
+      showDialog(
+        context: dialogContext,
+        useRootNavigator: true,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Fout'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    });
+  }
 
   @override
   void dispose() {
@@ -44,9 +83,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // since it watches the auth state changes
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-        });
+        final message = _mapLoginErrorToDutch(e.toString());
+        FocusScope.of(context).unfocus();
+        _showLoginErrorDialog(message);
+        // Clear the global error to prevent duplicate display elsewhere
+        ref.read(authNotifierProvider.notifier).clearError();
       }
     } finally {
       if (mounted) {

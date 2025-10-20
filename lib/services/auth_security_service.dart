@@ -345,39 +345,39 @@ class AuthSecurityService {
     switch (e.statusCode) {
       case '400':
         if (e.message.contains('email')) {
-          return Exception('Invalid email address');
+          return Exception('Ongeldig e-mailadres');
         } else if (e.message.contains('password')) {
-          return Exception('Password does not meet security requirements');
+          return Exception('Wachtwoord voldoet niet aan de beveiligingseisen');
         } else if (e.message.contains('leaked')) {
-          return Exception('This password has been found in data breaches. Please choose a different password');
+          return Exception('Dit wachtwoord is aangetroffen in datalekken. Kies een ander wachtwoord');
         }
-        return Exception('Invalid request: ${e.message}');
+        return Exception('Ongeldige aanvraag: ${e.message}');
       
       case '401':
-        return Exception('Invalid email or password');
+        return Exception('E-mailadres of wachtwoord is onjuist');
       
       case '403':
-        return Exception('Access denied. Please check your permissions');
+        return Exception('Toegang geweigerd. Controleer je rechten');
       
       case '422':
         if (e.message.contains('email')) {
-          return Exception('Email address is already registered');
+          return Exception('E-mailadres is al geregistreerd');
         } else if (e.message.contains('password')) {
-          return Exception('Password has been compromised. Please choose a different password');
+          return Exception('Wachtwoord is gecompromitteerd. Kies een ander wachtwoord');
         }
-        return Exception('Invalid data provided: ${e.message}');
+        return Exception('Ongeldige gegevens opgegeven: ${e.message}');
       
       case '429':
-        return Exception('Too many requests. Please wait a moment and try again');
+        return Exception('Te veel pogingen. Wacht even en probeer het opnieuw');
       
       case '500':
       case '502':
       case '503':
       case '504':
-        return Exception('Server error. Please try again later');
+        return Exception('Serverfout. Probeer het later opnieuw');
       
       default:
-        return Exception('Authentication failed: ${e.message}');
+        return Exception('Authenticatie mislukt: ${e.message}');
     }
   }
 }

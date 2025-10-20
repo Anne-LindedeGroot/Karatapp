@@ -249,8 +249,11 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
   }
 
   void reportAuthError([String? details]) {
-    final userMessage = _getAuthErrorMessage(details);
-    reportError(userMessage);
+    // Auth errors are handled inline on auth screens to avoid overwhelming users
+    if (kDebugMode) {
+      print('🔐 Auth error (handled locally): ${_getAuthErrorMessage(details)}');
+    }
+    // Do not surface as a global banner
   }
 
   void reportValidationError(String message) {
@@ -275,21 +278,21 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
         errorLower.contains('connection') ||
         errorLower.contains('timeout') ||
         errorLower.contains('socket')) {
-      return 'Connection problem. Please check your internet and try again.';
+      return 'Verbindingsprobleem. Controleer je internetverbinding en probeer opnieuw.';
     }
     
     // Authentication errors
     if (errorLower.contains('unauthorized') || 
         errorLower.contains('invalid email or password') ||
         errorLower.contains('authentication')) {
-      return 'Sign in failed. Please check your credentials and try again.';
+      return 'Inloggen mislukt. Controleer je gegevens en probeer opnieuw.';
     }
     
     // Storage/Upload errors
     if (errorLower.contains('storage') || 
         errorLower.contains('upload') ||
         errorLower.contains('bucket')) {
-      return 'File operation failed. Please try again.';
+      return 'Bestandsbewerking mislukt. Probeer het opnieuw.';
     }
     
     // Server errors
@@ -297,20 +300,20 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
         errorLower.contains('500') ||
         errorLower.contains('502') ||
         errorLower.contains('503')) {
-      return 'Server is temporarily unavailable. Please try again later.';
+      return 'Server is tijdelijk niet beschikbaar. Probeer het later opnieuw.';
     }
     
     // Rate limiting
     if (errorLower.contains('rate limit') || 
         errorLower.contains('too many requests')) {
-      return 'Too many requests. Please wait a moment and try again.';
+      return 'Te veel verzoeken. Wacht even en probeer opnieuw.';
     }
     
     // Permission errors
     if (errorLower.contains('permission') || 
         errorLower.contains('access denied') ||
         errorLower.contains('forbidden')) {
-      return 'Access denied. Please check your permissions.';
+      return 'Toegang geweigerd. Controleer je rechten.';
     }
     
     // Return original error if no pattern matches, but clean it up
@@ -320,32 +323,32 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
 
   String _getAuthErrorMessage(String? details) {
     if (details == null) {
-      return 'Authentication failed. Please try signing in again.';
+    return 'Authenticatie mislukt. Probeer opnieuw in te loggen.';
     }
     
     final detailsLower = details.toLowerCase();
     if (detailsLower.contains('invalid email or password')) {
-      return 'Invalid email or password. Please check your credentials.';
+      return 'E-mailadres of wachtwoord is onjuist.';
     } else if (detailsLower.contains('email')) {
-      return 'Please enter a valid email address.';
+      return 'Voer een geldig e-mailadres in.';
     } else if (detailsLower.contains('password')) {
-      return 'Password must be at least 6 characters long.';
+      return 'Wachtwoord moet minimaal 6 tekens zijn.';
     } else if (detailsLower.contains('already registered')) {
-      return 'This email is already registered. Try signing in instead.';
+      return 'Dit e-mailadres is al geregistreerd. Log in met dit adres.';
     } else {
-      return 'Authentication failed. Please try again.';
+      return 'Authenticatie mislukt. Probeer het opnieuw.';
     }
   }
 
   String _getValidationErrorMessage(String message) {
-    return 'Please check your input: ${_cleanErrorMessage(message)}';
+    return 'Controleer je invoer: ${_cleanErrorMessage(message)}';
   }
 
   String _getUnknownErrorMessage(String? details) {
     if (details == null) {
-      return 'Something went wrong. Please try again.';
+      return 'Er is iets misgegaan. Probeer het opnieuw.';
     }
-    return 'Unexpected error: ${_cleanErrorMessage(details)}';
+    return 'Onverwachte fout: ${_cleanErrorMessage(details)}';
   }
 
   String _cleanErrorMessage(String error) {

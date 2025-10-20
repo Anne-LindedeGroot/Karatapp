@@ -6,6 +6,7 @@ import 'config/environment.dart';
 import 'core/theme/app_theme.dart';
 import 'core/navigation/app_router.dart';
 import 'providers/theme_provider.dart';
+import 'core/navigation/scaffold_messenger.dart';
 import 'providers/accessibility_provider.dart';
 import 'providers/error_boundary_provider.dart';
 import 'widgets/global_tts_overlay.dart';
@@ -330,6 +331,7 @@ class _MyAppState extends ConsumerState<MyApp> {
             return MaterialApp.router(
               title: 'Karatapp',
               debugShowCheckedModeBanner: false,
+              scaffoldMessengerKey: rootScaffoldMessengerKey,
               theme: AppTheme.getThemeData(
                 themeMode: themeState.themeMode,
                 colorScheme: themeState.colorScheme,
