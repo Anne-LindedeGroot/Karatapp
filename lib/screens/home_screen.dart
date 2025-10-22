@@ -975,10 +975,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                minWidth: 300,
               ),
+              child: AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               title: Container(
                 padding: const EdgeInsets.only(bottom: 8),
                 decoration: const BoxDecoration(
@@ -994,12 +1000,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          "Nieuwe Kata Toevoegen",
+                          "Nieuwe Kata\nToevoegen",
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                           overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                          maxLines: 2,
+                          textAlign: TextAlign.left,
                         ),
                       ),
                     ],
@@ -1568,6 +1575,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
               ],
+            ),
             );
           },
         );
