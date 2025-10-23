@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import 'tts/tts_cache_manager.dart';
 import 'tts/tts_screen_detector.dart';
-import 'tts/tts_content_extractor.dart';
+import 'tts/tts_content_extractor.dart' as extractor;
+import 'tts/tts_content_processor.dart';
+import 'tts/tts_content_extractor_base.dart';
+import 'tts/tts_screen_specific_extractors.dart';
+import 'tts/tts_fallback_content_generator.dart';
 
 /// Enhanced TTS Service - Comprehensive screen reading in Dutch!
 /// This service provides comprehensive text-to-speech functionality that reads
@@ -66,7 +70,7 @@ class UnifiedTTSService {
       
       if (screenContent.isEmpty) {
         // Extract content if not cached or cache expired
-        screenContent = TTSContentExtractor.extractScreenContentByType(context, screenType);
+        screenContent = extractor.TTSContentExtractor.extractScreenContentByType(context, screenType);
         
         // If still empty, try comprehensive extraction as backup
         if (screenContent.isEmpty) {
@@ -98,7 +102,7 @@ class UnifiedTTSService {
       
       if (screenContent.isNotEmpty && screenContent.length > 5) {
         // Process and speak the content with proper Dutch formatting
-        final processedContent = _processContentForDutchSpeech(screenContent);
+        final processedContent = TTSContentProcessor.processContentForDutchSpeech(screenContent);
         print('🗣️ TTS: Speaking processed content: ${processedContent.length > 200 ? '${processedContent.substring(0, 200)}...' : processedContent}');
         await accessibilityNotifier.speak(processedContent);
       } else {
@@ -117,7 +121,7 @@ class UnifiedTTSService {
         // Try comprehensive extraction one more time as a last resort
         final comprehensiveContent = _extractAllVisibleTextComprehensive(context);
         if (comprehensiveContent.isNotEmpty) {
-          final processedComprehensive = _processContentForDutchSpeech(comprehensiveContent.join('. '));
+          final processedComprehensive = TTSContentProcessor.processContentForDutchSpeech(comprehensiveContent.join('. '));
           print('🔄 TTS: Using comprehensive extraction as fallback: ${processedComprehensive.length > 200 ? '${processedComprehensive.substring(0, 200)}...' : processedComprehensive}');
           await accessibilityNotifier.speak(processedComprehensive);
         } else {
@@ -127,13 +131,13 @@ class UnifiedTTSService {
           
           final lastResortContent = _extractAllVisibleTextComprehensive(context);
           if (lastResortContent.isNotEmpty) {
-            final processedLastResort = _processContentForDutchSpeech(lastResortContent.join('. '));
+            final processedLastResort = TTSContentProcessor.processContentForDutchSpeech(lastResortContent.join('. '));
             print('🔄 TTS: Found content on last resort: ${processedLastResort.length > 200 ? '${processedLastResort.substring(0, 200)}...' : processedLastResort}');
             await accessibilityNotifier.speak(processedLastResort);
           } else {
             // Generate helpful fallback based on current screen context
-            final fallbackContent = _generateContextualFallbackContent(context);
-            final processedFallback = _processContentForDutchSpeech(fallbackContent);
+            final fallbackContent = TTSFallbackContentGenerator.generateContextualFallbackContent(context);
+            final processedFallback = TTSContentProcessor.processContentForDutchSpeech(fallbackContent);
             debugPrint('TTS: Using contextual fallback content: $processedFallback');
             print('🔄 TTS: Using contextual fallback content: $processedFallback');
             await accessibilityNotifier.speak(processedFallback);
@@ -149,50 +153,6 @@ class UnifiedTTSService {
   }
 
 
-  /// Process content for better Dutch speech pronunciation
-  static String _processContentForDutchSpeech(String content) {
-    if (content.isEmpty) return content;
-    
-    // Clean up the content for better speech
-    String processed = content;
-    
-    // Remove excessive whitespace and normalize
-    processed = processed.replaceAll(RegExp(r'\s+'), ' ').trim();
-    
-    // Remove UI element descriptions to make speech more natural
-    processed = processed.replaceAll(RegExp(r'Knop:\s*', caseSensitive: false), '');
-    processed = processed.replaceAll(RegExp(r'Zwevende knop:\s*', caseSensitive: false), '');
-    processed = processed.replaceAll(RegExp(r'Filter:\s*', caseSensitive: false), '');
-    processed = processed.replaceAll(RegExp(r'Invoerveld:\s*', caseSensitive: false), '');
-    processed = processed.replaceAll(RegExp(r'Pagina:\s*', caseSensitive: false), '');
-    
-    // Remove redundant phrases that make speech unnatural
-    processed = processed.replaceAll(RegExp(r'Dit is de\s+', caseSensitive: false), '');
-    processed = processed.replaceAll(RegExp(r'Dit zijn de\s+', caseSensitive: false), '');
-    processed = processed.replaceAll(RegExp(r'Dit is je\s+', caseSensitive: false), '');
-    processed = processed.replaceAll(RegExp(r'Dit zijn je\s+', caseSensitive: false), '');
-    
-    // Clean up multiple dots and spaces
-    processed = processed.replaceAll(RegExp(r'\.\s*\.\s*\.'), '.');
-    processed = processed.replaceAll(RegExp(r'\s+'), ' ');
-    
-    // Add natural pauses for better readability
-    processed = processed.replaceAll(RegExp(r'\.\s*'), '. ');
-    processed = processed.replaceAll(RegExp(r'!\s*'), '! ');
-    processed = processed.replaceAll(RegExp(r'\?\s*'), '? ');
-    
-    // Handle common abbreviations and acronyms for better pronunciation
-    processed = processed.replaceAll(RegExp(r'\bTTS\b', caseSensitive: false), 'T T S');
-    processed = processed.replaceAll(RegExp(r'\bAPI\b', caseSensitive: false), 'A P I');
-    processed = processed.replaceAll(RegExp(r'\bURL\b', caseSensitive: false), 'U R L');
-    
-    // Ensure proper sentence endings
-    if (!processed.endsWith('.') && !processed.endsWith('!') && !processed.endsWith('?')) {
-      processed += '.';
-    }
-    
-    return processed.trim();
-  }
 
   /// Extract content from overlays, dialogs, and popups
   static String _extractOverlayContent(BuildContext context) {
@@ -2682,51 +2642,7 @@ class UnifiedTTSService {
 
   /// Generate contextual fallback content based on current screen context
   static String _generateContextualFallbackContent(BuildContext context) {
-    try {
-      // Try to determine the current screen type from route
-      final route = ModalRoute.of(context)?.settings.name ?? '';
-      
-      // Also try to get page title from AppBar
-      String pageTitle = '';
-      try {
-        final scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
-        if (scaffold?.appBar is AppBar) {
-          final appBar = scaffold!.appBar as AppBar;
-          if (appBar.title is Text) {
-            pageTitle = (appBar.title as Text).data ?? '';
-          }
-        }
-      } catch (e) {
-        debugPrint('TTS: Could not get page title: $e');
-      }
-      
-      // Generate content based on route and title
-      if (route.contains('home') || route.contains('Home') || pageTitle.toLowerCase().contains('home')) {
-        return 'Je bent op de hoofdpagina van de Karate app. Hier kun je navigeren naar verschillende onderdelen zoals kata\'s, het forum, en je profiel. Gebruik de navigatie knoppen onderaan het scherm om door de app te bewegen.';
-      } else if (route.contains('auth') || route.contains('login') || route.contains('signup') || 
-                 route.contains('Auth') || route.contains('Login') || route.contains('Signup') ||
-                 pageTitle.toLowerCase().contains('inlog') || pageTitle.toLowerCase().contains('registr')) {
-        return 'Je bent op de inlog en registratie pagina van de Karate app. Hier kun je inloggen met je bestaande account of een nieuw account aanmaken. Gebruik de tabbladen bovenaan om tussen inloggen en registreren te wisselen. Vul je e-mailadres en wachtwoord in en klik op de knop om in te loggen of te registreren.';
-      } else if (route.contains('kata') || route.contains('Kata') || pageTitle.toLowerCase().contains('kata')) {
-        return 'Je bent in de kata sectie. Hier kun je verschillende karate kata\'s bekijken en oefenen. Scroll door de lijst om verschillende technieken te vinden.';
-      } else if (route.contains('forum') || route.contains('Forum') || pageTitle.toLowerCase().contains('forum')) {
-        return 'Je bent in het forum. Hier kun je berichten lezen en nieuwe berichten plaatsen over karate. Gebruik de zoekfunctie om specifieke onderwerpen te vinden.';
-      } else if (route.contains('favorites') || route.contains('Favorites') || pageTitle.toLowerCase().contains('favoriet')) {
-        return 'Je bent in je favorieten. Hier vind je alle kata\'s en forumberichten die je hebt opgeslagen. Tik op een item om het te bekijken.';
-      } else if (route.contains('profile') || route.contains('Profile') || pageTitle.toLowerCase().contains('profiel')) {
-        return 'Je bent in je profiel. Hier kun je je persoonlijke informatie bekijken en bewerken, inclusief je avatar en instellingen.';
-      } else if (route.contains('settings') || route.contains('Settings') || pageTitle.toLowerCase().contains('instelling')) {
-        return 'Je bent in de instellingen. Hier kun je de app aanpassen naar je voorkeuren, inclusief toegankelijkheidsopties en thema instellingen.';
-      } else if (route.contains('user-management') || pageTitle.toLowerCase().contains('gebruiker')) {
-        return 'Je bent in het gebruikersbeheer. Hier kun je gebruikers beheren en instellingen aanpassen.';
-      } else {
-        // Try to provide more specific help based on what's visible
-        return 'Je bent in de Karate app. Gebruik de navigatie knoppen onderaan het scherm om door de verschillende onderdelen te bewegen. Je kunt ook de spraakknop gebruiken om de inhoud van elke pagina te laten voorlezen.';
-      }
-    } catch (e) {
-      debugPrint('TTS: Error generating contextual fallback: $e');
-      return 'Je bent in de Karate app. Gebruik de navigatie om door de app te bewegen.';
-    }
+    return TTSFallbackContentGenerator.generateContextualFallbackContent(context);
   }
 
   /// Generate helpful fallback content based on page type
@@ -2745,106 +2661,46 @@ class UnifiedTTSService {
 
   /// Extract ALL visible text content comprehensively from the current screen
   static List<String> _extractAllVisibleTextComprehensive(BuildContext context) {
-    final List<String> allTextContent = [];
+    final List<String> textContent = [];
     
     try {
-      debugPrint('TTS: Starting comprehensive visible text extraction...');
-      
-      if (!context.mounted) return allTextContent;
-      
-      // Use enhanced element tree traversal to get ALL text
-      final elementTexts = <String>[];
-      _extractTextFromElementTreeEnhanced(context, elementTexts);
-      
-      debugPrint('TTS: Enhanced traversal found ${elementTexts.length} text elements');
-      print('🔍 TTS: Enhanced traversal found ${elementTexts.length} text elements');
-      
-      // Also try a more aggressive approach - extract from the entire widget tree
-      if (elementTexts.isEmpty) {
-        debugPrint('TTS: No text found with enhanced traversal, trying aggressive extraction');
-        print('🔄 TTS: No text found with enhanced traversal, trying aggressive extraction');
-        _extractTextAggressively(context, elementTexts);
-        debugPrint('TTS: Aggressive extraction found ${elementTexts.length} text elements');
-        print('🔍 TTS: Aggressive extraction found ${elementTexts.length} text elements');
+      if (!context.mounted) {
+        debugPrint('TTS: Context no longer mounted in _extractAllVisibleTextComprehensive');
+        return textContent;
       }
       
-      // If still no text found, try alternative extraction methods
-      if (elementTexts.isEmpty) {
-        debugPrint('TTS: Still no text found, trying alternative extraction methods');
-        print('🔄 TTS: Still no text found, trying alternative extraction methods');
-        _extractTextWithAlternativeMethods(context, elementTexts);
-        debugPrint('TTS: Alternative extraction found ${elementTexts.length} text elements');
-        print('🔍 TTS: Alternative extraction found ${elementTexts.length} text elements');
+      // Use the base content extractor
+      final overlayContent = TTSContentExtractorBase.extractOverlayContent(context);
+      if (overlayContent.isNotEmpty) {
+        textContent.add(overlayContent);
       }
       
-      // Try one more approach - look for specific widget types that commonly contain text
-      if (elementTexts.isEmpty) {
-        debugPrint('TTS: Trying widget-specific extraction');
-        print('🔄 TTS: Trying widget-specific extraction');
-        _extractTextFromSpecificWidgets(context, elementTexts);
-        debugPrint('TTS: Widget-specific extraction found ${elementTexts.length} text elements');
-        print('🔍 TTS: Widget-specific extraction found ${elementTexts.length} text elements');
+      final pageInfo = TTSContentExtractorBase.extractPageInformation(context);
+      if (pageInfo.isNotEmpty) {
+        textContent.add(pageInfo);
       }
       
-      // Debug: Show all extracted text before filtering
-      debugPrint('TTS: All extracted text before filtering: $elementTexts');
-      print('🔍 TTS: All extracted text before filtering: $elementTexts');
-      
-      // Process and filter the extracted text to get meaningful content
-      final meaningfulTexts = elementTexts
-          .where((text) => text.trim().isNotEmpty && 
-                         text.trim() != 'Pagina geladen' &&
-                         text.trim() != ' ' && // Filter out single spaces
-                         text.trim().isNotEmpty && // Allow any non-empty text
-                         !text.startsWith('Knop:') &&
-                         !text.startsWith('Zwevende knop:') &&
-                         !text.startsWith('Filter:') &&
-                         !text.startsWith('Invoerveld:') &&
-                         !text.startsWith('Pagina:') &&
-                         !text.startsWith('Beschikbare knoppen') &&
-                         !text.startsWith('Navigatie') &&
-                         !text.toLowerCase().contains('scan hele pagina') &&
-                         !text.toLowerCase().contains('voorlezen') &&
-                         !text.toLowerCase().contains('spraak') &&
-                         !text.toLowerCase().contains('welkom bij de karate app') &&
-                         !text.toLowerCase().contains('loading') &&
-                         !text.toLowerCase().contains('laden') &&
-                         !text.toLowerCase().contains('error') &&
-                         !text.toLowerCase().contains('fout') &&
-                         // Filter out strange Unicode characters and control characters
-                         !_isStrangeUnicodeCharacter(text.trim()) &&
-                         // Filter out very short meaningless text
-                         (text.trim().length > 1 || _isMeaningfulShortText(text.trim())))
-          .map((text) => text.trim())
-          .toSet() // Remove duplicates
-          .toList();
-      
-      // Debug: Show filtered text
-      debugPrint('TTS: Filtered meaningful text: $meaningfulTexts');
-      print('✅ TTS: Filtered meaningful text: $meaningfulTexts');
-      
-      // Sort by length (longer text first) to prioritize meaningful content
-      meaningfulTexts.sort((a, b) => b.length.compareTo(a.length));
-      
-      // Add all meaningful text to the result
-      allTextContent.addAll(meaningfulTexts);
-      
-      debugPrint('TTS: Comprehensive extraction found ${allTextContent.length} text elements');
-      print('📝 TTS: Comprehensive extraction found ${allTextContent.length} text elements');
-      
-      // Log first few items for debugging
-      if (allTextContent.isNotEmpty) {
-        final preview = allTextContent.take(5).join(', ');
-        debugPrint('TTS: Content preview: $preview');
-        print('📄 TTS: Content preview: $preview');
+      final mainContent = TTSContentExtractorBase.extractMainContent(context);
+      if (mainContent.isNotEmpty) {
+        textContent.add(mainContent);
       }
+      
+      final interactiveElements = TTSContentExtractorBase.extractInteractiveElements(context);
+      if (interactiveElements.isNotEmpty) {
+        textContent.add(interactiveElements);
+      }
+      
+      final formContent = TTSContentExtractorBase.extractFormContent(context);
+      if (formContent.isNotEmpty) {
+        textContent.add(formContent);
+      }
+      
+      return textContent;
       
     } catch (e) {
-      debugPrint('TTS: Error in comprehensive text extraction: $e');
-      print('❌ TTS: Error in comprehensive text extraction: $e');
+      debugPrint('TTS: Error extracting all visible text comprehensively: $e');
+      return textContent;
     }
-    
-    return allTextContent;
   }
 
   /// Check if text is a strange Unicode character that should be filtered out
@@ -3218,9 +3074,9 @@ class UnifiedTTSService {
     TTSCacheManager.clearCache();
   }
 
-  /// Get cache statistics for debugging
-  static Map<String, dynamic> getCacheStats() {
-    return TTSCacheManager.getCacheStats();
+  /// Process content for better Dutch speech pronunciation
+  static String _processContentForDutchSpeech(String content) {
+    return TTSContentProcessor.processContentForDutchSpeech(content);
   }
 
 }

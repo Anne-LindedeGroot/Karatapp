@@ -1,285 +1,210 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/kata_model.dart';
-import '../../providers/role_provider.dart';
-import '../../providers/accessibility_provider.dart';
-import '../../services/role_service.dart';
-import '../../screens/edit_kata_screen.dart';
+import '../../models/interaction_models.dart';
+import '../../providers/interaction_provider.dart';
 import '../../utils/responsive_utils.dart';
-import '../../core/theme/app_theme.dart';
+import '../overflow_safe_widgets.dart';
+import '../avatar_widget.dart';
+import 'kata_card_comments.dart';
 
-/// Kata Card Interactions - Handles interaction logic for kata cards
-class KataCardInteractions {
-  static Future<void> speakKataContent(WidgetRef ref, Kata kata) async {
-    try {
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSProvider);
-      
-      // Build content for TTS based on settings
-      final content = StringBuffer();
-      
-      // Always include kata name
-      content.write('Kata: ${kata.name}. ');
-      
-      // Always include style (this is important kata information)
-      if (kata.style.isNotEmpty && kata.style != 'Unknown') {
-        content.write('Stijl: ${kata.style}. ');
-      }
-      
-      // Include description only if not skipping general info
-      if (!skipGeneralInfo && kata.description.isNotEmpty) {
-        content.write('Beschrijving: ${kata.description}. ');
-      }
-      
-      // Always include detailed media information (this is specific content, not general info)
-      if (kata.imageUrls?.isNotEmpty == true) {
-        final imageCount = kata.imageUrls!.length;
-        content.write('Deze kata heeft $imageCount afbeeldingen van karate technieken en demonstraties. ');
-        
-        // Add specific image descriptions for first few images
-        for (int i = 0; i < imageCount && i < 3; i++) {
-          final imageUrl = kata.imageUrls![i];
-          final imageType = _getImageTypeFromUrl(imageUrl);
-          content.write('Afbeelding ${i + 1}: $imageType. ');
-        }
-        
-        if (imageCount > 3) {
-          content.write('En ${imageCount - 3} meer afbeeldingen beschikbaar. ');
-        }
-      }
-      
-      if (kata.videoUrls?.isNotEmpty == true) {
-        final videoCount = kata.videoUrls!.length;
-        content.write('Deze kata heeft $videoCount video\'s van karate demonstraties en instructies. ');
-        
-        // Add specific video descriptions for first few videos
-        for (int i = 0; i < videoCount && i < 2; i++) {
-          final videoUrl = kata.videoUrls![i];
-          final videoDescription = _getVideoDescriptionFromUrl(videoUrl);
-          content.write('Video ${i + 1}: $videoDescription. ');
-        }
-        
-        if (videoCount > 2) {
-          content.write('En ${videoCount - 2} meer video\'s beschikbaar. ');
-        }
-      }
-      
-      await accessibilityNotifier.speak(content.toString());
-    } catch (e) {
-      debugPrint('Error speaking kata content: $e');
-    }
+class KataCardInteractions extends StatefulWidget {
+  final Kata kata;
+
+  const KataCardInteractions({
+    super.key,
+    required this.kata,
+  });
+
+  @override
+  State<KataCardInteractions> createState() => _KataCardInteractionsState();
+}
+
+class _KataCardInteractionsState extends State<KataCardInteractions> {
+  bool _isCommentsExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildInteractionSection();
   }
 
-  static Future<void> handleEditKata(BuildContext context, WidgetRef ref, Kata kata) async {
-    final userRoleAsync = ref.read(currentUserRoleProvider);
-    
-    await userRoleAsync.when(
-      data: (role) async {
-        if (role == UserRole.host) {
-          if (context.mounted) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => EditKataScreen(kata: kata),
-              ),
-            );
-          }
-        } else {
-          _showPermissionDeniedDialog(context);
-        }
-      },
-      loading: () {
-        _showLoadingDialog(context);
-      },
-      error: (error, _) {
-        _showErrorDialog(context, 'Fout bij ophalen gebruikersrol: $error');
-      },
-    );
-  }
+  Widget _buildInteractionSection() {
+    return Consumer(
+      builder: (context, ref, child) {
+        final interactionState = ref.watch(kataInteractionProvider(widget.kata.id));
+        final isLiked = interactionState.isLiked;
+        final isFavorited = interactionState.isFavorited;
+        final likeCount = interactionState.likeCount;
+        final commentCount = interactionState.commentCount;
+        final comments = interactionState.comments;
 
-  static Future<bool> handleDeleteKata(BuildContext context, WidgetRef ref, Kata kata) async {
-    final userRoleAsync = ref.read(currentUserRoleProvider);
-    
-    return await userRoleAsync.when(
-      data: (role) async {
-        if (role == UserRole.host) {
-          return await _showDeleteConfirmationDialog(context, kata.name);
-        } else {
-          _showPermissionDeniedDialog(context);
-          return false;
-        }
-      },
-      loading: () async {
-        _showLoadingDialog(context);
-        return false;
-      },
-      error: (error, _) async {
-        _showErrorDialog(context, 'Fout bij ophalen gebruikersrol: $error');
-        return false;
-      },
-    );
-  }
-
-  static void _showPermissionDeniedDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Geen Toegang'),
-        content: const Text(
-          'Je hebt geen toestemming om deze kata te bewerken of verwijderen.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static void _showLoadingDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Laden...'),
+            // Action buttons row
+            OverflowSafeRow(
+              children: [
+                // Like button
+                IconButton(
+                  onPressed: () async {
+                    try {
+                      await ref.read(kataInteractionProvider(widget.kata.id).notifier).toggleLike();
+                    } catch (e) {
+                      if (mounted && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: Icon(
+                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: isLiked ? Colors.red : Colors.grey,
+                  ),
+                ),
+                OverflowSafeText('$likeCount'),
+                const SizedBox(width: 16),
+
+                // Favorite button
+                IconButton(
+                  onPressed: () async {
+                    try {
+                      await ref.read(kataInteractionProvider(widget.kata.id).notifier).toggleFavorite();
+                      if (mounted && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isFavorited
+                                ? 'Removed from favorites'
+                                : 'Added to favorites'
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: Icon(
+                    isFavorited ? Icons.bookmark : Icons.bookmark_border,
+                    color: isFavorited ? Colors.teal : Colors.grey,
+                  ),
+                ),
+
+                const SizedBox(width: 16),
+
+                // Comment button - Opens comment section
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _isCommentsExpanded = !_isCommentsExpanded;
+                    });
+                  },
+                  icon: Icon(
+                    _isCommentsExpanded ? Icons.comment : Icons.comment_outlined,
+                    color: Colors.blue,
+                  ),
+                  tooltip: _isCommentsExpanded ? 'Sluit reacties' : 'Open reacties',
+                ),
+                OverflowSafeText('$commentCount'),
+
+                const OverflowSafeSpacer(),
+              ],
+            ),
+
+            // Show inline comments section when expanded
+            if (_isCommentsExpanded) ...[
+              const SizedBox(height: 12),
+              KataCardComments(
+                kata: widget.kata,
+                comments: comments,
+                isLoading: interactionState.isLoading,
+                onCollapse: () {
+                  setState(() {
+                    _isCommentsExpanded = false;
+                  });
+                },
+              ),
+            ] else if (comments.isNotEmpty) ...[
+              // Show first few comments inline if any
+              const SizedBox(height: 8),
+              ...comments.take(2).map((comment) => _buildClickableCommentPreview(comment)),
+              if (comments.length > 2)
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isCommentsExpanded = true;
+                    });
+                  },
+                  child: Text('Bekijk alle ${comments.length} reacties'),
+                ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildClickableCommentPreview(KataComment comment) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _isCommentsExpanded = true;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.teal.shade400,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.teal.shade300),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AvatarWidget(
+              customAvatarUrl: comment.authorAvatar,
+              userName: comment.authorName,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style.copyWith(
+                    color: Colors.white,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: '${comment.authorName} ',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    TextSpan(
+                      text: comment.content, // Show full comment content
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
-  }
-
-  static void _showErrorDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Fout'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Future<bool> _showDeleteConfirmationDialog(BuildContext context, String kataName) async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Kata Verwijderen'),
-        content: Text(
-          'Weet je zeker dat je "$kataName" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Annuleren'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-            child: const Text('Verwijderen'),
-          ),
-        ],
-      ),
-    );
-
-    return result ?? false;
-  }
-
-  static Widget buildActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onPressed,
-    Color? color,
-  }) {
-    return Semantics(
-      label: tooltip,
-      button: true,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(
-          icon,
-          size: AppTheme.getResponsiveIconSize(context, baseSize: 20.0),
-          color: color,
-        ),
-        tooltip: tooltip,
-        style: IconButton.styleFrom(
-          padding: EdgeInsets.all(context.responsiveSpacing(SpacingSize.xs)),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-      ),
-    );
-  }
-
-  /// Get image type description from URL
-  static String _getImageTypeFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      final path = uri.path.toLowerCase();
-      
-      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) {
-        return 'JPEG foto van karate techniek';
-      } else if (path.endsWith('.png')) {
-        return 'PNG afbeelding van karate beweging';
-      } else if (path.endsWith('.gif')) {
-        return 'GIF animatie van karate techniek';
-      } else if (path.endsWith('.webp')) {
-        return 'WebP afbeelding van karate demonstratie';
-      } else if (path.endsWith('.svg')) {
-        return 'SVG diagram van karate techniek';
-      } else {
-        return 'Afbeelding van karate techniek';
-      }
-    } catch (e) {
-      return 'Afbeelding van karate techniek';
-    }
-  }
-
-  /// Get video description from URL
-  static String _getVideoDescriptionFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      
-      // Check for streaming platforms
-      if (uri.host.contains('youtube.com') || uri.host.contains('youtu.be')) {
-        return 'YouTube video van karate demonstratie';
-      } else if (uri.host.contains('vimeo.com')) {
-        return 'Vimeo video van karate instructie';
-      } else if (uri.host.contains('dailymotion.com')) {
-        return 'Dailymotion video van karate training';
-      } else if (uri.host.contains('twitch.tv')) {
-        return 'Twitch video van live karate stream';
-      }
-      
-      // Check for direct video files
-      final path = uri.path.toLowerCase();
-      if (path.endsWith('.mp4')) {
-        return 'MP4 video van karate demonstratie';
-      } else if (path.endsWith('.webm')) {
-        return 'WebM video van karate techniek';
-      } else if (path.endsWith('.avi')) {
-        return 'AVI video van karate beweging';
-      } else if (path.endsWith('.mov')) {
-        return 'MOV video van karate instructie';
-      }
-      
-      return 'Video van karate demonstratie';
-    } catch (e) {
-      return 'Video van karate demonstratie';
-    }
   }
 }

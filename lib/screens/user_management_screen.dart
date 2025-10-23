@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/user_management_service.dart';
 import '../services/role_service.dart';
 import '../services/mute_service.dart';
 import '../providers/role_provider.dart';
 import '../providers/mute_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/connection_error_widget.dart';
-import '../core/navigation/app_router.dart';
-import '../widgets/global_tts_overlay.dart';
 import '../widgets/tts_clickable_text.dart';
+import '../widgets/global_tts_overlay.dart';
 import '../widgets/enhanced_accessible_text.dart';
+import '../core/navigation/app_router.dart';
+import '../widgets/user_management/user_management_header.dart';
+import '../widgets/user_management/user_list_item.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -23,162 +26,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   List<Map<String, dynamic>> _users = [];
   bool _isLoading = true;
   String? _error;
+  final UserManagementService _userManagementService = UserManagementService();
   final RoleService _roleService = RoleService();
-
-  // Insert zero-width break opportunities to allow wrapping after '@' and '.'
-  String _wrapEmailForDisplay(String email) {
-    try {
-      final parts = email.split('@');
-      if (parts.length != 2) return email;
-      final local = parts[0];
-      final domain = parts[1].replaceAll('.', '.\u200B');
-      return '$local@\u200B$domain';
-    } catch (_) {
-      return email;
-    }
-  }
+  final MuteService _muteService = MuteService();
 
   @override
   void initState() {
     super.initState();
     print('UserManagementScreen: initState called');
     _loadUsers();
-    // TTS announcement disabled - only speak when user clicks TTS button
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   _announcePageLoad();
-    // });
-  }
-
-
-  Future<void> _speakUserContent(Map<String, dynamic> user, int index) async {
-    try {
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      
-      final userName = user['full_name'] as String? ?? user['email']?.split('@')[0] ?? 'Onbekende Gebruiker';
-      final userEmail = user['email'] as String? ?? '';
-      final userRole = UserRole.values.firstWhere(
-        (role) => role.name == user['role'],
-        orElse: () => UserRole.user,
-      );
-      final isDeleted = user['is_deleted'] as bool? ?? false;
-      
-      // Build comprehensive content for TTS
-      final content = StringBuffer();
-      content.write('User $index: $userName. ');
-      
-      if (userEmail.isNotEmpty) {
-        content.write('Email: $userEmail. ');
-      }
-      
-      content.write('Role: ${userRole.displayName}. ');
-      content.write('${userRole.description}. ');
-      
-      if (isDeleted) {
-        content.write('This account has been deleted. ');
-      }
-      
-      await accessibilityNotifier.speak(content.toString());
-    } catch (e) {
-      debugPrint('Error speaking user content: $e');
-    }
-  }
-
-  String _formatDate(dynamic dateValue) {
-    if (dateValue == null) return 'Onbekend';
-    
-    try {
-      DateTime date;
-      if (dateValue is String) {
-        date = DateTime.parse(dateValue);
-      } else if (dateValue is DateTime) {
-        date = dateValue;
-      } else {
-        return 'Onbekend';
-      }
-      
-      return '${date.day}/${date.month}/${date.year}';
-    } catch (e) {
-      return 'Onbekend';
-    }
-  }
-
-  /// Split name into two lines for better display
-  Widget _buildSplitName(String fullName) {
-    // Special handling for "anne-linde de Groot" to split into two sentences
-    if (fullName.toLowerCase().contains('anne-linde') && fullName.toLowerCase().contains('de groot')) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Anne-Linde',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-            overflow: TextOverflow.visible,
-            maxLines: null,
-            softWrap: true,
-          ),
-          Text(
-            'de Groot',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-            overflow: TextOverflow.visible,
-            maxLines: null,
-            softWrap: true,
-          ),
-        ],
-      );
-    }
-    
-    // For other names, try to split at common patterns
-    final parts = fullName.split(' ');
-    if (parts.length >= 2) {
-      // Split roughly in the middle
-      final midPoint = (parts.length / 2).ceil();
-      final firstPart = parts.take(midPoint).join(' ');
-      final secondPart = parts.skip(midPoint).join(' ');
-      
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            firstPart,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-            overflow: TextOverflow.visible,
-            maxLines: null,
-            softWrap: true,
-          ),
-          Text(
-            secondPart,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-            overflow: TextOverflow.visible,
-            maxLines: null,
-            softWrap: true,
-          ),
-        ],
-      );
-    }
-    
-    // Fallback to single line for short names
-    return Text(
-      fullName,
-      style: const TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 16,
-      ),
-      overflow: TextOverflow.visible,
-      maxLines: null,
-      softWrap: true,
-    );
   }
 
   Future<void> _loadUsers() async {
@@ -189,26 +45,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     });
 
     try {
-      // First, ensure user profiles exist
-      print('UserManagementScreen: Creating missing user profiles...');
-      await _roleService.createMissingUserProfiles();
-      
-      // Debug: Run debug method to see what's available
-      print('UserManagementScreen: Running debug user fetching...');
-      await _roleService.debugUserFetching();
-      
-      print('UserManagementScreen: Calling getAllUsersWithRoles...');
-      final users = await _roleService.getAllUsersWithRoles();
-      print('UserManagementScreen: Received ${users.length} users');
-      
-      // Log detailed user information
-      for (final user in users) {
-        print('UserManagementScreen: User: ${user['email']} (${user['role']}) - ID: ${user['id']} - Created: ${user['created_at']}');
-      }
-      
-      // Log success
-      print('UserManagementScreen: SUCCESS - Found ${users.length} users');
-      
+      final users = await _userManagementService.loadUsers();
+
       setState(() {
         _users = users;
         _isLoading = false;
@@ -1565,5 +1403,53 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _speakUserContent(Map<String, dynamic> user, int index) async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final fullName = user['full_name'] as String? ?? 'Unknown User';
+      final email = user['email'] as String? ?? 'Unknown Email';
+      final role = user['role'] as String? ?? 'user';
+
+      final content = 'Gebruiker $index: $fullName, Email: $email, Rol: $role';
+
+      // Stop any current speech
+      if (accessibilityNotifier.isSpeaking()) {
+        await accessibilityNotifier.stopSpeaking();
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
+      await accessibilityNotifier.speak(content);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Voorlezen: Gebruiker $index informatie'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error speaking user content: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fout bij voorlezen van gebruiker informatie'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Onbekend';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  String _wrapEmailForDisplay(String email) {
+    if (email.length <= 25) return email;
+    return '${email.substring(0, 22)}...';
   }
 }

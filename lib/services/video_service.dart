@@ -154,7 +154,7 @@ class VideoService {
           // Upload to Supabase Storage (in a 'kata_videos' bucket with folder structure)
           await supabase.storage
               .from('kata_videos')
-              .uploadBinary(filePath, bytes);
+              .uploadBinary(filePath, Uint8List.fromList(bytes));
           
           // Get the public URL of the uploaded video
           final publicUrl = supabase.storage

@@ -4,6 +4,9 @@ import '../../widgets/video_player_widget.dart';
 import '../../widgets/universal_video_player.dart';
 import 'tts_screen_detector.dart';
 import 'tts_text_field_reader.dart';
+import 'tts_dialog_overlay_extractor.dart';
+import 'tts_form_interactive_extractor.dart';
+import 'tts_media_content_extractor.dart';
 
 /// TTS Content Extractor - Handles content extraction for different screen types
 class TTSContentExtractor {
@@ -53,7 +56,7 @@ class TTSContentExtractor {
       debugPrint('TTS: Starting comprehensive content extraction...');
       
       // 1. Check for overlays, dialogs, and popups first
-      final overlayContent = _extractOverlayContent(context);
+      final overlayContent = TTSDialogOverlayExtractor.extractOverlayContent(context);
       if (overlayContent.isNotEmpty) {
         contentParts.add(overlayContent);
         debugPrint('TTS: Found overlay content: $overlayContent');
@@ -74,7 +77,7 @@ class TTSContentExtractor {
       }
       
       // 4. Extract form content if present (including text fields)
-      final formContent = _extractFormContent(context);
+      final formContent = TTSFormInteractiveExtractor.extractFormContent(context);
       if (formContent.isNotEmpty) {
         contentParts.add(formContent);
         debugPrint('TTS: Found form content: $formContent');
@@ -88,7 +91,7 @@ class TTSContentExtractor {
       }
       
       // 6. Extract interactive elements
-      final interactiveElements = _extractInteractiveElements(context);
+      final interactiveElements = TTSFormInteractiveExtractor.extractInteractiveElements(context);
       if (interactiveElements.isNotEmpty) {
         contentParts.add(interactiveElements);
         debugPrint('TTS: Found interactive elements: $interactiveElements');

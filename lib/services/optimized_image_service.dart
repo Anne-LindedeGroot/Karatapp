@@ -129,7 +129,7 @@ class OptimizedImageService {
           // Upload to Supabase Storage
           await _supabase.storage
               .from(bucketName)
-              .uploadBinary(fileName, bytes);
+              .uploadBinary(fileName, Uint8List.fromList(bytes));
           
           // Get the public URL of the uploaded image
           final publicUrl = _supabase.storage
