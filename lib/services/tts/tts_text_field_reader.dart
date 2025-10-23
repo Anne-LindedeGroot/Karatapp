@@ -81,6 +81,12 @@ class TTSTextFieldReader {
           if (info != null) {
             textFields.add(info);
           }
+        } else if (widget.runtimeType.toString().contains('EnhancedAccessibleTextField')) {
+          // Handle EnhancedAccessibleTextField specifically
+          final info = _extractEnhancedTextFieldInfo(widget);
+          if (info != null) {
+            textFields.add(info);
+          }
         }
       });
     } catch (e) {
@@ -88,6 +94,34 @@ class TTSTextFieldReader {
     }
     
     return textFields;
+  }
+
+  /// Extract information from EnhancedAccessibleTextField widget
+  static TextFieldInfo? _extractEnhancedTextFieldInfo(dynamic enhancedTextField) {
+    try {
+      // Try to access the decoration property
+      final decoration = enhancedTextField.decoration;
+      if (decoration == null) return null;
+      
+      // Get the controller
+      final controller = enhancedTextField.controller;
+      String value = '';
+      if (controller != null && controller.text != null) {
+        value = controller.text;
+      }
+      
+      return TextFieldInfo(
+        label: decoration.labelText ?? '',
+        hint: decoration.hintText ?? '',
+        value: value,
+        type: 'EnhancedAccessibleTextField',
+        isRequired: decoration.labelText?.contains('*') == true,
+        isPassword: enhancedTextField.obscureText == true,
+      );
+    } catch (e) {
+      debugPrint('TTS TextFieldReader: Error extracting enhanced field info: $e');
+      return null;
+    }
   }
 
   /// Extract information from a text field widget
@@ -285,6 +319,193 @@ class TTSTextFieldReader {
            lowerHint.contains('content') ||
            lowerHint.contains('stijl') ||
            lowerHint.contains('style');
+  }
+
+  /// Read media-related form fields (video URLs, image descriptions, etc.)
+  static String readMediaFormFields(BuildContext context) {
+    try {
+      debugPrint('TTS TextFieldReader: Reading media form fields...');
+      
+      final textFields = _extractAllTextFields(context);
+      final mediaFields = textFields.where((field) => 
+        _isMediaField(field)).toList();
+      
+      if (mediaFields.isEmpty) {
+        return 'Geen media velden gevonden';
+      }
+      
+      final readings = mediaFields.map((field) => 
+        _formatMediaFieldForSpeech(field, 1)).toList();
+      
+      return readings.join('. ');
+      
+    } catch (e) {
+      debugPrint('TTS TextFieldReader: Error reading media fields: $e');
+      return 'Fout bij het lezen van media velden';
+    }
+  }
+
+  /// Check if a field is a media-related field
+  static bool _isMediaField(TextFieldInfo field) {
+    final lowerLabel = field.label.toLowerCase();
+    final lowerHint = field.hint.toLowerCase();
+    final lowerValue = field.value.toLowerCase();
+    
+    return lowerLabel.contains('video') ||
+           lowerLabel.contains('url') ||
+           lowerLabel.contains('link') ||
+           lowerLabel.contains('afbeelding') ||
+           lowerLabel.contains('foto') ||
+           lowerLabel.contains('image') ||
+           lowerLabel.contains('media') ||
+           lowerHint.contains('video') ||
+           lowerHint.contains('url') ||
+           lowerHint.contains('link') ||
+           lowerHint.contains('afbeelding') ||
+           lowerHint.contains('foto') ||
+           lowerHint.contains('image') ||
+           lowerHint.contains('media') ||
+           lowerHint.contains('youtube') ||
+           lowerHint.contains('vimeo') ||
+           _isValidUrl(field.value) && _isMediaUrl(field.value);
+  }
+
+  /// Format a media field for speech output with enhanced descriptions
+  static String _formatMediaFieldForSpeech(TextFieldInfo field, int position) {
+    final List<String> parts = [];
+    
+    // Add field label or hint
+    if (field.label.isNotEmpty) {
+      parts.add('${field.label}${field.isRequired ? ' (verplicht)' : ''}');
+    } else if (field.hint.isNotEmpty) {
+      parts.add('${field.hint}${field.isRequired ? ' (verplicht)' : ''}');
+    } else {
+      parts.add('Media veld $position');
+    }
+    
+    // Add field type information
+    if (field.isPassword) {
+      parts.add('wachtwoord veld');
+    }
+    
+    // Add current value with enhanced media descriptions
+    if (field.value.isNotEmpty) {
+      if (field.isPassword) {
+        parts.add('ingevuld met ${field.value.length} karakters');
+      } else if (_isValidUrl(field.value) && _isMediaUrl(field.value)) {
+        final mediaDescription = _getMediaDescription(field.value);
+        parts.add('bevat: $mediaDescription');
+      } else {
+        parts.add('bevat: ${field.value}');
+      }
+    } else {
+      parts.add('is leeg');
+    }
+    
+    return parts.join(', ');
+  }
+
+  /// Check if a string is a valid URL
+  static bool _isValidUrl(String url) {
+    if (url.trim().isEmpty) return false;
+    
+    try {
+      final uri = Uri.parse(url.trim());
+      return uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https');
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if a URL is a media URL
+  static bool _isMediaUrl(String url) {
+    final lowerUrl = url.toLowerCase();
+    
+    // Video platforms
+    if (lowerUrl.contains('youtube.com') || 
+        lowerUrl.contains('youtu.be') ||
+        lowerUrl.contains('vimeo.com') ||
+        lowerUrl.contains('dailymotion.com') ||
+        lowerUrl.contains('twitch.tv')) {
+      return true;
+    }
+    
+    // Direct video file extensions
+    final videoExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mkv', '.m4v'];
+    if (videoExtensions.any((ext) => lowerUrl.endsWith(ext))) {
+      return true;
+    }
+    
+    // Audio file extensions
+    final audioExtensions = ['.mp3', '.wav', '.aac', '.ogg', '.flac', '.m4a'];
+    if (audioExtensions.any((ext) => lowerUrl.endsWith(ext))) {
+      return true;
+    }
+    
+    // Image file extensions
+    final imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
+    if (imageExtensions.any((ext) => lowerUrl.endsWith(ext))) {
+      return true;
+    }
+    
+    return false;
+  }
+
+  /// Get a descriptive name for media content
+  static String _getMediaDescription(String url) {
+    try {
+      final uri = Uri.parse(url);
+      
+      // YouTube
+      if (uri.host.contains('youtube.com') || uri.host.contains('youtu.be')) {
+        return 'YouTube video link';
+      }
+      
+      // Vimeo
+      if (uri.host.contains('vimeo.com')) {
+        return 'Vimeo video link';
+      }
+      
+      // Dailymotion
+      if (uri.host.contains('dailymotion.com')) {
+        return 'Dailymotion video link';
+      }
+      
+      // Twitch
+      if (uri.host.contains('twitch.tv')) {
+        return 'Twitch video link';
+      }
+      
+      // Direct file
+      final path = uri.path.toLowerCase();
+      if (path.endsWith('.mp4')) return 'MP4 video bestand';
+      if (path.endsWith('.avi')) return 'AVI video bestand';
+      if (path.endsWith('.mov')) return 'MOV video bestand';
+      if (path.endsWith('.wmv')) return 'WMV video bestand';
+      if (path.endsWith('.flv')) return 'FLV video bestand';
+      if (path.endsWith('.webm')) return 'WebM video bestand';
+      if (path.endsWith('.mkv')) return 'MKV video bestand';
+      if (path.endsWith('.m4v')) return 'M4V video bestand';
+      
+      if (path.endsWith('.mp3')) return 'MP3 audio bestand';
+      if (path.endsWith('.wav')) return 'WAV audio bestand';
+      if (path.endsWith('.aac')) return 'AAC audio bestand';
+      if (path.endsWith('.ogg')) return 'OGG audio bestand';
+      if (path.endsWith('.flac')) return 'FLAC audio bestand';
+      if (path.endsWith('.m4a')) return 'M4A audio bestand';
+      
+      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'JPEG afbeelding';
+      if (path.endsWith('.png')) return 'PNG afbeelding';
+      if (path.endsWith('.gif')) return 'GIF afbeelding';
+      if (path.endsWith('.bmp')) return 'BMP afbeelding';
+      if (path.endsWith('.webp')) return 'WebP afbeelding';
+      if (path.endsWith('.svg')) return 'SVG afbeelding';
+      
+      // Generic
+      return 'Media link naar ${uri.host}';
+    } catch (e) {
+      return 'Media link';
+    }
   }
 }
 

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/role_provider.dart';
 import '../../services/role_service.dart';
-import '../../widgets/global_tts_overlay.dart';
-import '../../widgets/tts_clickable_text.dart';
 
 /// Home Dialogs - Handles dialog management for the home screen
 class HomeDialogs {
@@ -32,22 +30,17 @@ class HomeDialogs {
   static void _showPermissionDeniedDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => DialogTTSOverlay(
-        child: AlertDialog(
-          title: const TTSClickableText('Geen Toegang'),
-          content: const TTSClickableText(
-            'Alleen hosts kunnen nieuwe kata\'s toevoegen. Neem contact op met een host om toegang te krijgen.',
-          ),
-          actions: [
-            TTSClickableWidget(
-              ttsText: 'OK knop',
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ),
-          ],
+      builder: (context) => AlertDialog(
+        title: const Text('Geen Toegang'),
+        content: const Text(
+          'Alleen hosts kunnen nieuwe kata\'s toevoegen. Neem contact op met een host om toegang te krijgen.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -56,16 +49,14 @@ class HomeDialogs {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => DialogTTSOverlay(
-        child: const AlertDialog(
-          content: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              TTSClickableText('Laden...'),
-            ],
-          ),
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Laden...'),
+          ],
         ),
       ),
     );
@@ -74,20 +65,15 @@ class HomeDialogs {
   static void _showErrorDialog(BuildContext context, String message) {
     showDialog(
       context: context,
-      builder: (context) => DialogTTSOverlay(
-        child: AlertDialog(
-          title: const TTSClickableText('Fout'),
-          content: TTSClickableText(message),
-          actions: [
-            TTSClickableWidget(
-              ttsText: 'OK knop',
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ),
-          ],
-        ),
+      builder: (context) => AlertDialog(
+        title: const Text('Fout'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
@@ -95,29 +81,21 @@ class HomeDialogs {
   static Future<void> _showKataCreationDialog(BuildContext context, WidgetRef ref) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => DialogTTSOverlay(
-        child: AlertDialog(
-          title: const TTSClickableText('Nieuwe Kata Toevoegen'),
-          content: const TTSClickableText(
-            'Kies hoe je een nieuwe kata wilt toevoegen:',
-          ),
-          actions: [
-            TTSClickableWidget(
-              ttsText: 'Nieuwe Kata Maken knop',
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(true), // true = create new
-                child: const Text('Nieuwe Kata Maken'),
-              ),
-            ),
-            TTSClickableWidget(
-              ttsText: 'Annuleren knop',
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(false), // false = cancel
-                child: const Text('Annuleren'),
-              ),
-            ),
-          ],
+      builder: (context) => AlertDialog(
+        title: const Text('Nieuwe Kata Toevoegen'),
+        content: const Text(
+          'Kies hoe je een nieuwe kata wilt toevoegen:',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true), // true = create new
+            child: const Text('Nieuwe Kata Maken'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false), // false = cancel
+            child: const Text('Annuleren'),
+          ),
+        ],
       ),
     );
 
@@ -132,32 +110,24 @@ class HomeDialogs {
   ) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => DialogTTSOverlay(
-        child: AlertDialog(
-          title: const TTSClickableText('Kata Verwijderen'),
-          content: TTSClickableText(
-            'Weet je zeker dat je "$kataName" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
-          ),
-          actions: [
-            TTSClickableWidget(
-              ttsText: 'Annuleren knop',
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Annuleren'),
-              ),
-            ),
-            TTSClickableWidget(
-              ttsText: 'Verwijderen knop',
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
-                ),
-                child: const Text('Verwijderen'),
-              ),
-            ),
-          ],
+      builder: (context) => AlertDialog(
+        title: const Text('Kata Verwijderen'),
+        content: Text(
+          'Weet je zeker dat je "$kataName" wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuleren'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Verwijderen'),
+          ),
+        ],
       ),
     );
 

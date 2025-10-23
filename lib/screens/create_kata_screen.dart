@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/kata_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/video_url_input_widget.dart';
+import '../widgets/global_tts_overlay.dart';
+import '../widgets/tts_clickable_text.dart';
+import '../widgets/enhanced_accessible_text.dart';
 
 class CreateKataScreen extends ConsumerStatefulWidget {
   const CreateKataScreen({super.key});
@@ -126,76 +129,77 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
 
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => Dialog(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.9,
-            maxHeight: MediaQuery.of(context).size.height * 0.7,
-            minWidth: 300,
-            minHeight: 400,
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Kata Beschrijving',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+      builder: (context) => DialogTTSOverlay(
+        child: Dialog(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+              maxHeight: MediaQuery.of(context).size.height * 0.7,
+              minWidth: 300,
+              minHeight: 400,
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: TTSClickableText(
+                          'Kata Beschrijving',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: TextField(
-                    controller: dialogController,
-                    decoration: const InputDecoration(
-                      hintText: 'Voer kata beschrijving in...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(16),
-                    ),
-                    maxLines: null,
-                    expands: true,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: const TextStyle(fontSize: 16),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Annuleren',
-                        maxLines: 1,
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: EnhancedAccessibleTextField(
+                      controller: dialogController,
+                      decoration: const InputDecoration(
+                        hintText: 'Voer kata beschrijving in...',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(16),
                       ),
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      style: const TextStyle(fontSize: 16),
+                      customTTSLabel: 'Kata beschrijving invoerveld',
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: () =>
-                          Navigator.pop(context, dialogController.text),
-                      child: const Text(
-                        'Opslaan',
-                        maxLines: 1,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TTSClickableWidget(
+                        ttsText: 'Annuleren knop',
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Annuleren'),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 8),
+                      TTSClickableWidget(
+                        ttsText: 'Opslaan knop',
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context, dialogController.text),
+                          child: const Text('Opslaan'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -250,7 +254,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      EnhancedAccessibleTextField(
                         controller: _nameController,
                         decoration: const InputDecoration(
                           labelText: 'Kata Naam *',
@@ -263,9 +267,10 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                           }
                           return null;
                         },
+                        customTTSLabel: 'Kata naam invoerveld',
                       ),
                       const SizedBox(height: 16),
-                      TextFormField(
+                      EnhancedAccessibleTextField(
                         controller: _styleController,
                         decoration: const InputDecoration(
                           labelText: 'Stijl *',
@@ -278,6 +283,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                           }
                           return null;
                         },
+                        customTTSLabel: 'Stijl invoerveld',
                       ),
                       const SizedBox(height: 16),
                       GestureDetector(

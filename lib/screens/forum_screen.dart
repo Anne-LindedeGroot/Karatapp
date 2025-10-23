@@ -13,6 +13,7 @@ import '../utils/responsive_utils.dart';
 import '../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
+import '../widgets/enhanced_accessible_text.dart';
 
 class ForumScreen extends ConsumerStatefulWidget {
   const ForumScreen({super.key});
@@ -789,7 +790,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         // Search bar
         Padding(
           padding: EdgeInsets.all(context.responsiveValue(mobile: 16.0, tablet: 12.0, desktop: 8.0)),
-          child: TextField(
+          child: EnhancedAccessibleTextField(
             controller: _searchController,
             focusNode: _searchFocusNode,
             decoration: const InputDecoration(
@@ -800,6 +801,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               ),
             ),
             onChanged: _filterPosts,
+            customTTSLabel: 'Zoek berichten invoerveld',
           ),
         ),
         

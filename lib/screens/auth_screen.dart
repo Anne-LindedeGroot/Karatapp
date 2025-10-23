@@ -8,6 +8,8 @@ import '../core/navigation/scaffold_messenger.dart';
 import '../models/auth_state.dart';
 import '../utils/responsive_utils.dart';
 import '../providers/accessibility_provider.dart';
+import '../widgets/global_tts_overlay.dart';
+import '../widgets/enhanced_accessible_text.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -393,53 +395,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               ),
             
             // Email field
-            Semantics(
-              label: 'E-mail invoerveld voor het inloggen',
-              child: TextFormField(
-                controller: _loginEmailController,
-                decoration: const InputDecoration(
-                  labelText: 'E-mail',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Voer je e-mailadres in';
-                  }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                    return 'Voer een geldig e-mailadres in';
-                  }
-                  return null;
-                },
+            EnhancedAccessibleTextField(
+              controller: _loginEmailController,
+              decoration: const InputDecoration(
+                labelText: 'E-mail',
+                prefixIcon: Icon(Icons.email_outlined),
+                border: OutlineInputBorder(),
               ),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              customTTSLabel: 'E-mail invoerveld voor het inloggen',
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Password field
-            Semantics(
-              label: 'Wachtwoord invoerveld voor het inloggen',
-              child: TextFormField(
-                controller: _loginPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Wachtwoord',
-                  prefixIcon: Icon(Icons.lock_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _signIn(),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Voer je wachtwoord in';
-                  }
-                  if (value.length < 6) {
-                    return 'Wachtwoord moet minimaal 6 tekens zijn';
-                  }
-                  return null;
-                },
+            EnhancedAccessibleTextField(
+              controller: _loginPasswordController,
+              decoration: const InputDecoration(
+                labelText: 'Wachtwoord',
+                prefixIcon: Icon(Icons.lock_outlined),
+                border: OutlineInputBorder(),
               ),
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _signIn(),
+              customTTSLabel: 'Wachtwoord invoerveld voor het inloggen',
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
             
@@ -556,103 +536,59 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
               ),
             
             // Name field
-            Semantics(
-              label: 'Volledige Naam invoerveld voor registratie',
-              child: TextFormField(
-                controller: _signupNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Volledige Naam',
-                  prefixIcon: Icon(Icons.person_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Voer je volledige naam in';
-                  }
-                  if (value.trim().length < 2) {
-                    return 'Naam moet minimaal 2 tekens zijn';
-                  }
-                  return null;
-                },
+            EnhancedAccessibleTextField(
+              controller: _signupNameController,
+              decoration: const InputDecoration(
+                labelText: 'Volledige Naam',
+                prefixIcon: Icon(Icons.person_outlined),
+                border: OutlineInputBorder(),
               ),
+              textInputAction: TextInputAction.next,
+              customTTSLabel: 'Volledige Naam invoerveld voor registratie',
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Email field
-            Semantics(
-              label: 'E-mail invoerveld voor registratie',
-              child: TextFormField(
-                controller: _signupEmailController,
-                decoration: const InputDecoration(
-                  labelText: 'E-mail',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Voer je e-mailadres in';
-                  }
-                  if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                    return 'Voer een geldig e-mailadres in';
-                  }
-                  return null;
-                },
+            EnhancedAccessibleTextField(
+              controller: _signupEmailController,
+              decoration: const InputDecoration(
+                labelText: 'E-mail',
+                prefixIcon: Icon(Icons.email_outlined),
+                border: OutlineInputBorder(),
               ),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              customTTSLabel: 'E-mail invoerveld voor registratie',
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Password field
-            Semantics(
-              label: 'Wachtwoord invoerveld voor registratie, minimaal 6 tekens',
-              child: TextFormField(
-                controller: _signupPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Wachtwoord',
-                  prefixIcon: Icon(Icons.lock_outlined),
-                  border: OutlineInputBorder(),
-                  helperText: 'Minimaal 6 tekens',
-                ),
-                obscureText: true,
-                textInputAction: TextInputAction.next,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Voer een wachtwoord in';
-                  }
-                  if (value.length < 6) {
-                    return 'Wachtwoord moet minimaal 6 tekens zijn';
-                  }
-                  return null;
-                },
+            EnhancedAccessibleTextField(
+              controller: _signupPasswordController,
+              decoration: const InputDecoration(
+                labelText: 'Wachtwoord',
+                prefixIcon: Icon(Icons.lock_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Minimaal 6 tekens',
               ),
+              obscureText: true,
+              textInputAction: TextInputAction.next,
+              customTTSLabel: 'Wachtwoord invoerveld voor registratie, minimaal 6 tekens',
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Confirm password field
-            Semantics(
-              label: 'Bevestig Wachtwoord invoerveld voor registratie',
-              child: TextFormField(
-                controller: _signupConfirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Bevestig Wachtwoord',
-                  prefixIcon: Icon(Icons.lock_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _signUp(),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Bevestig je wachtwoord';
-                  }
-                  if (value != _signupPasswordController.text) {
-                    return 'Wachtwoorden komen niet overeen';
-                  }
-                  return null;
-                },
+            EnhancedAccessibleTextField(
+              controller: _signupConfirmPasswordController,
+              decoration: const InputDecoration(
+                labelText: 'Bevestig Wachtwoord',
+                prefixIcon: Icon(Icons.lock_outlined),
+                border: OutlineInputBorder(),
               ),
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _signUp(),
+              customTTSLabel: 'Bevestig Wachtwoord invoerveld voor registratie',
             ),
             SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
             
@@ -711,10 +647,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       }
     });
     
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
+    return GlobalTTSOverlay(
+      child: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
             // App branding
             Container(
               padding: const EdgeInsets.all(24),
@@ -790,6 +727,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

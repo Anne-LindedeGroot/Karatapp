@@ -18,6 +18,9 @@ import 'video_gallery.dart';
 import 'video_player_widget.dart';
 import 'avatar_widget.dart';
 import 'responsive_layout.dart';
+import 'global_tts_overlay.dart';
+import 'tts_clickable_text.dart';
+import 'enhanced_accessible_text.dart';
 import 'overflow_safe_widgets.dart';
 import '../services/unified_tts_service.dart';
 import 'kata_card/kata_card_tts_toggle.dart';
@@ -1140,7 +1143,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
             padding: const EdgeInsets.all(12.0),
             child: Column(
               children: [
-                TextField(
+                EnhancedAccessibleTextField(
                   controller: commentController,
                   decoration: const InputDecoration(
                     hintText: 'Voeg een reactie toe...',
@@ -1151,6 +1154,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   maxLines: 2,
                   minLines: 1,
                   maxLength: 500,
+                  customTTSLabel: 'Reactie invoerveld',
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -1431,63 +1435,72 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
-        return ResponsiveDialog(
-          title: 'Bewerk Reactie',
-          child: TextField(
-            controller: editController,
-            decoration: const InputDecoration(
-              hintText: 'Bewerk je reactie...',
-              border: OutlineInputBorder(),
+        return DialogTTSOverlay(
+          child: ResponsiveDialog(
+            title: 'Bewerk Reactie',
+            child: EnhancedAccessibleTextField(
+              controller: editController,
+              decoration: const InputDecoration(
+                hintText: 'Bewerk je reactie...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              minLines: 1,
+              maxLength: 500,
+              customTTSLabel: 'Reactie bewerken invoerveld',
             ),
-            maxLines: 3,
-            minLines: 1,
-            maxLength: 500,
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Annuleren'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            Consumer(
-              builder: (context, ref, child) {
-                return ElevatedButton(
-                  child: const Text('Opslaan'),
-                  onPressed: () async {
-                    if (editController.text.trim().isNotEmpty) {
-                      try {
-                        await ref.read(kataInteractionProvider(widget.kata.id).notifier)
-                            .updateComment(
-                              commentId: comment.id,
-                              content: editController.text.trim(),
-                            );
-                        
-                        if (mounted && context.mounted) {
-                          Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Reactie succesvol bijgewerkt!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Fout bij bijwerken reactie: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    }
+            actions: [
+              TTSClickableWidget(
+                ttsText: 'Annuleren knop',
+                child: TextButton(
+                  child: const Text('Annuleren'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
                   },
-                );
-              },
-            ),
-          ],
+                ),
+              ),
+              Consumer(
+                builder: (context, ref, child) {
+                  return TTSClickableWidget(
+                    ttsText: 'Opslaan knop',
+                    child: ElevatedButton(
+                      child: const Text('Opslaan'),
+                      onPressed: () async {
+                        if (editController.text.trim().isNotEmpty) {
+                          try {
+                            await ref.read(kataInteractionProvider(widget.kata.id).notifier)
+                                .updateComment(
+                                  commentId: comment.id,
+                                  content: editController.text.trim(),
+                                );
+                            
+                            if (mounted && context.mounted) {
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Reactie succesvol bijgewerkt!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Fout bij bijwerken reactie: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         );
       },
     );

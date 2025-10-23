@@ -9,6 +9,7 @@ import '../widgets/connection_error_widget.dart';
 import '../core/navigation/app_router.dart';
 import '../widgets/global_tts_overlay.dart';
 import '../widgets/tts_clickable_text.dart';
+import '../widgets/enhanced_accessible_text.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -801,34 +802,43 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
     return showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(prompt),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                hintText: 'Voer reden in...',
-                border: OutlineInputBorder(),
+      builder: (context) => DialogTTSOverlay(
+        child: AlertDialog(
+          title: TTSClickableText(title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TTSClickableText(prompt),
+              const SizedBox(height: 16),
+              EnhancedAccessibleTextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  hintText: 'Voer reden in...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                autofocus: true,
+                customTTSLabel: 'Reden invoerveld',
               ),
-              maxLines: 3,
-              autofocus: true,
+            ],
+          ),
+          actions: [
+            TTSClickableWidget(
+              ttsText: 'Annuleren knop',
+              child: TextButton(
+                onPressed: () => Navigator.pop(context, null),
+                child: const Text('Annuleren'),
+              ),
+            ),
+            TTSClickableWidget(
+              ttsText: 'Bevestigen knop',
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, controller.text),
+                child: const Text('Bevestigen'),
+              ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Annuleren'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Bevestigen'),
-          ),
-        ],
       ),
     );
   }

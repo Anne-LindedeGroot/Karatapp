@@ -5,6 +5,7 @@ import '../../providers/network_provider.dart';
 import '../../utils/responsive_utils.dart';
 import '../../widgets/responsive_layout.dart';
 import '../../widgets/connection_error_widget.dart';
+import '../../widgets/enhanced_accessible_text.dart';
 
 /// Home Search Section - Handles search functionality for the home screen
 class HomeSearchSection extends ConsumerStatefulWidget {
@@ -47,7 +48,7 @@ class _HomeSearchSectionState extends ConsumerState<HomeSearchSection> {
   }
 
   Widget _buildSearchBar() {
-    return TextField(
+    return EnhancedAccessibleTextField(
       controller: _searchController,
       focusNode: _searchFocusNode,
       decoration: InputDecoration(
@@ -74,6 +75,7 @@ class _HomeSearchSectionState extends ConsumerState<HomeSearchSection> {
       onSubmitted: (value) {
         _searchFocusNode.unfocus();
       },
+      customTTSLabel: 'Zoek kata\'s invoerveld',
     );
   }
 

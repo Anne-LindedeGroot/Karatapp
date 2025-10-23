@@ -696,12 +696,15 @@ class UnifiedTTSService {
           debugPrint('TTS: Found TextFormField content: "$inputText"');
         }
       } else if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
-        if (widget is ButtonStyleButton && widget.child is Text) {
-          final text = (widget.child as Text).data;
-          if (text != null && text.trim().isNotEmpty) {
-            final processedText = _processDutchText(text.trim());
-            textContent.add('Knop: $processedText');
-            debugPrint('TTS: Found Button: $processedText');
+        if (widget is ButtonStyleButton) {
+          final child = widget.child;
+          if (child is Text) {
+            final text = child.data;
+            if (text != null && text.trim().isNotEmpty) {
+              final processedText = _processDutchText(text.trim());
+              textContent.add('Knop: $processedText');
+              debugPrint('TTS: Found Button: $processedText');
+            }
           }
         }
       } else if (widget is IconButton && widget.tooltip != null) {
@@ -749,8 +752,9 @@ class UnifiedTTSService {
         }
       } else if (widget is Card) {
         // Extract text from card content
-        if (widget.child is Text) {
-          final text = (widget.child as Text).data;
+        final child = widget.child;
+        if (child is Text) {
+          final text = child.data;
           if (text != null && text.trim().isNotEmpty) {
             final processedText = _processDutchText(text.trim());
             textContent.add(processedText);
@@ -759,8 +763,9 @@ class UnifiedTTSService {
         }
       } else if (widget is Container) {
         // Extract text from container content
-        if (widget.child is Text) {
-          final text = (widget.child as Text).data;
+        final child = widget.child;
+        if (child is Text) {
+          final text = child.data;
           if (text != null && text.trim().isNotEmpty) {
             final processedText = _processDutchText(text.trim());
             textContent.add(processedText);
@@ -818,12 +823,26 @@ class UnifiedTTSService {
         }
       } else if (widget is Card) {
         // Extract text from Card content
-        if (widget.child is Column || widget.child is Row) {
-          // Handle cards with flex children
-          final flexChild = widget.child as Flex;
-          for (final child in flexChild.children) {
-            if (child is Text) {
-              final text = child.data;
+        final child = widget.child;
+        if (child is Column) {
+          // Handle cards with Column children
+          final columnChild = child;
+          for (final flexChildItem in columnChild.children) {
+            if (flexChildItem is Text) {
+              final text = flexChildItem.data;
+              if (text != null && text.trim().isNotEmpty) {
+                final processedText = _processDutchText(text.trim());
+                textContent.add(processedText);
+                debugPrint('TTS: Found Card column text: $processedText');
+              }
+            }
+          }
+        } else if (child is Row) {
+          // Handle cards with Row children
+          final rowChild = child;
+          for (final flexChildItem in rowChild.children) {
+            if (flexChildItem is Text) {
+              final text = flexChildItem.data;
               if (text != null && text.trim().isNotEmpty) {
                 final processedText = _processDutchText(text.trim());
                 textContent.add(processedText);
@@ -834,8 +853,9 @@ class UnifiedTTSService {
         }
       } else if (widget is ExpansionTile) {
         // Extract text from ExpansionTile
-        if (widget.title is Text) {
-          final titleText = (widget.title as Text).data;
+        final title = widget.title;
+        if (title is Text) {
+          final titleText = title.data;
           if (titleText != null && titleText.trim().isNotEmpty) {
             final processedText = _processDutchText(titleText.trim());
             textContent.add(processedText);
@@ -944,8 +964,9 @@ class UnifiedTTSService {
       } else if (widget is DataCell) {
         // Extract text from data cells
         final dataCell = widget as DataCell;
-        if (dataCell.child is Text) {
-          final text = (dataCell.child as Text).data;
+        final child = dataCell.child;
+        if (child is Text) {
+          final text = child.data;
           if (text != null && text.trim().isNotEmpty) {
             final processedText = _processDutchText(text.trim());
             textContent.add(processedText);
@@ -1122,14 +1143,15 @@ class UnifiedTTSService {
       // Handle buttons with enhanced Dutch processing
       if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
         if (widget is ButtonStyleButton) {
-          if (widget.child is Text) {
-            final text = (widget.child as Text).data;
+          final child = widget.child;
+          if (child is Text) {
+            final text = child.data;
             if (text != null && text.trim().isNotEmpty) {
               final processedText = _processDutchText(text.trim());
               textContent.add('Knop: $processedText');
             }
-          } else if (widget.child != null) {
-            _extractTextFromWidgetEnhanced(widget.child!, textContent);
+          } else if (child != null) {
+            _extractTextFromWidgetEnhanced(child, textContent);
           }
         }
         return;
@@ -2261,12 +2283,13 @@ class UnifiedTTSService {
       if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
         // Try to extract text from button child
         if (widget is ButtonStyleButton) {
-          if (widget.child is Text) {
-            final text = (widget.child as Text).data;
+          final child = widget.child;
+          if (child is Text) {
+            final text = child.data;
             if (text != null && text.trim().isNotEmpty) {
               textContent.add('Knop: $text');
             }
-          } else if (widget.child != null) {
+          } else if (child != null) {
             // Try to extract text from other child widgets
             _extractTextFromWidget(widget.child!, textContent);
           }
@@ -2588,11 +2611,14 @@ class UnifiedTTSService {
           debugPrint('TTS: Found TextFormField content: "${widget.controller!.text}"');
         }
       } else if (widget is ElevatedButton || widget is TextButton || widget is OutlinedButton) {
-        if (widget is ButtonStyleButton && widget.child is Text) {
-          final text = (widget.child as Text).data;
-          if (text != null && text.trim().isNotEmpty) {
-            textContent.add('Knop: $text');
-            debugPrint('TTS: Found Button: "$text"');
+        if (widget is ButtonStyleButton) {
+          final child = widget.child;
+          if (child is Text) {
+            final text = child.data;
+            if (text != null && text.trim().isNotEmpty) {
+              textContent.add('Knop: $text');
+              debugPrint('TTS: Found Button: "$text"');
+            }
           }
         }
       } else if (widget is IconButton && widget.tooltip != null) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'enhanced_accessible_text.dart';
 
 class VideoUrlInputWidget extends StatefulWidget {
   final List<String> videoUrls;
@@ -67,12 +68,6 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
     // Audio file extensions
     final audioExtensions = ['.mp3', '.wav', '.aac', '.ogg', '.flac', '.m4a'];
     if (audioExtensions.any((ext) => lowerUrl.endsWith(ext))) {
-      return true;
-    }
-    
-    // Image file extensions
-    final imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg'];
-    if (imageExtensions.any((ext) => lowerUrl.endsWith(ext))) {
       return true;
     }
     
@@ -193,13 +188,6 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
       if (path.endsWith('.flac')) return 'FLAC Audio';
       if (path.endsWith('.m4a')) return 'M4A Audio';
       
-      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'JPEG Afbeeldingen';
-      if (path.endsWith('.png')) return 'PNG Afbeeldingen';
-      if (path.endsWith('.gif')) return 'GIF Afbeeldingen';
-      if (path.endsWith('.bmp')) return 'BMP Afbeeldingen';
-      if (path.endsWith('.webp')) return 'WebP Afbeeldingen';
-      if (path.endsWith('.svg')) return 'SVG Afbeeldingen';
-      
       // Generic
       return uri.host.isNotEmpty ? uri.host : 'Media URL';
     } catch (e) {
@@ -224,7 +212,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
             const SizedBox(height: 16),
             
             // URL Input Field
-            TextField(
+            EnhancedAccessibleTextField(
               controller: _urlController,
               decoration: const InputDecoration(
                 labelText: 'Voer video URL in',
@@ -235,6 +223,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _addUrl(),
+              customTTSLabel: 'Video URL invoerveld',
             ),
             
             const SizedBox(height: 16),
@@ -278,7 +267,6 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               Text(
                 '• Video platforms: YouTube, Vimeo, Dailymotion, Twitch\n'
                 '• Video bestanden: MP4, AVI, MOV, WMV, FLV, WebM, MKV\n'
-                '• Afbeeldingen bestanden: JPG, PNG, GIF, BMP, WebP, SVG\n'
                 '• Druk op Enter of Klaar op toetsenbord om URL toe te voegen',
                 style: TextStyle(
                   fontSize: 12,

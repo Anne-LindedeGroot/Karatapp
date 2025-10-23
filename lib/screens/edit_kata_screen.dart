@@ -8,6 +8,7 @@ import '../providers/image_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/image_gallery.dart';
 import '../widgets/video_url_input_widget.dart';
+import '../widgets/enhanced_accessible_text.dart';
 
 class EditKataScreen extends ConsumerStatefulWidget {
   final Kata kata;
@@ -308,7 +309,6 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     IconButton(
@@ -319,7 +319,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: TextField(
+                  child: EnhancedAccessibleTextField(
                     controller: dialogController,
                     decoration: const InputDecoration(
                       hintText: 'Voer kata beschrijving in...',
@@ -330,6 +330,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                     expands: true,
                     textAlignVertical: TextAlignVertical.top,
                     style: const TextStyle(fontSize: 16),
+                    customTTSLabel: 'Kata beschrijving invoerveld',
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -437,22 +438,24 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      EnhancedAccessibleTextField(
                         controller: _nameController,
                         decoration: const InputDecoration(
                           labelText: 'Kata Naam',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.sports_martial_arts),
                         ),
+                        customTTSLabel: 'Kata naam invoerveld',
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      EnhancedAccessibleTextField(
                         controller: _styleController,
                         decoration: const InputDecoration(
                           labelText: 'Stijl',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.style),
                         ),
+                        customTTSLabel: 'Stijl invoerveld',
                       ),
                       const SizedBox(height: 16),
                       GestureDetector(
@@ -514,47 +517,38 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: TextButton.icon(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ImageGallery(
-                                        imageUrls: _currentImageUrls,
-                                        title: widget.kata.name,
-                                        kataId: widget.kata.id,
-                                      ),
+                            const SizedBox(width: 12),
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ImageGallery(
+                                      imageUrls: _currentImageUrls,
+                                      title: widget.kata.name,
+                                      kataId: widget.kata.id,
                                     ),
-                                  ).then((_) => _loadCurrentImages());
-                                },
-                                icon: const Icon(Icons.fullscreen, size: 18),
-                                label: const Text(
-                                  'Galerij',
-                                  style: TextStyle(fontSize: 14),
-                                ),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
+                                  ),
+                                ).then((_) => _loadCurrentImages());
+                              },
+                              icon: const Icon(Icons.fullscreen, size: 18),
+                              label: const Text(
+                                'Galerij',
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                backgroundColor: Colors.blue.withOpacity(0.1),
+                                foregroundColor: Colors.blue[700],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Houd ingedrukt en sleep om afbeeldingen te herordenen',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
                         SizedBox(
-                          height: 120,
+                          height: 140,
                           child: ReorderableListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: _currentImageUrls.length,
@@ -562,84 +556,137 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                             itemBuilder: (context, index) {
                               return Container(
                                 key: ValueKey(_currentImageUrls[index]),
-                                width: 100,
-                                height: 100,
-                                margin: const EdgeInsets.only(right: 8),
+                                width: 120,
+                                height: 120,
+                                margin: const EdgeInsets.only(right: 12),
                                 child: Stack(
                                   children: [
+                                    // Main image container with improved styling
                                     Container(
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.blue, width: 2),
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.1),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(12),
                                         child: CachedNetworkImage(
                                           imageUrl: _currentImageUrls[index],
                                           fit: BoxFit.cover,
-                                          width: 96,
-                                          height: 96,
-                                          placeholder: (context, url) => const Center(
-                                            child: CircularProgressIndicator(),
+                                          width: 120,
+                                          height: 120,
+                                          placeholder: (context, url) => Container(
+                                            color: Colors.grey[200],
+                                            child: const Center(
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
                                           ),
-                                          errorWidget: (context, url, error) => const Icon(Icons.error),
+                                          errorWidget: (context, url, error) => Container(
+                                            color: Colors.grey[200],
+                                            child: const Column(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(
+                                                  Icons.error_outline,
+                                                  color: Colors.red,
+                                                  size: 24,
+                                                ),
+                                                SizedBox(height: 4),
+                                                Text(
+                                                  'Fout',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                    // Position indicator
+                                    // Position indicator with improved styling
                                     Positioned(
-                                      top: 4,
-                                      left: 4,
+                                      top: 6,
+                                      left: 6,
                                       child: Container(
-                                        padding: const EdgeInsets.all(4),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: Colors.blue,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: Theme.of(context).colorScheme.primary,
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.2),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
                                         child: Text(
                                           '${index + 1}',
                                           style: const TextStyle(
                                             color: Colors.white,
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
                                     ),
-                                    // Delete button
+                                    // Delete button with improved styling
                                     Positioned(
-                                      top: 4,
-                                      right: 4,
+                                      top: 6,
+                                      right: 6,
                                       child: GestureDetector(
                                         onTap: () => _deleteExistingImage(_currentImageUrls[index]),
                                         child: Container(
-                                          padding: const EdgeInsets.all(2),
+                                          padding: const EdgeInsets.all(4),
                                           decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            borderRadius: BorderRadius.circular(10),
+                                            color: Colors.red[600],
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.2),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
                                           child: const Icon(
                                             Icons.close,
                                             color: Colors.white,
-                                            size: 14,
+                                            size: 12,
                                           ),
                                         ),
                                       ),
                                     ),
-                                    // Drag handle
+                                    // Drag handle with improved styling
                                     Positioned(
-                                      bottom: 4,
-                                      right: 4,
+                                      bottom: 6,
+                                      right: 6,
                                       child: Container(
-                                        padding: const EdgeInsets.all(2),
+                                        padding: const EdgeInsets.all(3),
                                         decoration: BoxDecoration(
-                                          color: Colors.black54,
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: Colors.black.withOpacity(0.7),
+                                          borderRadius: BorderRadius.circular(6),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.2),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
                                         child: const Icon(
                                           Icons.drag_handle,
                                           color: Colors.white,
-                                          size: 12,
+                                          size: 10,
                                         ),
                                       ),
                                     ),
@@ -647,6 +694,15 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                                 ),
                               );
                             },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Houd ingedrukt en sleep om afbeeldingen te herordenen',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
                           ),
                         ),
                       ],
@@ -682,7 +738,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                         ),
                         const SizedBox(height: 8),
                         SizedBox(
-                          height: 120,
+                          height: 140,
                           child: ReorderableListView.builder(
                             scrollDirection: Axis.horizontal,
                             itemCount: _newSelectedImages.length,
@@ -690,80 +746,108 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                             itemBuilder: (context, index) {
                               return Container(
                                 key: ValueKey(_newSelectedImages[index].path),
-                                width: 100,
-                                height: 100,
-                                margin: const EdgeInsets.only(right: 8),
+                                width: 120,
+                                height: 120,
+                                margin: const EdgeInsets.only(right: 12),
                                 child: Stack(
                                   children: [
+                                    // Main image container with improved styling
                                     Container(
                                       decoration: BoxDecoration(
-                                        border: Border.all(color: Colors.green, width: 2),
-                                        borderRadius: BorderRadius.circular(8),
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.green.withOpacity(0.2),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(12),
                                         child: Image.file(
                                           _newSelectedImages[index],
                                           fit: BoxFit.cover,
-                                          width: 96,
-                                          height: 96,
+                                          width: 120,
+                                          height: 120,
                                         ),
                                       ),
                                     ),
-                                    // Position indicator
+                                    // Position indicator with improved styling
                                     Positioned(
-                                      top: 4,
-                                      left: 4,
+                                      top: 6,
+                                      left: 6,
                                       child: Container(
-                                        padding: const EdgeInsets.all(4),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: Colors.green,
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: Colors.green[600],
+                                          borderRadius: BorderRadius.circular(8),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.2),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
                                         child: Text(
                                           '${index + 1}',
                                           style: const TextStyle(
                                             color: Colors.white,
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
                                       ),
                                     ),
-                                    // Remove button
+                                    // Remove button with improved styling
                                     Positioned(
-                                      top: 4,
-                                      right: 4,
+                                      top: 6,
+                                      right: 6,
                                       child: GestureDetector(
                                         onTap: () => _removeNewImage(index),
                                         child: Container(
-                                          padding: const EdgeInsets.all(2),
+                                          padding: const EdgeInsets.all(4),
                                           decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            borderRadius: BorderRadius.circular(10),
+                                            color: Colors.red[600],
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.2),
+                                                blurRadius: 4,
+                                                offset: const Offset(0, 2),
+                                              ),
+                                            ],
                                           ),
                                           child: const Icon(
                                             Icons.close,
                                             color: Colors.white,
-                                            size: 14,
+                                            size: 12,
                                           ),
                                         ),
                                       ),
                                     ),
-                                    // Drag handle
+                                    // Drag handle with improved styling
                                     Positioned(
-                                      bottom: 4,
-                                      right: 4,
+                                      bottom: 6,
+                                      right: 6,
                                       child: Container(
-                                        padding: const EdgeInsets.all(2),
+                                        padding: const EdgeInsets.all(3),
                                         decoration: BoxDecoration(
-                                          color: Colors.black54,
-                                          borderRadius: BorderRadius.circular(4),
+                                          color: Colors.black.withOpacity(0.7),
+                                          borderRadius: BorderRadius.circular(6),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.2),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
                                         ),
                                         child: const Icon(
                                           Icons.drag_handle,
                                           color: Colors.white,
-                                          size: 12,
+                                          size: 10,
                                         ),
                                       ),
                                     ),

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/forum_models.dart';
 import '../providers/forum_provider.dart';
+import '../widgets/global_tts_overlay.dart';
+import '../widgets/tts_clickable_text.dart';
+import '../widgets/enhanced_accessible_text.dart';
 
 class CreateForumPostScreen extends ConsumerStatefulWidget {
   const CreateForumPostScreen({super.key});
@@ -99,10 +102,11 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Nieuw Bericht Maken'),
-      ),
+    return GlobalTTSOverlay(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const TTSClickableText('Nieuw Bericht Maken'),
+        ),
       body: Column(
         children: [
           // Main form content
@@ -230,7 +234,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    TextFormField(
+                    EnhancedAccessibleTextField(
                       controller: _titleController,
                       decoration: const InputDecoration(
                         hintText: 'Voer een beschrijvende titel in voor je bericht',
@@ -249,6 +253,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                         return null;
                       },
                       maxLength: 100,
+                      customTTSLabel: 'Titel invoerveld',
                     ),
                     const SizedBox(height: 16),
 
@@ -261,7 +266,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    TextFormField(
+                    EnhancedAccessibleTextField(
                       controller: _contentController,
                       decoration: const InputDecoration(
                         hintText: 'Schrijf hier de inhoud van je bericht...',
@@ -282,6 +287,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                         return null;
                       },
                       maxLength: 5000,
+                      customTTSLabel: 'Inhoud invoerveld',
                     ),
                     const SizedBox(height: 24),
 
@@ -391,6 +397,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }
