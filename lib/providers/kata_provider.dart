@@ -12,13 +12,20 @@ import 'network_provider.dart';
 class KataNotifier extends StateNotifier<KataState> {
   final ErrorBoundaryNotifier _errorBoundary;
   final Ref _ref;
-  
+
   KataNotifier(this._errorBoundary, this._ref) : super(KataState.initial()) {
-    // Delay initial load to allow network provider to initialize
-    Future.microtask(() => loadKatas());
+    // Don't auto-load katas on initialization - wait for explicit call
   }
 
   final SupabaseClient _supabase = Supabase.instance.client;
+
+  /// Initialize kata loading when user is authenticated and on home screen
+  void initializeKataLoading() {
+    // Only load if we haven't loaded yet and not currently loading
+    if (state.katas.isEmpty && !state.isLoading && state.error == null) {
+      Future.microtask(() => loadKatas());
+    }
+  }
 
   Future<void> loadKatas() async {
     // Check network status first
@@ -45,25 +52,19 @@ class KataNotifier extends StateNotifier<KataState> {
               .map((data) => Kata.fromMap(data as Map<String, dynamic>))
               .toList();
 
-          // Load images for each kata
-          final katasWithImages = <Kata>[];
-          for (final kata in katas) {
-            try {
-              final imageUrls = await ImageUtils.fetchKataImagesFromBucket(kata.id);
-              katasWithImages.add(kata.copyWith(imageUrls: imageUrls));
-            } catch (e) {
-              // If image loading fails (including file descriptor errors), add kata without images
-              debugPrint('⚠️ Failed to load images for kata ${kata.id}: $e');
-              katasWithImages.add(kata);
-            }
-          }
-
+          // Load katas without images for faster startup
+          // Images will be loaded lazily when needed
           state = state.copyWith(
-            katas: katasWithImages,
-            filteredKatas: katasWithImages,
+            katas: katas,
+            filteredKatas: katas,
             isLoading: false,
             error: null,
           );
+
+          // Preload images for first 3 katas to improve perceived performance
+          if (katas.isNotEmpty) {
+            _preloadInitialKataImages(katas.take(3).toList());
+          }
         },
         maxRetries: 3,
         initialDelay: const Duration(seconds: 1),
@@ -78,7 +79,7 @@ class KataNotifier extends StateNotifier<KataState> {
         isLoading: false,
         error: errorMessage,
       );
-      
+
       // Only report to error boundary if it's not a network error
       // Network errors are handled by the network provider
       if (!_isNetworkError(e)) {
@@ -95,6 +96,39 @@ class KataNotifier extends StateNotifier<KataState> {
            errorString.contains('socket') ||
            errorString.contains('dns') ||
            errorString.contains('host');
+  }
+
+  /// Preload images for initial katas to improve perceived performance
+  void _preloadInitialKataImages(List<Kata> initialKatas) {
+    // Load images in background without blocking UI
+    for (final kata in initialKatas) {
+      if (kata.imageUrls?.isEmpty ?? true) {
+        Future.microtask(() => loadKataImages(kata.id));
+      }
+    }
+  }
+
+  /// Lazily load images for a specific kata
+  Future<void> loadKataImages(int kataId) async {
+    try {
+      final imageUrls = await ImageUtils.fetchKataImagesFromBucket(kataId);
+
+      // Update the kata with loaded images
+      final updatedKatas = state.katas.map((kata) {
+        if (kata.id == kataId) {
+          return kata.copyWith(imageUrls: imageUrls);
+        }
+        return kata;
+      }).toList();
+
+      state = state.copyWith(
+        katas: updatedKatas,
+        filteredKatas: _filterKatas(updatedKatas, state.searchQuery, state.selectedCategory),
+      );
+    } catch (e) {
+      // Silently fail - images are not critical for functionality
+      debugPrint('⚠️ Failed to load images for kata $kataId: $e');
+    }
   }
 
   Future<void> refreshKatas() async {
@@ -168,7 +202,7 @@ class KataNotifier extends StateNotifier<KataState> {
             );
           }
 
-          // Create new kata object
+          // Create new kata object with images already loaded (since we just uploaded them)
           final newKata = Kata(
             id: nextId,
             name: name,

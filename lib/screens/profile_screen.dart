@@ -360,7 +360,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Flexible(
                   child: Text(
                     'Account wordt verwijderd...',
-                    overflow: TextOverflow.ellipsis,
+                    overflow: TextOverflow.visible,
                     maxLines: 1,
                   ),
                 ),
@@ -374,7 +374,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await _authService.deleteAccount();
 
       // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) context.pop();
 
       // Speak success message
       try {
@@ -398,7 +398,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     } catch (e) {
       // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) context.pop();
       
       // Speak error message
       try {
@@ -586,7 +586,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     fontSize: 14,
                                   ),
                                   enableTextToSpeech: true,
-                                  overflow: TextOverflow.ellipsis,
+                                  overflow: TextOverflow.visible,
                                 ),
                               ),
                             ],
@@ -827,7 +827,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         fontSize: 12,
                                       ),
                                       enableTextToSpeech: true,
-                                      overflow: TextOverflow.ellipsis,
+                                      overflow: TextOverflow.visible,
                                     ),
                                   ),
                                 ),
@@ -854,7 +854,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       fontSize: 12,
                                     ),
                                     enableTextToSpeech: true,
-                                    overflow: TextOverflow.ellipsis,
+                                    overflow: TextOverflow.visible,
                                   ),
                                 ),
                               ],
@@ -880,7 +880,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       fontSize: 12,
                                     ),
                                     enableTextToSpeech: true,
-                                    overflow: TextOverflow.ellipsis,
+                                    overflow: TextOverflow.visible,
                                   ),
                                 ),
                               ],
@@ -920,7 +920,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           fontWeight: FontWeight.w500,
                                         ),
                                         enableTextToSpeech: true,
-                                        overflow: TextOverflow.ellipsis,
+                                        overflow: TextOverflow.visible,
                                       ),
                                     ),
                                   ],

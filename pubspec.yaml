@@ -59,7 +59,7 @@ dependencies:
   # Navigation
   go_router: ^14.2.7
   
-  # Local storage (keeping only Hive for now)
+  # Local storage
   hive: ^2.2.3
   hive_flutter: ^1.1.0
   shared_preferences: ^2.2.2
@@ -73,8 +73,7 @@ dependencies:
   chewie: ^1.7.4
   youtube_player_flutter: ^9.0.1
   
-  # Responsive design (keeping only one)
-  flutter_screenutil: ^5.9.0
+  # Responsive design - removed flutter_screenutil for faster builds
   
   # Text-to-speech for accessibility
   flutter_tts: ^4.0.2
@@ -127,10 +126,10 @@ flutter:
   fonts:
     - family: OpenDyslexic
       fonts:
-        - asset: assets/fonts/OpenDyslexic-Regular.ttf
-        - asset: assets/fonts/OpenDyslexic-Bold.ttf
+        - asset: assets/fonts/OpenDyslexic-Regular.otf
+        - asset: assets/fonts/OpenDyslexic-Bold.otf
           weight: 700
-        - asset: assets/fonts/OpenDyslexic-Italic.ttf
+        - asset: assets/fonts/OpenDyslexic-Italic.otf
           style: italic
 # For details regarding fonts from package dependencies,
 # see https://flutter.dev/to/font-from-package

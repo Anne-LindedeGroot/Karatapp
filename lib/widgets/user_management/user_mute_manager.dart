@@ -86,7 +86,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempgeschiedenis Bekijken',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -107,7 +107,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempen voor 1 Dag',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -125,7 +125,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempen voor 3 Dagen',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -143,7 +143,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempen voor 1 Week',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -161,7 +161,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempen voor 1 Maand',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -179,7 +179,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempen voor 3 Maanden',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -197,7 +197,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempen voor 6 Maanden',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -215,7 +215,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempen voor 1 Jaar',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -233,7 +233,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Aangepaste Duur',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -251,7 +251,7 @@ class UserMuteManager extends ConsumerWidget {
                         Expanded(
                           child: Text(
                             'Dempgeschiedenis Bekijken',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -516,7 +516,7 @@ class UserMuteManager extends ConsumerWidget {
       ),
     );
 
-    if (duration != null) {
+    if (duration != null && context.mounted) {
       await _muteUser(context, ref, duration);
     }
   }

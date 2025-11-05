@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/kata_model.dart';
 import '../../providers/accessibility_provider.dart';
-import '../../services/unified_tts_service.dart';
 
 class KataCardUtils {
   /// Always return the full description - no truncation

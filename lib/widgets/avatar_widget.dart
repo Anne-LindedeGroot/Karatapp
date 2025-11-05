@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/avatar_model.dart';
 
-class AvatarWidget extends StatelessWidget {
+class AvatarWidget extends ConsumerWidget {
   final String? avatarId;
   final String? customAvatarUrl;
   final String? userName;
@@ -20,7 +21,7 @@ class AvatarWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: onTap,
       child: Stack(
@@ -36,7 +37,7 @@ class AvatarWidget extends StatelessWidget {
               ),
             ),
             child: ClipOval(
-              child: _buildAvatarContent(),
+              child: _buildAvatarContent(context),
             ),
           ),
           if (showEditIcon)
@@ -66,7 +67,7 @@ class AvatarWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildAvatarContent() {
+  Widget _buildAvatarContent(BuildContext context) {
     // Priority: Custom avatar URL > Preset avatar > Initials fallback
     if (customAvatarUrl != null && customAvatarUrl!.isNotEmpty) {
       return Image.network(
@@ -75,7 +76,7 @@ class AvatarWidget extends StatelessWidget {
         height: size,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
-          return _buildInitialsAvatar();
+          return _buildInitialsAvatar(context);
         },
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
@@ -100,16 +101,16 @@ class AvatarWidget extends StatelessWidget {
           height: size,
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
-            return _buildInitialsAvatar();
+            return _buildInitialsAvatar(context);
           },
         );
       }
     }
 
-    return _buildInitialsAvatar();
+    return _buildInitialsAvatar(context);
   }
 
-  Widget _buildInitialsAvatar() {
+  Widget _buildInitialsAvatar(BuildContext context) {
     final initials = _getInitials(userName);
     return Container(
       width: size,
@@ -125,12 +126,22 @@ class AvatarWidget extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Text(
-          initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.4,
-            fontWeight: FontWeight.bold,
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: Text(
+            initials,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              color: Colors.white,
+              fontSize: size * 0.4,
+              fontWeight: FontWeight.bold,
+              height: 1.0, // Ensure consistent line height
+            ) ?? TextStyle(
+              color: Colors.white,
+              fontSize: size * 0.4,
+              fontWeight: FontWeight.bold,
+              height: 1.0, // Ensure consistent line height
+            ),
           ),
         ),
       ),
@@ -258,7 +269,7 @@ class AvatarPreview extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible,
             ),
           ],
         ),

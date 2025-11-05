@@ -1,10 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/kata_provider.dart';
-import '../../widgets/responsive_layout.dart';
-import '../../widgets/overflow_safe_widgets.dart';
 
 /// Home Screen Dialog Manager - Handles all dialogs in the home screen
 class HomeScreenDialogManager {
@@ -31,7 +25,7 @@ class HomeScreenDialogManager {
               semanticsLabel:
                   'Nee dankje makker! Knop om uitloggen te annuleren en in de app te blijven',
               textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible,
               maxLines: 1,
             ),
           ),
@@ -46,7 +40,7 @@ class HomeScreenDialogManager {
               semanticsLabel:
                   'Ja tuurlijk! Knop om te bevestigen en uit te loggen van de applicatie',
               textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible,
               maxLines: 1,
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import '../services/unified_tts_service.dart';
+import 'error_boundary.dart';
 
 /// Enhanced accessible text widget that automatically applies TTS and accessibility features
 class EnhancedAccessibleText extends ConsumerWidget {
@@ -224,6 +225,12 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
 
   @override
   void dispose() {
+    // Remove listeners first to prevent any async operations from running after dispose
+    if (widget.enableTTS) {
+      _focusNode.removeListener(_onFocusChange);
+      _controller.removeListener(_onTextChange);
+    }
+
     if (widget.controller == null) {
       _controller.dispose();
     }
@@ -249,21 +256,27 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
   }
 
   Future<void> _speakFieldDescription() async {
+    // Check if widget is still mounted before proceeding
+    if (!mounted) return;
+
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     if (!accessibilityState.isTextToSpeechEnabled) return;
 
     await Future.delayed(widget.ttsDelay);
 
+    // Check again after delay if widget is still mounted
+    if (!mounted) return;
+
     String description = '';
-    
+
     if (widget.customTTSLabel != null) {
       description += '${widget.customTTSLabel} ';
     } else if (widget.decoration?.labelText != null) {
       description += '${widget.decoration!.labelText} ';
     }
-    
+
     description += 'invoerveld. ';
-    
+
     if (_controller.text.isNotEmpty) {
       if (widget.obscureText) {
         description += 'Bevat ${_controller.text.length} karakters. ';
@@ -273,20 +286,27 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
     } else {
       description += 'Leeg. ';
     }
-    
+
     if (widget.decoration?.hintText != null) {
       description += 'Hint: ${widget.decoration!.hintText}. ';
     }
 
+    // Final mounted check before accessing provider
+    if (!mounted) return;
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     await accessibilityNotifier.speak(description);
   }
 
   Future<void> _speakCurrentValue() async {
+    // Check if widget is still mounted before proceeding
+    if (!mounted) return;
+
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     if (!accessibilityState.isTextToSpeechEnabled) return;
 
     if (_controller.text.isNotEmpty && !widget.obscureText) {
+      // Final mounted check before accessing provider
+      if (!mounted) return;
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
       await accessibilityNotifier.speak(_controller.text);
     }
@@ -294,15 +314,24 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
 
   @override
   Widget build(BuildContext context) {
-    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-    final accessibilityState = ref.watch(accessibilityNotifierProvider);
-    
-    // Apply accessibility styling
-    final baseStyle = widget.style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
-    final scaledStyle = baseStyle.copyWith(
-      fontSize: (baseStyle.fontSize ?? 14) * accessibilityState.fontScaleFactor,
-    );
-    final accessibleStyle = accessibilityNotifier.getDyslexiaFriendlyTextStyle(scaledStyle);
+    // Try to access accessibility features safely
+    TextStyle accessibleStyle = widget.style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final accessibilityState = ref.watch(accessibilityNotifierProvider);
+
+      // Apply accessibility styling
+      final baseStyle = widget.style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+      final scaledStyle = baseStyle.copyWith(
+        fontSize: (baseStyle.fontSize ?? 14) * accessibilityState.fontScaleFactor,
+      );
+      accessibleStyle = accessibilityNotifier.getDyslexiaFriendlyTextStyle(scaledStyle);
+    } catch (e) {
+      // If accessibility provider fails, use default styling and log for debugging
+      debugPrint('EnhancedAccessibleTextField: Failed to access accessibility provider: $e');
+      accessibleStyle = widget.style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
+    }
 
     Widget textField = TextField(
       controller: _controller,
@@ -351,7 +380,43 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
 
     // TTS functionality is now handled by the global floating button
 
-    return textField;
+    // Wrap in SafeWidget to prevent crashes
+    return SafeWidget(
+      child: textField,
+      placeholder: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        decoration: widget.decoration,
+        keyboardType: widget.keyboardType,
+        textCapitalization: widget.textCapitalization,
+        textInputAction: widget.textInputAction,
+        style: widget.style ?? Theme.of(context).textTheme.bodyMedium,
+        readOnly: widget.readOnly,
+        obscureText: widget.obscureText,
+        maxLines: widget.maxLines,
+        minLines: widget.minLines,
+        expands: widget.expands,
+        maxLength: widget.maxLength,
+        onChanged: widget.onChanged,
+        onEditingComplete: widget.onEditingComplete,
+        onSubmitted: widget.onSubmitted,
+        inputFormatters: widget.inputFormatters,
+        enabled: widget.enabled,
+        cursorWidth: widget.cursorWidth,
+        cursorHeight: widget.cursorHeight,
+        cursorRadius: widget.cursorRadius,
+        cursorColor: widget.cursorColor,
+        keyboardAppearance: widget.keyboardAppearance,
+        scrollPadding: widget.scrollPadding,
+        enableInteractiveSelection: widget.enableInteractiveSelection,
+        selectionControls: widget.selectionControls,
+        scrollController: widget.scrollController,
+        scrollPhysics: widget.scrollPhysics,
+        autofillHints: widget.autofillHints,
+        restorationId: widget.restorationId,
+        enableIMEPersonalizedLearning: widget.enableIMEPersonalizedLearning,
+      ),
+    );
   }
 }
 

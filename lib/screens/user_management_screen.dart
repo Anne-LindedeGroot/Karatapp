@@ -11,8 +11,6 @@ import '../widgets/tts_clickable_text.dart';
 import '../widgets/global_tts_overlay.dart';
 import '../widgets/enhanced_accessible_text.dart';
 import '../core/navigation/app_router.dart';
-import '../widgets/user_management/user_management_header.dart';
-import '../widgets/user_management/user_list_item.dart';
 
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
@@ -28,7 +26,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   String? _error;
   final UserManagementService _userManagementService = UserManagementService();
   final RoleService _roleService = RoleService();
-  final MuteService _muteService = MuteService();
 
   @override
   void initState() {
@@ -279,7 +276,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempgeschiedenis Bekijken',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -300,7 +297,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempen voor 1 Dag',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -318,7 +315,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempen voor 3 Dagen',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -336,7 +333,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempen voor 1 Week',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -354,7 +351,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempen voor 1 Maand',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -372,7 +369,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempen voor 3 Maanden',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -390,7 +387,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempen voor 6 Maanden',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -408,7 +405,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempen voor 1 Jaar',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -426,7 +423,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Aangepaste Duur',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],
@@ -444,7 +441,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             Expanded(
                               child: Text(
                                 'Dempgeschiedenis Bekijken',
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                           ],

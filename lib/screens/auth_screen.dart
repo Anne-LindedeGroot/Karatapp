@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
-import '../core/navigation/scaffold_messenger.dart';
 import '../models/auth_state.dart';
 import '../utils/responsive_utils.dart';
 import '../providers/accessibility_provider.dart';
@@ -39,43 +38,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   String? _loginError;
   String? _signupError;
 
-  String _mapLoginErrorToDutch(String raw) {
-    final e = raw.toLowerCase();
-    if (e.contains('e-mailadres of wachtwoord is onjuist') || e.contains('invalid email or password')) {
-      return 'E-mailadres of wachtwoord is onjuist. Opnieuw proberen.';
-    }
-    if (e.contains('verbinding') || e.contains('network') || e.contains('connection') || e.contains('timeout') || e.contains('socket')) {
-      return 'Verbindingsprobleem. Controleer je internet en probeer opnieuw.';
-    }
-    if (e.contains('te veel') || e.contains('too many requests') || e.contains('429')) {
-      return 'Te veel pogingen. Wacht even en probeer opnieuw.';
-    }
-    if (e.contains('server')) {
-      return 'Serverfout. Probeer het later opnieuw.';
-    }
-    return 'Verkeerde logininformatie. Opnieuw proberen.';
-  }
 
-  void _showLoginErrorDialog(String message) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final dialogContext = rootScaffoldMessengerKey.currentContext ?? context;
-      showDialog(
-        context: dialogContext,
-        useRootNavigator: true,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Fout'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx, rootNavigator: true).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    });
-  }
 
   @override
   void initState() {

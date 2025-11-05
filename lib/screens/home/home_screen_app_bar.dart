@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/kata_provider.dart';
 import '../../providers/role_provider.dart';
 import '../../services/role_service.dart';
 import '../../providers/network_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/accessibility_provider.dart';
-import '../../core/theme/app_theme.dart';
-import '../../widgets/enhanced_accessible_text.dart';
 
 class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final VoidCallback? onRefresh;
@@ -71,7 +68,7 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
             );
 
             return ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 200),
+              constraints: const BoxConstraints(maxWidth: 400),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -87,6 +84,12 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                           : null,
                     ),
                     tooltip: 'Tekst instellingen',
+                    constraints: BoxConstraints(
+                      minWidth: accessibilityState.fontSize == AccessibilityFontSize.extraLarge ||
+                               accessibilityState.isDyslexiaFriendly
+                          ? 320
+                          : 280,
+                    ),
                     itemBuilder: (context) => [
                       // Font size section
                       PopupMenuItem<String>(
@@ -97,6 +100,8 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.primary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.visible,
                         ),
                       ),
                       ...AccessibilityFontSize.values.map((fontSize) {
@@ -153,28 +158,37 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                       PopupMenuItem<String>(
                         value: 'toggle_dyslexia',
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               accessibilityState.isDyslexiaFriendly
                                   ? Icons.format_line_spacing
                                   : Icons.format_line_spacing_outlined,
-                              size: 20,
+                              size: 18,
                               color: accessibilityState.isDyslexiaFriendly
                                   ? Theme.of(context).colorScheme.primary
                                   : null,
                             ),
-                            const SizedBox(width: 12),
-                            const Flexible(
-                              child: Text('Dyslexie vriendelijk'),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'dyslexie\nvriendelijk',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.visible,
+                              ),
                             ),
-                            Switch(
-                              value: accessibilityState.isDyslexiaFriendly,
-                              onChanged: (value) {
-                                accessibilityNotifier
-                                    .toggleDyslexiaFriendly();
-                                Navigator.pop(context);
-                              },
+                            const SizedBox(width: 8),
+                            Transform.scale(
+                              scale: 0.7,
+                              child: Switch(
+                                value: accessibilityState.isDyslexiaFriendly,
+                                onChanged: (value) {
+                                  accessibilityNotifier.toggleDyslexiaFriendly();
+                                  Navigator.pop(context);
+                                },
+                              ),
                             ),
                           ],
                         ),
@@ -227,7 +241,7 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                         currentUser?.email ??
                         'User',
                     style: const TextStyle(fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
+                    overflow: TextOverflow.visible,
                     maxLines: 1,
                   ),
                 ),
@@ -243,7 +257,7 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     const Flexible(
                       child: Text(
                         'Profiel',
-                        overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.visible,
                         maxLines: 1,
                       ),
                     ),
@@ -267,7 +281,7 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                     const Flexible(
                       child: Text(
                         'Mijn Favorieten',
-                        overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.visible,
                         maxLines: 1,
                       ),
                     ),
@@ -293,7 +307,7 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                       const Flexible(
                         child: Text(
                           'Gebruikersbeheer',
-                          overflow: TextOverflow.ellipsis,
+                          overflow: TextOverflow.visible,
                           maxLines: 1,
                         ),
                       ),
@@ -394,7 +408,7 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                         const Flexible(
                           child: Text(
                             'Hoog Contrast',
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                             maxLines: 1,
                           ),
                         ),
@@ -421,7 +435,7 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
                       child: Text(
                         'Uitloggen',
                         style: TextStyle(color: Colors.red),
-                        overflow: TextOverflow.ellipsis,
+                        overflow: TextOverflow.visible,
                         maxLines: 1,
                       ),
                     ),

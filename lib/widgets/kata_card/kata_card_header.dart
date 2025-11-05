@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/kata_model.dart';
-import '../../screens/edit_kata_screen.dart';
 import '../../utils/responsive_utils.dart';
+import '../../core/navigation/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/accessibility_provider.dart';
 import '../overflow_safe_widgets.dart';
 import 'kata_card_tts_toggle.dart';
 
@@ -50,7 +51,7 @@ class KataCardHeader extends StatelessWidget {
                   // Display name with overflow handling
                   Semantics(
                     label: 'Kata naam: ${kata.name}',
-                    child: OverflowSafeText(
+                    child: AccessibleOverflowSafeText(
                       kata.name,
                       style: Theme.of(context)
                           .textTheme
@@ -58,24 +59,35 @@ class KataCardHeader extends StatelessWidget {
                           ?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
-                      maxLines: 1,
+                      maxLines: null,
+                      overflow: TextOverflow.visible,
                     ),
                   ),
                   SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
                   // Display style with overflow handling
-                  Semantics(
-                    label: 'Karate stijl: ${kata.style}',
-                    child: OverflowSafeText(
-                      kata.style,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(
-                            color: Colors.blueGrey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                      maxLines: 1,
-                    ),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final accessibilityState = ref.watch(accessibilityNotifierProvider);
+                      // Allow multiple lines when dyslexia mode is enabled or when font size is extra large
+                      final maxLines = (accessibilityState.isDyslexiaFriendly ||
+                          accessibilityState.fontSize == AccessibilityFontSize.extraLarge) ? null : 2;
+
+                      return Semantics(
+                        label: 'Karate stijl: ${kata.style}',
+                        child: AccessibleOverflowSafeText(
+                          kata.style,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Colors.blueGrey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                          maxLines: maxLines,
+                          overflow: TextOverflow.visible,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -120,12 +132,7 @@ class KataCardHeader extends StatelessWidget {
                         size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
                       ),
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditKataScreen(kata: kata),
-                          ),
-                        );
+                        context.goToEditKata(kata.id.toString());
                       },
                       tooltip: 'Bewerk kata',
                       padding: EdgeInsets.zero,

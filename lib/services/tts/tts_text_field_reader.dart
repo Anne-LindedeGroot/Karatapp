@@ -349,7 +349,6 @@ class TTSTextFieldReader {
   static bool _isMediaField(TextFieldInfo field) {
     final lowerLabel = field.label.toLowerCase();
     final lowerHint = field.hint.toLowerCase();
-    final lowerValue = field.value.toLowerCase();
     
     return lowerLabel.contains('video') ||
            lowerLabel.contains('url') ||

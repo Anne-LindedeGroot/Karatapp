@@ -8,6 +8,8 @@ import '../../screens/forum_post_detail_screen.dart';
 import '../../screens/create_forum_post_screen.dart';
 import '../../screens/favorites_screen.dart';
 import '../../screens/edit_kata_screen.dart';
+import '../../screens/create_kata_screen.dart';
+import '../../screens/create_ohyo_screen.dart';
 import '../../screens/avatar_selection_screen.dart';
 import '../../screens/user_management_screen.dart';
 import '../../screens/accessibility_demo_screen.dart';
@@ -27,6 +29,8 @@ class AppRoutes {
   static const String createForumPost = '/forum/create';
   static const String favorites = '/favorites';
   static const String editKata = '/kata/edit/:kataId';
+  static const String createKata = '/create-kata';
+  static const String createOhyo = '/create-ohyo';
   static const String avatarSelection = '/avatar-selection';
   static const String userManagement = '/user-management';
   static const String accessibilityDemo = '/accessibility-demo';
@@ -72,9 +76,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.home,
         name: 'home',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: AuthWrapper(),
-        ),
+        builder: (context, state) {
+          // Parse query parameters for initial tab
+          final tabParam = state.uri.queryParameters['tab'];
+          final initialTab = tabParam == 'ohyo' ? 1 : 0;
+          return GlobalErrorBoundary(
+            child: AuthWrapper(initialHomeTab: initialTab),
+          );
+        },
       ),
       
       GoRoute(
@@ -130,7 +139,23 @@ final routerProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      
+
+      GoRoute(
+        path: AppRoutes.createKata,
+        name: 'createKata',
+        builder: (context, state) => const GlobalErrorBoundary(
+          child: CreateKataScreen(),
+        ),
+      ),
+
+      GoRoute(
+        path: AppRoutes.createOhyo,
+        name: 'createOhyo',
+        builder: (context, state) => const GlobalErrorBoundary(
+          child: CreateOhyoScreen(),
+        ),
+      ),
+
       GoRoute(
         path: AppRoutes.avatarSelection,
         name: 'avatarSelection',
@@ -213,39 +238,45 @@ final routerProvider = Provider<GoRouter>((ref) {
 extension AppRouterExtension on GoRouter {
   /// Navigate to login screen
   void goToLogin() => go(AppRoutes.login);
-  
+
   /// Navigate to signup screen
   void goToSignup() => go(AppRoutes.signup);
-  
+
   /// Navigate to home screen
   void goToHome() => go(AppRoutes.home);
-  
+
   /// Navigate to profile screen
   void goToProfile() => go(AppRoutes.profile);
-  
+
   /// Navigate to forum screen
   void goToForum() => go(AppRoutes.forum);
-  
+
   /// Navigate to favorites screen
   void goToFavorites() => go(AppRoutes.favorites);
-  
+
   /// Navigate to forum post detail
   void goToForumPost(String postId) => go('/forum/post/$postId');
-  
+
   /// Navigate to create forum post
   void goToCreateForumPost() => go('/forum/create');
-  
+
   /// Navigate to edit kata
-  void goToEditKata(String kataId) => go('/home/kata/edit/$kataId');
-  
+  void goToEditKata(String kataId) => go('/kata/edit/$kataId');
+
+  /// Navigate to create kata
+  void goToCreateKata() => go(AppRoutes.createKata);
+
+  /// Navigate to create ohyo
+  void goToCreateOhyo() => go(AppRoutes.createOhyo);
+
   /// Navigate to avatar selection
   void goToAvatarSelection() => go('/profile/avatar-selection');
-  
+
   /// Navigate to user management
   void goToUserManagement() => go(AppRoutes.userManagement);
-  
+
   /// Navigate to one-on-one TTS demo
-  
+
 }
 
 /// Context extension for easy navigation
@@ -276,18 +307,24 @@ extension BuildContextExtension on BuildContext {
   
   /// Navigate to create forum post
   void goToCreateForumPost() => go('/forum/create');
-  
+
   /// Navigate to edit kata
-  void goToEditKata(String kataId) => go('/home/kata/edit/$kataId');
-  
+  void goToEditKata(String kataId) => go('/kata/edit/$kataId');
+
+  /// Navigate to create kata
+  void goToCreateKata() => go(AppRoutes.createKata);
+
+  /// Navigate to create ohyo
+  void goToCreateOhyo() => go(AppRoutes.createOhyo);
+
   /// Navigate to avatar selection
   void goToAvatarSelection() => go('/profile/avatar-selection');
-  
+
   /// Navigate to user management
   void goToUserManagement() => go(AppRoutes.userManagement);
-  
+
   /// Navigate to one-on-one TTS demo
-  
+
   /// Navigate back with fallback to home
   void goBackOrHome() {
     if (canPop()) {
@@ -346,7 +383,7 @@ class DeepLinkHandler {
 }
 
 /// Wrapper widget to load kata by ID for EditKataScreen
-class EditKataWrapper extends ConsumerWidget {
+class EditKataWrapper extends ConsumerStatefulWidget {
   final int kataId;
 
   const EditKataWrapper({
@@ -355,7 +392,27 @@ class EditKataWrapper extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EditKataWrapper> createState() => _EditKataWrapperState();
+}
+
+class _EditKataWrapperState extends ConsumerState<EditKataWrapper> {
+  bool _hasTriedLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure katas are loaded when accessing edit screen directly
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final kataState = ref.read(kataNotifierProvider);
+      if (kataState.katas.isEmpty && !kataState.isLoading && !_hasTriedLoading) {
+        _hasTriedLoading = true;
+        ref.read(kataNotifierProvider.notifier).loadKatas();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final kataState = ref.watch(kataNotifierProvider);
 
     if (kataState.isLoading) {
@@ -401,10 +458,26 @@ class EditKataWrapper extends ConsumerWidget {
 
     try {
       final kata = kataState.katas.firstWhere(
-        (k) => k.id == kataId,
+        (k) => k.id == widget.kataId,
       );
       return EditKataScreen(kata: kata);
     } catch (e) {
+      // If kata not found and we're not currently loading, try loading
+      if (!kataState.isLoading && !_hasTriedLoading) {
+        _hasTriedLoading = true;
+        // Load katas immediately in the build method
+        Future.microtask(() => ref.read(kataNotifierProvider.notifier).loadKatas());
+      }
+
+      // Show loading if we're loading or just started loading
+      if (kataState.isLoading || !_hasTriedLoading) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Laden...')),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      // If we tried loading and still can't find the kata, show error
       return Scaffold(
         appBar: AppBar(title: const Text('Fout')),
         body: Center(
@@ -423,7 +496,7 @@ class EditKataWrapper extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'De kata die je zoekt bestaat niet.',
+                'De kata die je zoekt bestaat niet of kon niet worden geladen.',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),

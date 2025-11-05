@@ -53,63 +53,135 @@ class AccessibilitySettingsWidget extends ConsumerWidget {
               const SizedBox(height: 16),
             ],
 
-            // Font size controls
-            Row(
-              children: [
-                const Icon(Icons.text_fields, size: 18),
-                const SizedBox(width: 6),
-                const Expanded(
-                  flex: 2,
-                  child: AccessibleText(
-                    'Lettergrootte:',
-                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-                    enableTextToSpeech: true,
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: AccessibleText(
-                    accessibilityState.fontSizeDescription,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                    enableTextToSpeech: true,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    icon: const Icon(Icons.remove, size: 16),
-                    onPressed: () {
-                      final currentIndex = AccessibilityFontSize.values.indexOf(accessibilityState.fontSize);
-                      if (currentIndex > 0) {
-                        accessibilityNotifier.setFontSize(AccessibilityFontSize.values[currentIndex - 1]);
-                      }
-                    },
-                    tooltip: 'Kleinere tekst',
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    icon: const Icon(Icons.add, size: 16),
-                    onPressed: () {
-                      final currentIndex = AccessibilityFontSize.values.indexOf(accessibilityState.fontSize);
-                      if (currentIndex < AccessibilityFontSize.values.length - 1) {
-                        accessibilityNotifier.setFontSize(AccessibilityFontSize.values[currentIndex + 1]);
-                      }
-                    },
-                    tooltip: 'Grotere tekst',
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
+            // Font size controls - More responsive layout
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth > 400;
+                return isWide
+                    ? Row(
+                        children: [
+                          const Icon(Icons.text_fields, size: 18),
+                          const SizedBox(width: 6),
+                          const Expanded(
+                            flex: 2,
+                            child: AccessibleText(
+                              'Lettergrootte:',
+                              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                              enableTextToSpeech: true,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: AccessibleText(
+                              accessibilityState.fontSizeDescription,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
+                              enableTextToSpeech: true,
+                              overflow: TextOverflow.visible,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: IconButton(
+                              icon: const Icon(Icons.remove, size: 16),
+                              onPressed: () {
+                                final currentIndex = AccessibilityFontSize.values.indexOf(accessibilityState.fontSize);
+                                if (currentIndex > 0) {
+                                  accessibilityNotifier.setFontSize(AccessibilityFontSize.values[currentIndex - 1]);
+                                }
+                              },
+                              tooltip: 'Kleinere tekst',
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: IconButton(
+                              icon: const Icon(Icons.add, size: 16),
+                              onPressed: () {
+                                final currentIndex = AccessibilityFontSize.values.indexOf(accessibilityState.fontSize);
+                                if (currentIndex < AccessibilityFontSize.values.length - 1) {
+                                  accessibilityNotifier.setFontSize(AccessibilityFontSize.values[currentIndex + 1]);
+                                }
+                              },
+                              tooltip: 'Grotere tekst',
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.text_fields, size: 18),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: AccessibleText(
+                                  'Lettergrootte:',
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                                  enableTextToSpeech: true,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: AccessibleText(
+                                  accessibilityState.fontSizeDescription,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.primary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                  enableTextToSpeech: true,
+                                  overflow: TextOverflow.visible,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: IconButton(
+                                  icon: const Icon(Icons.remove, size: 16),
+                                  onPressed: () {
+                                    final currentIndex = AccessibilityFontSize.values.indexOf(accessibilityState.fontSize);
+                                    if (currentIndex > 0) {
+                                      accessibilityNotifier.setFontSize(AccessibilityFontSize.values[currentIndex - 1]);
+                                    }
+                                  },
+                                  tooltip: 'Kleinere tekst',
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                              SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: IconButton(
+                                  icon: const Icon(Icons.add, size: 16),
+                                  onPressed: () {
+                                    final currentIndex = AccessibilityFontSize.values.indexOf(accessibilityState.fontSize);
+                                    if (currentIndex < AccessibilityFontSize.values.length - 1) {
+                                      accessibilityNotifier.setFontSize(AccessibilityFontSize.values[currentIndex + 1]);
+                                    }
+                                  },
+                                  tooltip: 'Grotere tekst',
+                                  padding: EdgeInsets.zero,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+              },
             ),
 
             if (!isCompact) ...[
@@ -122,7 +194,7 @@ class AccessibilitySettingsWidget extends ConsumerWidget {
                   const SizedBox(width: 6),
                   const Expanded(
                     child: AccessibleText(
-                      'Dyslexie-vriendelijk',
+                      'dyslexie vriendelijk',
                       style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                       enableTextToSpeech: true,
                     ),
@@ -215,26 +287,53 @@ class AccessibilitySettingsWidget extends ConsumerWidget {
 
             if (isCompact && accessibilityState.isTextToSpeechEnabled) ...[
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: AccessibleButton(
-                      text: 'Test spraak',
-                      icon: const Icon(Icons.play_arrow),
-                      isElevated: false,
-                      onPressed: () => accessibilityNotifier.speak(
-                        'Test van de spraakfunctie.',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AccessibleButton(
-                    text: accessibilityState.useHeadphones ? 'Luidspreker' : 'Koptelefoon',
-                    icon: Icon(accessibilityState.useHeadphones ? Icons.speaker : Icons.headphones),
-                    isElevated: false,
-                    onPressed: () => accessibilityNotifier.toggleUseHeadphones(),
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth > 300;
+                  return isWide
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: AccessibleButton(
+                                text: 'Test spraak',
+                                icon: const Icon(Icons.play_arrow),
+                                isElevated: false,
+                                onPressed: () => accessibilityNotifier.speak(
+                                  'Test van de spraakfunctie.',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: AccessibleButton(
+                                text: accessibilityState.useHeadphones ? 'Luidspreker' : 'Koptelefoon',
+                                icon: Icon(accessibilityState.useHeadphones ? Icons.speaker : Icons.headphones),
+                                isElevated: false,
+                                onPressed: () => accessibilityNotifier.toggleUseHeadphones(),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Column(
+                          children: [
+                            AccessibleButton(
+                              text: 'Test spraak',
+                              icon: const Icon(Icons.play_arrow),
+                              isElevated: false,
+                              onPressed: () => accessibilityNotifier.speak(
+                                'Test van de spraakfunctie.',
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            AccessibleButton(
+                              text: accessibilityState.useHeadphones ? 'Luidspreker' : 'Koptelefoon',
+                              icon: Icon(accessibilityState.useHeadphones ? Icons.speaker : Icons.headphones),
+                              isElevated: false,
+                              onPressed: () => accessibilityNotifier.toggleUseHeadphones(),
+                            ),
+                          ],
+                        );
+                },
               ),
             ],
           ],
@@ -274,7 +373,7 @@ class AccessibilityQuickActions extends ConsumerWidget {
                     : Icons.font_download,
               ),
               onPressed: () => accessibilityNotifier.toggleDyslexiaFriendly(),
-              tooltip: 'Wissel dyslexie-vriendelijk',
+              tooltip: 'Wissel dyslexie vriendelijk',
             ),
             
             // TTS toggle

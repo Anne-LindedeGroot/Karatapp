@@ -472,7 +472,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              overflow: TextOverflow.visible,
                             ),
                           ),
                         ),
@@ -489,7 +489,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                           child: Text(
                             _formatDate(post.createdAt),
                             style: TextStyle(color: Colors.grey[600], fontSize: 11),
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -504,7 +504,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: TextOverflow.visible,
                     ),
                     const SizedBox(height: 8),
 
@@ -513,7 +513,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                       post.content,
                       style: TextStyle(color: Colors.grey[700], fontSize: 14),
                       maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
+                      overflow: TextOverflow.visible,
                     ),
                     const SizedBox(height: 12),
 
@@ -543,7 +543,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
-                            overflow: TextOverflow.ellipsis,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                         if (post.commentCount > 0) ...[

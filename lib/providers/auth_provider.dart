@@ -54,11 +54,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       print('🔍 AuthNotifier: No existing Supabase session, trying to restore from storage...');
       
-      // Try to restore session from local storage with timeout
+      // Try to restore session from local storage with shorter timeout for faster startup
       final restored = await _authService.restoreSession().timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 2),
         onTimeout: () {
-          print('⏰ AuthNotifier: Session restoration timed out');
+          print('⏰ AuthNotifier: Session restoration timed out (2s)');
           return false;
         },
       );

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/accessibility_provider.dart';
 import 'enhanced_accessible_text.dart';
+import 'error_boundary.dart';
 
 class VideoUrlInputWidget extends StatefulWidget {
   final List<String> videoUrls;
@@ -197,19 +200,61 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+    return ErrorBoundary(
+      errorMessage: 'Video URL invoer kon niet worden geladen.',
+      fallback: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.title,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.visible,
+                maxLines: 2,
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+              const Text(
+                'Video URL functionaliteit tijdelijk niet beschikbaar.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ),
+      child: Consumer(
+        builder: (context, ref, child) {
+          // Try to access accessibility state safely
+          double extraPadding = 0.0;
+          try {
+            final accessibilityState = ref.watch(accessibilityNotifierProvider);
+            extraPadding = accessibilityState.fontSize == AccessibilityFontSize.extraLarge ||
+                           accessibilityState.isDyslexiaFriendly ? 8.0 : 0.0;
+          } catch (e) {
+            // If accessibility provider fails, use default padding
+            extraPadding = 0.0;
+          }
+
+          return Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0 + extraPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(
+                    child: Text(
+                      widget.title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.visible,
+                      maxLines: 2,
+                    ),
+                  ),
+              const SizedBox(height: 16),
             
             // URL Input Field
             EnhancedAccessibleTextField(
@@ -253,14 +298,17 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
                         color: Theme.of(context).colorScheme.primary,
                       ),
                       const SizedBox(width: 8),
-                  Text(
-                    'Ondersteunde Media',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 14,
-                    ),
-                  ),
+                      Flexible(
+                        child: Text(
+                          'Ondersteunde Media',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.visible,
+                        ),
+                      ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -330,14 +378,19 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        subtitle: Text(
-                          url,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        subtitle: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final availableWidth = constraints.maxWidth - 120; // Account for trailing buttons
+                            return Text(
+                              url,
+                              maxLines: availableWidth < 200 ? 2 : 1, // Allow 2 lines on narrow screens
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            );
+                          },
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -371,6 +424,9 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
             ],
           ],
         ),
+      ),
+    );
+        },
       ),
     );
   }

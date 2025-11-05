@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../utils/dialog_tts_helper.dart';
 import '../widgets/global_tts_overlay.dart';
 import '../widgets/tts_clickable_text.dart';
@@ -191,7 +192,13 @@ class _TTSTestScreenState extends ConsumerState<TTSTestScreen> {
             TTSClickableWidget(
               ttsText: 'Sluiten knop',
               child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  if (GoRouter.of(context).canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
                 child: const Text('Sluiten'),
               ),
             ),

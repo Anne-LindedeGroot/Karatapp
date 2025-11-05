@@ -219,40 +219,63 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
   Widget _buildCategoryFilter() {
     // Use local state instead of provider state for immediate UI updates
     final selectedCategory = _localSelectedCategory;
-    
-    // Debug print to track selection state
-    print('Category Filter - selectedCategory: $selectedCategory');
-    print('Category Filter - "Alle Berichten" isSelected: ${selectedCategory == null}');
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildCategoryButton(
-              category: null,
-              label: 'Alle Berichten',
-              isSelected: selectedCategory == null,
-              onTap: () {
-                print('Tapping "Alle Berichten" button');
-                _filterByCategory(null);
-              },
-            ),
-            const SizedBox(width: 8),
-            ...ForumCategory.values.map((category) => 
-              _buildCategoryButton(
-                category: category,
-                label: category.displayName,
-                isSelected: selectedCategory == category,
-                onTap: () {
-                  print('Tapping category button: ${category.displayName}');
-                  _filterByCategory(category);
-                },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Check if we have enough space for all buttons
+          final buttonWidth = 120.0; // Estimated width per button
+          final totalButtons = ForumCategory.values.length + 1; // +1 for "Alle Berichten"
+          final totalWidth = buttonWidth * totalButtons + (8.0 * (totalButtons - 1)); // Include spacing
+
+          if (totalWidth <= constraints.maxWidth) {
+            // Enough space, show all buttons in a row
+            return Row(
+              children: [
+                _buildCategoryButton(
+                  category: null,
+                  label: 'Alle Berichten',
+                  isSelected: selectedCategory == null,
+                  onTap: () => _filterByCategory(null),
+                ),
+                const SizedBox(width: 8),
+                ...ForumCategory.values.map((category) =>
+                  _buildCategoryButton(
+                    category: category,
+                    label: category.displayName,
+                    isSelected: selectedCategory == category,
+                    onTap: () => _filterByCategory(category),
+                  ),
+                ),
+              ],
+            );
+          } else {
+            // Not enough space, use horizontal scroll
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildCategoryButton(
+                    category: null,
+                    label: 'Alle Berichten',
+                    isSelected: selectedCategory == null,
+                    onTap: () => _filterByCategory(null),
+                  ),
+                  const SizedBox(width: 8),
+                  ...ForumCategory.values.map((category) =>
+                    _buildCategoryButton(
+                      category: category,
+                      label: category.displayName,
+                      isSelected: selectedCategory == category,
+                      onTap: () => _filterByCategory(category),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
+            );
+          }
+        },
       ),
     );
   }
@@ -263,9 +286,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    // Debug print for each button
-    print('Building button "$label" - isSelected: $isSelected');
-    
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: Semantics(
@@ -278,21 +298,25 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              constraints: const BoxConstraints(
+                minWidth: 80,
+                maxWidth: 140, // Prevent buttons from getting too wide
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                gradient: isSelected 
+                gradient: isSelected
                     ? const LinearGradient(
                         colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       )
                     : null,
-                color: isSelected 
+                color: isSelected
                     ? null
                     : Colors.grey[800]?.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected 
+                  color: isSelected
                       ? const Color(0xFF4CAF50)
                       : Colors.grey[600]!.withValues(alpha: 0.5),
                   width: isSelected ? 2 : 1,
@@ -328,23 +352,27 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                         color: const Color(0xFF4CAF50),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                   ],
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: isSelected 
-                          ? Colors.white
-                          : Colors.grey[300],
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      fontSize: 15,
-                      shadows: isSelected ? [
-                        Shadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          offset: const Offset(0, 1),
-                          blurRadius: 2,
-                        ),
-                      ] : null,
+                  Flexible(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: isSelected
+                            ? Colors.white
+                            : Colors.grey[300],
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        fontSize: 14, // Slightly smaller to prevent overflow
+                        shadows: isSelected ? [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            offset: const Offset(0, 1),
+                            blurRadius: 2,
+                          ),
+                        ] : null,
+                      ),
+                      overflow: TextOverflow.visible,
+                      maxLines: 1,
                     ),
                   ),
                 ],
@@ -489,7 +517,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                 child: Text(
                                   'Verwijderen', 
                                   style: TextStyle(color: Colors.red),
-                                  overflow: TextOverflow.ellipsis,
+                                  overflow: TextOverflow.visible,
                                 ),
                               ),
                             ],
@@ -512,7 +540,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                     height: 1.3,
                   ),
                   maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: TextOverflow.visible,
                 ),
               ),
               const SizedBox(height: 10),
@@ -523,7 +551,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 child: Text(
                   post.content,
                   maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: TextOverflow.visible,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 15,
@@ -561,7 +589,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
                                 ),
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -573,7 +601,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   fontSize: 13,
                                 ),
-                                overflow: TextOverflow.ellipsis,
+                                overflow: TextOverflow.visible,
                                 maxLines: 1,
                               ),
                             ),
@@ -584,164 +612,271 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                   ),
                   const SizedBox(height: 12),
                   
-                  // Interaction buttons row - separated for better spacing
-                  Row(
-                    children: [
-                      // Like button with improved styling
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final forumInteraction = ref.watch(forumInteractionProvider(post.id));
-                          final isLiked = forumInteraction.isLiked;
-                          final likeCount = forumInteraction.likeCount;
-                          final isLoading = forumInteraction.isLoading;
-                          
-                          return GestureDetector(
-                            onTap: isLoading ? null : () async {
-                              try {
-                                await ref.read(forumInteractionProvider(post.id).notifier).toggleLike();
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: $e'),
-                                      backgroundColor: Colors.red,
+                  // Interaction buttons row - responsive layout to prevent overflow
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final availableWidth = constraints.maxWidth;
+                      const buttonSpacing = 8.0;
+                      const estimatedButtonWidth = 80.0; // Estimated width per button
+                      const viewTextWidth = 100.0; // Estimated width for "Bekijk bericht"
+
+                      // Calculate how many buttons we can fit
+                      final maxButtons = ((availableWidth - viewTextWidth - buttonSpacing * 2) / (estimatedButtonWidth + buttonSpacing)).floor();
+                      final showAllButtons = maxButtons >= 3;
+
+                      if (showAllButtons) {
+                        return Row(
+                          children: [
+                            // Like button
+                            Consumer(
+                              builder: (context, ref, child) {
+                                final forumInteraction = ref.watch(forumInteractionProvider(post.id));
+                                final isLiked = forumInteraction.isLiked;
+                                final likeCount = forumInteraction.likeCount;
+                                final isLoading = forumInteraction.isLoading;
+
+                                return GestureDetector(
+                                  onTap: isLoading ? null : () async {
+                                    try {
+                                      await ref.read(forumInteractionProvider(post.id).notifier).toggleLike();
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isLiked
+                                        ? Colors.red.withValues(alpha: 0.1)
+                                        : Colors.grey.withValues(alpha: 0.05),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isLiked ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                        width: 1,
+                                      ),
                                     ),
-                                  );
-                                }
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isLiked ? Icons.favorite : Icons.favorite_border,
+                                          size: 14,
+                                          color: isLiked ? Colors.red : Colors.grey[600],
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '$likeCount',
+                                          style: TextStyle(
+                                            color: isLiked ? Colors.red : Colors.grey[700],
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Favorite button
+                            Consumer(
+                              builder: (context, ref, child) {
+                                final forumInteraction = ref.watch(forumInteractionProvider(post.id));
+                                final isFavorited = forumInteraction.isFavorited;
+                                final isLoading = forumInteraction.isLoading;
+
+                                return GestureDetector(
+                                  onTap: isLoading ? null : () async {
+                                    try {
+                                      await ref.read(forumInteractionProvider(post.id).notifier).toggleFavorite();
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              isFavorited ? 'Verwijderd uit favorieten' : 'Toegevoegd aan favorieten'
+                                            ),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: isFavorited
+                                        ? Colors.teal.withValues(alpha: 0.1)
+                                        : Colors.grey.withValues(alpha: 0.05),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isFavorited ? Colors.teal.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      isFavorited ? Icons.bookmark : Icons.bookmark_border,
+                                      size: 14,
+                                      color: isFavorited ? Colors.teal : Colors.grey[600],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Comment count
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
-                                color: isLiked 
-                                  ? Colors.red.withValues(alpha: 0.1)
-                                  : Colors.grey.withValues(alpha: 0.05),
+                                color: Colors.grey.withValues(alpha: 0.05),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: isLiked ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                  color: Colors.grey.withValues(alpha: 0.2),
                                   width: 1,
                                 ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    isLiked ? Icons.favorite : Icons.favorite_border,
-                                    size: 16,
-                                    color: isLiked ? Colors.red : Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 6),
+                                  Icon(Icons.comment_outlined, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    '$likeCount',
+                                    '${post.commentCount}',
                                     style: TextStyle(
-                                      color: isLiked ? Colors.red : Colors.grey[700],
-                                      fontSize: 13,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      fontSize: 12,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      
-                      // Favorite button with improved styling
-                      Consumer(
-                        builder: (context, ref, child) {
-                          final forumInteraction = ref.watch(forumInteractionProvider(post.id));
-                          final isFavorited = forumInteraction.isFavorited;
-                          final isLoading = forumInteraction.isLoading;
-                          
-                          return GestureDetector(
-                            onTap: isLoading ? null : () async {
-                              try {
-                                await ref.read(forumInteractionProvider(post.id).notifier).toggleFavorite();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        isFavorited ? 'Verwijderd uit favorieten' : 'Toegevoegd aan favorieten'
-                                      ),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Error: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isFavorited 
-                                  ? Colors.teal.withValues(alpha: 0.1)
-                                  : Colors.grey.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isFavorited ? Colors.teal.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Icon(
-                                isFavorited ? Icons.bookmark : Icons.bookmark_border,
-                                size: 16,
-                                color: isFavorited ? Colors.teal : Colors.grey[600],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      
-                      // Comment count with improved styling
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.05),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.grey.withValues(alpha: 0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.comment_outlined, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            const SizedBox(width: 6),
+
+                            const Spacer(),
+
+                            // View text
                             Text(
-                              '${post.commentCount}',
+                              'Bekijk bericht',
                               style: TextStyle(
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                      
-                      const Spacer(),
-                      
-                      // View count or additional info could go here
-                      Text(
-                        'Bekijk bericht',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
+                        );
+                      } else {
+                        // Compact layout - show only essential buttons
+                        return Row(
+                          children: [
+                            // Like button only
+                            Consumer(
+                              builder: (context, ref, child) {
+                                final forumInteraction = ref.watch(forumInteractionProvider(post.id));
+                                final isLiked = forumInteraction.isLiked;
+                                final likeCount = forumInteraction.likeCount;
+                                final isLoading = forumInteraction.isLoading;
+
+                                return GestureDetector(
+                                  onTap: isLoading ? null : () async {
+                                    try {
+                                      await ref.read(forumInteractionProvider(post.id).notifier).toggleLike();
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isLiked
+                                        ? Colors.red.withValues(alpha: 0.1)
+                                        : Colors.grey.withValues(alpha: 0.05),
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: isLiked ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          isLiked ? Icons.favorite : Icons.favorite_border,
+                                          size: 12,
+                                          color: isLiked ? Colors.red : Colors.grey[600],
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Text(
+                                          '$likeCount',
+                                          style: TextStyle(
+                                            color: isLiked ? Colors.red : Colors.grey[700],
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const Spacer(),
+
+                            // Comment count and view text combined
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.comment_outlined, size: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${post.commentCount}',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Bekijk',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontSize: 10,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      }
+                    },
                   ),
                 ],
               ),
@@ -1001,28 +1136,43 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       // Dyslexia toggle
                       PopupMenuItem<String>(
                         value: 'toggle_dyslexia',
-                        child: Row(
-                          children: [
-                            Icon(
-                              accessibilityState.isDyslexiaFriendly 
-                                  ? Icons.format_line_spacing 
-                                  : Icons.format_line_spacing_outlined,
-                              size: 20,
-                              color: accessibilityState.isDyslexiaFriendly
-                                  ? Theme.of(context).colorScheme.primary
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            const Text('Dyslexie vriendelijk'),
-                            const Spacer(),
-                            Switch(
-                              value: accessibilityState.isDyslexiaFriendly,
-                              onChanged: (value) {
-                                accessibilityNotifier.toggleDyslexiaFriendly();
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
+                        child: SizedBox(
+                          width: 280, // Fixed width to prevent overflow
+                          child: Row(
+                            children: [
+                              Icon(
+                                accessibilityState.isDyslexiaFriendly
+                                    ? Icons.format_line_spacing
+                                    : Icons.format_line_spacing_outlined,
+                                size: 18, // Slightly smaller icon
+                                color: accessibilityState.isDyslexiaFriendly
+                                    ? Theme.of(context).colorScheme.primary
+                                    : null,
+                              ),
+                              const SizedBox(width: 8), // Reduced spacing
+                              Expanded(
+                                child: Text(
+                                  'dyslexie vriendelijk', // No hyphen for better dyslexie friendly display
+                                  style: const TextStyle(
+                                    fontSize: 14, // Smaller font size
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  // Show full text without truncation
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Transform.scale(
+                                scale: 0.7, // Smaller switch
+                                child: Switch(
+                                  value: accessibilityState.isDyslexiaFriendly,
+                                  onChanged: (value) {
+                                    accessibilityNotifier.toggleDyslexiaFriendly();
+                                    Navigator.pop(context);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],

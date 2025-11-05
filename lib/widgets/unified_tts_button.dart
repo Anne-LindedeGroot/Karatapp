@@ -160,7 +160,7 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
                 fontWeight: (isEnabled || isSpeaking) ? FontWeight.w600 : FontWeight.normal,
               ),
               textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible,
               maxLines: 2,
             ),
           ),

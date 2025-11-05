@@ -7,30 +7,45 @@ import '../widgets/modern_loading_widget.dart';
 import '../widgets/overflow_safe_widgets.dart';
 import '../providers/auth_provider.dart';
 import '../providers/kata_provider.dart';
+import '../providers/ohyo_provider.dart';
 import '../providers/network_provider.dart';
+import '../providers/role_provider.dart';
+import '../services/role_service.dart';
 import '../utils/responsive_utils.dart';
+import '../core/navigation/app_router.dart';
 import 'home/home_screen_dialog_manager.dart';
 import 'home/home_screen_search_manager.dart';
 import 'home/home_screen_app_bar.dart';
 import 'home/home_screen_search_section.dart';
 import 'home/home_screen_kata_list.dart';
-import 'home/home_screen_add_kata_dialog.dart';
+import 'home/home_ohyo_list.dart';
 import 'home/home_screen_error_display.dart';
+import 'home/home_screen_add_kata_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.initialTabIndex = 0});
+
+  final int initialTabIndex;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTabIndex);
+
+    // Initialize kata and ohyo loading when home screen is shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(kataNotifierProvider.notifier).initializeKataLoading();
+      ref.read(ohyoNotifierProvider.notifier).initializeOhyoLoading();
+    });
     // TTS announcement disabled - only speak when user clicks TTS button
     // WidgetsBinding.instance.addPostFrameCallback((_) {
     //   _announcePageLoad();
@@ -41,6 +56,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -96,8 +112,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  Future<void> _deleteOhyo(int ohyoId, String ohyoName) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ohyo verwijderen'),
+        content: Text('Weet je zeker dat je "$ohyoName" wilt verwijderen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuleren'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Verwijderen'),
+          ),
+        ],
+      ),
+    ) ?? false;
+
+    if (confirmed) {
+      try {
+        // Show loading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text('Ohyo en afbeeldingen verwijderen...'),
+                ],
+              ),
+              duration: Duration(seconds: 10),
+            ),
+          );
+        }
+
+        // Delete ohyo using provider
+        await ref.read(ohyoNotifierProvider.notifier).deleteOhyo(ohyoId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$ohyoName succesvol verwijderd'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Fout bij verwijderen ohyo: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _refreshOhyos() async {
+    await ref.read(ohyoNotifierProvider.notifier).loadOhyos();
+  }
+
   void _filterKatas(String query) {
     ref.read(kataNotifierProvider.notifier).searchKatas(query);
+  }
+
+  void _filterOhyos(String query) {
+    ref.read(ohyoNotifierProvider.notifier).searchOhyos(query);
   }
 
   Future<void> _showLogoutConfirmationDialog() async {
@@ -132,6 +221,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return HomeScreenKataList(
       katas: katas,
       onDeleteKata: _deleteKata,
+      onRefresh: _refreshKatas,
+    );
+  }
+
+  Widget _buildOhyoList(List<dynamic> ohyos) {
+    return HomeOhyoList(
+      ohyos: ohyos,
+      onDelete: _deleteOhyo,
+      onRefresh: _refreshOhyos,
     );
   }
 
@@ -139,29 +237,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return HomeScreenSearchSection(
       searchController: _searchController,
       searchFocusNode: _searchFocusNode,
-      onSearchChanged: _filterKatas,
+      onSearchChanged: _tabController.index == 0 ? _filterKatas : _filterOhyos,
       isConnected: isConnected,
     );
   }
 
-  bool _isNetworkError(String? error) {
-    if (error == null) return false;
-    final errorLower = error.toLowerCase();
-    return errorLower.contains('network') ||
-        errorLower.contains('connection') ||
-        errorLower.contains('timeout') ||
-        errorLower.contains('socket') ||
-        errorLower.contains('dns') ||
-        errorLower.contains('host') ||
-        errorLower.contains('no internet');
-  }
 
   @override
   Widget build(BuildContext context) {
     final kataState = ref.watch(kataNotifierProvider);
+    final ohyoState = ref.watch(ohyoNotifierProvider);
     final katas = kataState.filteredKatas;
-    final isLoading = kataState.isLoading;
-    final error = kataState.error;
+    final ohyos = ohyoState.filteredOhyos;
+    final isKataLoading = kataState.isLoading;
+    final isOhyoLoading = ohyoState.isLoading;
+    final kataError = kataState.error;
+    final ohyoError = ohyoState.error;
     final isConnected = ref.watch(isConnectedProvider);
 
     return GestureDetector(
@@ -171,54 +262,130 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       },
       child: Scaffold(
         appBar: HomeScreenAppBar(
-          onRefresh: _refreshKatas,
+          onRefresh: () {
+            _refreshKatas();
+            _refreshOhyos();
+          },
           onLogout: _showLogoutConfirmationDialog,
         ),
-        body: Column(
-          children: [
-            // Enhanced responsive search bar
-            ResponsiveContainer(
-              padding: context.responsivePadding,
-              child: _buildSearchSection(isConnected),
-            ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              // Enhanced responsive search bar
+              ResponsiveContainer(
+                padding: context.responsivePadding,
+                child: _buildSearchSection(isConnected),
+              ),
             // Centralized connection error widget
             const ConnectionErrorWidget(),
             // Local error display (for non-network errors only)
             HomeScreenErrorDisplay(
-              error: error,
+              error: _tabController.index == 0 ? kataError : ohyoError,
               onClearError: () {
-                ref.read(kataNotifierProvider.notifier).clearError();
+                if (_tabController.index == 0) {
+                  ref.read(kataNotifierProvider.notifier).clearError();
+                } else {
+                  ref.read(ohyoNotifierProvider.notifier).clearError();
+                }
               },
             ),
-            // Responsive kata list with flexible height - use Expanded instead of OverflowSafeExpanded
+            // Tab bar
+            TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.sports_martial_arts),
+                  text: 'Kata',
+                ),
+                Tab(
+                  icon: Icon(Icons.psychology),
+                  text: 'Ohyo',
+                ),
+              ],
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Colors.grey[600],
+              indicatorColor: Theme.of(context).colorScheme.primary,
+            ),
+            // Tab content
             Expanded(
-              child: isLoading
-                  ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
-                  : RefreshIndicator(
-                      onRefresh: _refreshKatas,
-                      child: katas.isEmpty
-                          ? Center(
-                              child: OverflowSafeText(
-                                'Geen kata\'s gevonden',
-                                style: Theme.of(context).textTheme.headlineSmall
-                                    ?.copyWith(color: Colors.grey),
-                              ),
-                            )
-                          : _buildKataList(katas),
-                    ),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Kata tab
+                  isKataLoading
+                      ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
+                      : RefreshIndicator(
+                          onRefresh: _refreshKatas,
+                          child: katas.isEmpty
+                              ? Center(
+                                  child: OverflowSafeText(
+                                    'Geen kata\'s gevonden',
+                                    style: Theme.of(context).textTheme.headlineSmall
+                                        ?.copyWith(color: Colors.grey),
+                                  ),
+                                )
+                              : _buildKataList(katas),
+                        ),
+                  // Ohyo tab
+                  isOhyoLoading
+                      ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
+                      : RefreshIndicator(
+                          onRefresh: _refreshOhyos,
+                          child: ohyos.isEmpty
+                              ? Center(
+                                  child: OverflowSafeText(
+                                    'Geen ohyo\'s gevonden',
+                                    style: Theme.of(context).textTheme.headlineSmall
+                                        ?.copyWith(color: Colors.grey),
+                                  ),
+                                )
+                              : _buildOhyoList(ohyos),
+                        ),
+                ],
+              ),
             ),
           ],
         ),
-        floatingActionButton: Semantics(
-          label: 'Nieuwe kata toevoegen',
-          button: true,
-          child: FloatingActionButton(
-            heroTag: "home_fab",
-            onPressed: () {
-              _showAddKataDialog();
-            },
-            child: const Icon(Icons.add),
-          ),
+        ),
+        floatingActionButton: Consumer(
+          builder: (context, ref, child) {
+            final userRoleAsync = ref.watch(currentUserRoleProvider);
+
+            return userRoleAsync.when(
+              data: (role) => Semantics(
+                label: _tabController.index == 0 ? 'Nieuwe kata toevoegen' : 'Nieuwe ohyo toevoegen',
+                button: true,
+                child: FloatingActionButton(
+                  heroTag: "home_fab",
+                  onPressed: () {
+                    if (_tabController.index == 0) {
+                      _showAddKataDialog();
+                    } else {
+                      // Check permissions for ohyo creation (same as kata)
+                      if (role != UserRole.host) {
+                        _showPermissionDeniedDialog(context);
+                      } else {
+                        context.goToCreateOhyo();
+                      }
+                    }
+                  },
+                  child: const Icon(Icons.add),
+                ),
+              ),
+              loading: () => const FloatingActionButton(
+                heroTag: "home_fab",
+                onPressed: null,
+                child: CircularProgressIndicator(),
+              ),
+              error: (error, stack) => FloatingActionButton(
+                heroTag: "home_fab",
+                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Fout bij laden gebruikersrol: $error')),
+                ),
+                child: const Icon(Icons.error),
+              ),
+            );
+          },
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
       ),
@@ -229,6 +396,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await showDialog(
       context: context,
       builder: (context) => const HomeScreenAddKataDialog(),
+    );
+  }
+
+  void _showPermissionDeniedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Geen Toegang'),
+        content: const Text(
+          "Alleen hosts kunnen nieuwe ohyo's toevoegen. Neem contact op met een host om toegang te krijgen.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => context.pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
     );
   }
 }

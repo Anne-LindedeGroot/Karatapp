@@ -445,6 +445,50 @@ class ImageUtils {
     );
   }
   
+  /// Delete multiple specific images from the bucket
+  static Future<bool> deleteMultipleImagesFromSupabase(List<String> imageUrls) async {
+    if (imageUrls.isEmpty) return true;
+
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          final supabase = Supabase.instance.client;
+
+          // Extract filenames from URLs
+          final fileNames = imageUrls.map((url) {
+            final uri = Uri.parse(url);
+            final pathSegments = uri.pathSegments;
+            if (pathSegments.length >= 2) {
+              // Format: /storage/v1/object/public/kata_images/{kataId}/{fileName}
+              return '${pathSegments[pathSegments.length - 2]}/${pathSegments.last}';
+            }
+            return '';
+          }).where((name) => name.isNotEmpty).toList();
+
+          if (fileNames.isNotEmpty) {
+            // Delete the files from storage
+            await supabase.storage
+                .from('kata_images')
+                .remove(fileNames);
+
+            debugPrint('✅ Successfully deleted ${fileNames.length} images');
+          }
+
+          return true;
+        } catch (e) {
+          debugPrint('Error deleting multiple images from bucket: $e');
+          rethrow;
+        }
+      },
+      maxRetries: 3,
+      initialDelay: const Duration(seconds: 1),
+      shouldRetry: RetryUtils.shouldRetryImageError,
+      onRetry: (attempt, error) {
+        debugPrint('🔄 Retrying delete multiple images (attempt $attempt): $error');
+      },
+    );
+  }
+
   /// Delete all images for a specific kata ID
   static Future<bool> deleteAllKataImages(int kataId) async {
     return await RetryUtils.executeWithRetry(
@@ -587,6 +631,305 @@ class ImageUtils {
            errorString.contains('host') ||
            errorString.contains('no internet') ||
            errorString.contains('unreachable');
+  }
+
+  /// Upload multiple images to Supabase Storage organized by ohyo ID
+  static Future<List<String>> uploadOhyoImages(List<File> imageFiles, int ohyoId) async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        List<String> uploadedUrls = [];
+
+        for (int i = 0; i < imageFiles.length; i++) {
+          final imageFile = imageFiles[i];
+          final fileName = generateUniqueFileName('ohyo_${ohyoId}_$i');
+          final url = await uploadOhyoImageToSupabase(imageFile, fileName, ohyoId);
+
+          if (url != null) {
+            uploadedUrls.add(url);
+          } else {
+            throw Exception('Failed to upload image ${i + 1} of ${imageFiles.length}');
+          }
+        }
+
+        return uploadedUrls;
+      },
+      maxRetries: 3,
+      initialDelay: const Duration(seconds: 2),
+      shouldRetry: RetryUtils.shouldRetryImageError,
+      onRetry: (attempt, error) {
+        debugPrint('🔄 Retrying upload ohyo images (attempt $attempt): $error');
+      },
+    );
+  }
+
+  /// Upload ohyo image to Supabase Storage organized by ohyo ID
+  static Future<String?> uploadOhyoImageToSupabase(File imageFile, String fileName, int ohyoId) async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          final supabase = Supabase.instance.client;
+
+          // Validate file exists and is readable
+          if (!await imageFile.exists()) {
+            throw Exception('Image file does not exist: ${imageFile.path}');
+          }
+
+          // Try to create the bucket if it doesn't exist
+          try {
+            await supabase.storage.createBucket('ohyo_images');
+          } catch (e) {
+            // Bucket might already exist, which is fine
+            debugPrint('Bucket creation attempt: $e');
+          }
+
+          // Create a folder structure: ohyo_images/{ohyo_id}/filename
+          final filePath = '$ohyoId/$fileName';
+
+          // Read the file as bytes
+          final bytes = await imageFile.readAsBytes();
+
+          if (bytes.isEmpty) {
+            throw Exception('Image file is empty: ${imageFile.path}');
+          }
+
+          // Upload to Supabase Storage (in a 'ohyo_images' bucket with folder structure)
+          await supabase.storage
+              .from('ohyo_images')
+              .uploadBinary(filePath, bytes);
+
+          // Get the public URL of the uploaded image
+          final publicUrl = supabase.storage
+              .from('ohyo_images')
+              .getPublicUrl(filePath);
+
+          return publicUrl;
+        } catch (e) {
+          debugPrint('Error uploading ohyo image to Supabase: $e');
+          if (e.toString().contains('bucket') && e.toString().contains('not found')) {
+            debugPrint('SOLUTION: The ohyo_images bucket does not exist. Please create it in your Supabase dashboard.');
+            debugPrint('Go to: Storage → Buckets → New bucket → Name: ohyo_images → Make it Public → Create');
+            throw Exception('Storage bucket not found. Please create the ohyo_images bucket in your Supabase dashboard.');
+          } else if (e.toString().contains('row-level security') || e.toString().contains('Unauthorized')) {
+            debugPrint('SOLUTION: Storage policies are blocking uploads. Please set up proper RLS policies.');
+            throw Exception('Storage access denied. Please check your storage policies.');
+          }
+          rethrow;
+        }
+      },
+      maxRetries: 3,
+      initialDelay: const Duration(seconds: 1),
+      shouldRetry: RetryUtils.shouldRetryImageError,
+      onRetry: (attempt, error) {
+        debugPrint('🔄 Retrying upload ohyo image (attempt $attempt): $error');
+      },
+    );
+  }
+
+  /// Fetch all images for a specific ohyo ID from the bucket
+  static Future<List<String>> fetchOhyoImagesFromBucket(int ohyoId) async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          final supabase = Supabase.instance.client;
+
+          // First check if the bucket exists
+          try {
+            await supabase.storage.getBucket('ohyo_images');
+            debugPrint('✅ ohyo_images bucket found');
+          } catch (e) {
+            debugPrint('⚠️ ohyo_images bucket not found or not accessible: $e');
+
+            // Check if this is a network error or file descriptor error
+            if (_isNetworkError(e) || _isFileDescriptorError(e)) {
+              debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
+              return [];
+            }
+
+            // Try to create the bucket if it doesn't exist (only if we have network)
+            try {
+              await supabase.storage.createBucket('ohyo_images',
+                BucketOptions(public: true, allowedMimeTypes: ['image/*']));
+              debugPrint('✅ Created ohyo_images bucket');
+            } catch (createError) {
+              debugPrint('❌ Failed to create ohyo_images bucket: $createError');
+
+              // If it's a network or file descriptor error, return empty list instead of throwing
+              if (_isNetworkError(createError) || _isFileDescriptorError(createError)) {
+                debugPrint('🌐 Network/file error during bucket creation, returning empty list');
+                return [];
+              }
+
+              throw Exception('Storage bucket not available. Please check your Supabase configuration.');
+            }
+          }
+
+          // List all files in the ohyo's folder with proper error handling
+          debugPrint('🔍 Listing files for ohyo $ohyoId...');
+          List<dynamic> response = [];
+
+          try {
+            response = await supabase.storage
+                .from('ohyo_images')
+                .list(path: ohyoId.toString());
+          } catch (listError) {
+            debugPrint('❌ Error listing files for ohyo $ohyoId: $listError');
+
+            // If it's a file descriptor error, return empty list
+            if (_isFileDescriptorError(listError)) {
+              debugPrint('🔧 File descriptor error detected, returning empty list');
+              return [];
+            }
+
+            // For other errors, rethrow
+            rethrow;
+          }
+
+          debugPrint('📁 Found ${response.length} files in ohyo $ohyoId folder');
+
+          if (response.isEmpty) {
+            debugPrint('ℹ️ No images found for ohyo $ohyoId');
+            return [];
+          }
+
+          List<Map<String, String>> imageData = [];
+
+          for (final file in response) {
+            if (file.name.isNotEmpty && !file.name.startsWith('.') && _isImageFile(file.name)) {
+              try {
+                // Use signed URLs directly since bucket appears to be private
+                final signedUrl = await supabase.storage
+                    .from('ohyo_images')
+                    .createSignedUrl('$ohyoId/${file.name}', 7200); // 2 hour expiry
+
+                imageData.add({
+                  'url': signedUrl,
+                  'name': file.name,
+                });
+                debugPrint('✅ Generated signed URL for ${file.name}');
+              } catch (signedUrlError) {
+                debugPrint('❌ Failed to create signed URL for ${file.name}: $signedUrlError');
+
+                // If it's a file descriptor error, skip this file
+                if (_isFileDescriptorError(signedUrlError)) {
+                  debugPrint('🔧 File descriptor error for ${file.name}, skipping');
+                  continue;
+                }
+
+                // Try public URL as fallback (in case bucket is actually public)
+                try {
+                  final publicUrl = supabase.storage
+                      .from('ohyo_images')
+                      .getPublicUrl('$ohyoId/${file.name}');
+
+                  if (publicUrl.isNotEmpty) {
+                    imageData.add({
+                      'url': publicUrl,
+                      'name': file.name,
+                    });
+                    debugPrint('✅ Generated public URL for ${file.name}');
+                  } else {
+                    debugPrint('⚠️ Empty public URL for ${file.name}');
+                  }
+                } catch (publicUrlError) {
+                  debugPrint('❌ Failed to create any URL for ${file.name}: $publicUrlError');
+
+                  // If it's a file descriptor error, skip this file
+                  if (_isFileDescriptorError(publicUrlError)) {
+                    debugPrint('🔧 File descriptor error for ${file.name}, skipping');
+                    continue;
+                  }
+                }
+              }
+            } else {
+              debugPrint('⏭️ Skipping non-image file: ${file.name}');
+            }
+          }
+
+          if (imageData.isEmpty) {
+            debugPrint('ℹ️ No valid image files found for ohyo $ohyoId');
+            return [];
+          }
+
+          // Sort by filename to maintain order (files with order prefix will be sorted correctly)
+          imageData.sort((a, b) => a['name']!.compareTo(b['name']!));
+
+          // Extract just the URLs in the correct order
+          final urls = imageData.map((data) => data['url']!).toList();
+          debugPrint('✅ Successfully fetched ${urls.length} images for ohyo $ohyoId');
+          debugPrint('🖼️ Image URLs: ${urls.take(3).join(', ')}${urls.length > 3 ? '...' : ''}');
+          return urls;
+        } catch (e) {
+          debugPrint('❌ Error fetching ohyo images from bucket: $e');
+
+          // Check if this is a network error or file descriptor error - if so, return empty list for offline mode
+          if (_isNetworkError(e) || _isFileDescriptorError(e)) {
+            debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
+            return [];
+          }
+
+          // Provide more specific error messages for non-network errors
+          if (e.toString().contains('bucket') && e.toString().contains('not found')) {
+            throw Exception('Storage bucket not found. Please create the ohyo_images bucket in your Supabase dashboard.');
+          } else if (e.toString().contains('row-level security') || e.toString().contains('Unauthorized')) {
+            throw Exception('Storage access denied. Please check your storage policies.');
+          }
+
+          rethrow;
+        }
+      },
+      maxRetries: 3,
+      initialDelay: const Duration(seconds: 1),
+      shouldRetry: RetryUtils.shouldRetryImageError,
+      onRetry: (attempt, error) {
+        debugPrint('🔄 Retrying fetch ohyo images (attempt $attempt): $error');
+      },
+    );
+  }
+
+  /// Delete all images for a specific ohyo ID
+  static Future<bool> deleteOhyoImages(int ohyoId) async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          final supabase = Supabase.instance.client;
+
+          // First, list all files in the ohyo's folder
+          final response = await supabase.storage
+              .from('ohyo_images')
+              .list(path: ohyoId.toString());
+
+          // Create a list of file paths to delete
+          List<String> filesToDelete = [];
+          for (final file in response) {
+            if (file.name.isNotEmpty) {
+              filesToDelete.add('$ohyoId/${file.name}');
+            }
+          }
+
+          // Delete all files
+          if (filesToDelete.isNotEmpty) {
+            debugPrint('🗑️ Deleting ${filesToDelete.length} images for ohyo $ohyoId');
+            await supabase.storage
+                .from('ohyo_images')
+                .remove(filesToDelete);
+            debugPrint('✅ Successfully deleted ${filesToDelete.length} images for ohyo $ohyoId');
+          } else {
+            debugPrint('ℹ️ No images found to delete for ohyo $ohyoId');
+          }
+
+          return true;
+        } catch (e) {
+          debugPrint('❌ Error deleting all ohyo images for ohyo $ohyoId: $e');
+          rethrow;
+        }
+      },
+      maxRetries: 3,
+      initialDelay: const Duration(seconds: 1),
+      shouldRetry: RetryUtils.shouldRetryImageError,
+      onRetry: (attempt, error) {
+        debugPrint('🔄 Retrying delete all ohyo images (attempt $attempt): $error');
+      },
+    );
   }
 
   /// Check if an error is a file descriptor error

@@ -301,11 +301,200 @@ final kataInteractionProvider = StateNotifierProvider.family<KataInteractionNoti
   return KataInteractionNotifier(interactionService, errorBoundary, kataId);
 });
 
+// StateNotifier for ohyo interactions
+class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
+  final InteractionService _interactionService;
+  final ErrorBoundaryNotifier _errorBoundary;
+  final int ohyoId;
+
+  OhyoInteractionNotifier(
+    this._interactionService,
+    this._errorBoundary,
+    this.ohyoId,
+  ) : super(const OhyoInteractionState()) {
+    loadOhyoInteractions();
+  }
+
+  Future<void> loadOhyoInteractions() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      // Load comments, likes, and favorites in parallel
+      final results = await Future.wait([
+        _interactionService.getOhyoComments(ohyoId),
+        _interactionService.getOhyoLikes(ohyoId),
+        _interactionService.isOhyoLiked(ohyoId),
+        _interactionService.isOhyoFavorited(ohyoId),
+      ]);
+
+      final comments = results[0] as List<OhyoComment>;
+      final likes = results[1] as List<Like>;
+      final isLiked = results[2] as bool;
+      final isFavorited = results[3] as bool;
+
+      state = state.copyWith(
+        comments: comments,
+        likes: likes,
+        isLiked: isLiked,
+        isFavorited: isFavorited,
+        likeCount: likes.length,
+        commentCount: comments.length,
+        isLoading: false,
+        error: null,
+      );
+    } catch (e) {
+      final errorMessage = 'Failed to load ohyo interactions: ${e.toString()}';
+      state = state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+      );
+      // Only report non-network errors to global error boundary
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
+    }
+  }
+
+  bool _isNetworkError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    return errorString.contains('network') ||
+           errorString.contains('connection') ||
+           errorString.contains('timeout') ||
+           errorString.contains('socket') ||
+           errorString.contains('dns') ||
+           errorString.contains('host');
+  }
+
+  Future<void> addComment(String content) async {
+    try {
+      final newComment = await _interactionService.addOhyoComment(
+        ohyoId: ohyoId,
+        content: content,
+      );
+
+      final updatedComments = [...state.comments, newComment];
+      state = state.copyWith(
+        comments: updatedComments,
+        commentCount: updatedComments.length,
+      );
+    } catch (e) {
+      final errorMessage = 'Failed to add comment: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
+      // Only report non-network errors to global error boundary
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> deleteComment(int commentId) async {
+    try {
+      await _interactionService.deleteOhyoComment(commentId);
+
+      final updatedComments = state.comments
+          .where((comment) => comment.id != commentId)
+          .toList();
+      state = state.copyWith(
+        comments: updatedComments,
+        commentCount: updatedComments.length,
+      );
+    } catch (e) {
+      final errorMessage = 'Failed to delete comment: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
+      // Only report non-network errors to global error boundary
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> updateComment({
+    required int commentId,
+    required String content,
+  }) async {
+    try {
+      final updatedComment = await _interactionService.updateOhyoComment(
+        commentId: commentId,
+        content: content,
+      );
+
+      final updatedComments = state.comments.map((comment) {
+        if (comment.id == commentId) {
+          return updatedComment;
+        }
+        return comment;
+      }).toList();
+
+      state = state.copyWith(comments: updatedComments);
+    } catch (e) {
+      final errorMessage = 'Failed to update comment: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
+      // Only report non-network errors to global error boundary
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> toggleLike() async {
+    try {
+      final isLiked = await _interactionService.toggleOhyoLike(ohyoId);
+
+      // Reload likes to get updated count
+      final likes = await _interactionService.getOhyoLikes(ohyoId);
+
+      state = state.copyWith(
+        isLiked: isLiked,
+        likes: likes,
+        likeCount: likes.length,
+      );
+    } catch (e) {
+      final errorMessage = 'Failed to toggle like: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
+      // Only report non-network errors to global error boundary
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> toggleFavorite() async {
+    try {
+      final isFavorited = await _interactionService.toggleOhyoFavorite(ohyoId);
+
+      state = state.copyWith(isFavorited: isFavorited);
+    } catch (e) {
+      final errorMessage = 'Failed to toggle favorite: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
+      // Only report non-network errors to global error boundary
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
+      rethrow;
+    }
+  }
+
+  void clearError() {
+    state = state.copyWith(error: null);
+  }
+}
+
 // Provider for forum post interactions (family provider for different posts)
 final forumInteractionProvider = StateNotifierProvider.family<ForumInteractionNotifier, ForumInteractionState, int>((ref, forumPostId) {
   final interactionService = ref.watch(interactionServiceProvider);
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
   return ForumInteractionNotifier(interactionService, errorBoundary, forumPostId);
+});
+
+// Provider for ohyo interactions (family provider for different ohyos)
+final ohyoInteractionProvider = StateNotifierProvider.family<OhyoInteractionNotifier, OhyoInteractionState, int>((ref, ohyoId) {
+  final interactionService = ref.watch(interactionServiceProvider);
+  final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
+  return OhyoInteractionNotifier(interactionService, errorBoundary, ohyoId);
 });
 
 // Convenience providers for specific interaction properties
@@ -341,6 +530,27 @@ final forumPostIsFavoritedProvider = Provider.family<bool, int>((ref, forumPostI
   return ref.watch(forumInteractionProvider(forumPostId)).isFavorited;
 });
 
+// Convenience providers for ohyo interactions
+final ohyoCommentsProvider = Provider.family<List<OhyoComment>, int>((ref, ohyoId) {
+  return ref.watch(ohyoInteractionProvider(ohyoId)).comments;
+});
+
+final ohyoLikeCountProvider = Provider.family<int, int>((ref, ohyoId) {
+  return ref.watch(ohyoInteractionProvider(ohyoId)).likeCount;
+});
+
+final ohyoIsLikedProvider = Provider.family<bool, int>((ref, ohyoId) {
+  return ref.watch(ohyoInteractionProvider(ohyoId)).isLiked;
+});
+
+final ohyoIsFavoritedProvider = Provider.family<bool, int>((ref, ohyoId) {
+  return ref.watch(ohyoInteractionProvider(ohyoId)).isFavorited;
+});
+
+final ohyoCommentCountProvider = Provider.family<int, int>((ref, ohyoId) {
+  return ref.watch(ohyoInteractionProvider(ohyoId)).commentCount;
+});
+
 // Provider for user's favorite katas
 final userFavoriteKatasProvider = FutureProvider<List<int>>((ref) async {
   final interactionService = ref.watch(interactionServiceProvider);
@@ -351,4 +561,10 @@ final userFavoriteKatasProvider = FutureProvider<List<int>>((ref) async {
 final userFavoriteForumPostsProvider = FutureProvider<List<int>>((ref) async {
   final interactionService = ref.watch(interactionServiceProvider);
   return await interactionService.getUserFavoriteForumPosts();
+});
+
+// Provider for user's favorite ohyos
+final userFavoriteOhyosProvider = FutureProvider<List<int>>((ref) async {
+  final interactionService = ref.watch(interactionServiceProvider);
+  return await interactionService.getUserFavoriteOhyos();
 });

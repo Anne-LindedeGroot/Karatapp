@@ -327,6 +327,9 @@ class _MyAppState extends ConsumerState<MyApp> {
             final router = ref.watch(routerProvider);
             final themeState = ref.watch(themeNotifierProvider);
             final accessibilityState = ref.watch(accessibilityNotifierProvider);
+
+            // Ensure dyslexia-friendly setting is synced between providers
+            ref.watch(dyslexiaFriendlySyncProvider);
             
             return MaterialApp.router(
               title: 'Karatapp',

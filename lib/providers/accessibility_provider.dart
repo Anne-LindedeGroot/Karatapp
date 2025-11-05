@@ -682,20 +682,25 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   TextStyle getDyslexiaFriendlyTextStyle(TextStyle baseStyle) {
     if (!state.isDyslexiaFriendly) return baseStyle;
 
+    // Apply dyslexic-friendly formatting with proper spacing for better line breaking
     return baseStyle.copyWith(
+      fontFamily: 'OpenDyslexic',
       // Increase letter spacing for better readability
-      letterSpacing: (baseStyle.letterSpacing ?? 0) + 1.2,
-      // Increase line height for better readability
-      height: (baseStyle.height ?? 1.0) * 1.3,
-      // Use a more dyslexia-friendly font weight
-      fontWeight: FontWeight.w400,
+      letterSpacing: (baseStyle.letterSpacing ?? 0.0) + 0.5,
+      // Increase word spacing to prevent awkward line breaks
+      wordSpacing: 2.0,
+      // Increase line height for better vertical spacing
+      height: (baseStyle.height ?? 1.2) + 0.3,
     );
   }
 
   /// Get scaled text style based on accessibility settings
   TextStyle getAccessibleTextStyle(TextStyle baseStyle) {
+    double effectiveScaleFactor = state.fontScaleFactor;
+
+    // Don't reduce font size for dyslexia font - maintain identical sizing
     TextStyle scaledStyle = baseStyle.copyWith(
-      fontSize: (baseStyle.fontSize ?? 14) * state.fontScaleFactor,
+      fontSize: (baseStyle.fontSize ?? 14) * effectiveScaleFactor,
     );
 
     return getDyslexiaFriendlyTextStyle(scaledStyle);
@@ -705,13 +710,14 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   TextStyle getSystemAwareTextStyle(TextStyle baseStyle, BuildContext context) {
     // Get system text scale factor
     final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
-    
+
     // Combine user preference with system scaling
-    final combinedScaleFactor = state.fontScaleFactor * systemScaleFactor;
-    
+    double combinedScaleFactor = state.fontScaleFactor * systemScaleFactor;
+
+    // Don't reduce font size for dyslexia font - maintain identical sizing
     // Clamp the scale factor to reasonable bounds
     final clampedScaleFactor = combinedScaleFactor.clamp(0.5, 3.0);
-    
+
     TextStyle scaledStyle = baseStyle.copyWith(
       fontSize: (baseStyle.fontSize ?? 14) * clampedScaleFactor,
     );
@@ -808,11 +814,16 @@ extension AccessibilityFontSizeExtension on AccessibilityFontSize {
 
 /// Provider that syncs dyslexia-friendly setting between accessibility and theme providers
 final dyslexiaFriendlySyncProvider = Provider<void>((ref) {
-  final accessibilityState = ref.watch(accessibilityNotifierProvider);
-  final themeNotifier = ref.read(themeNotifierProvider.notifier);
-  
-  // Sync the dyslexia-friendly setting from accessibility to theme
-  if (accessibilityState.isDyslexiaFriendly != ref.watch(themeNotifierProvider).isDyslexiaFriendly) {
-    themeNotifier.setDyslexiaFriendly(accessibilityState.isDyslexiaFriendly);
-  }
+  // Listen to accessibility state changes and sync to theme
+  ref.listen<AccessibilityState>(accessibilityNotifierProvider, (previous, next) {
+    final themeNotifier = ref.read(themeNotifierProvider.notifier);
+    final currentThemeState = ref.read(themeNotifierProvider);
+
+    // Sync the dyslexia-friendly setting from accessibility to theme
+    if (next.isDyslexiaFriendly != currentThemeState.isDyslexiaFriendly) {
+      themeNotifier.setDyslexiaFriendly(next.isDyslexiaFriendly);
+    }
+  });
+
+  return; // Provider returns void
 });

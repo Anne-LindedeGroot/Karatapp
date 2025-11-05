@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../models/kata_model.dart';
-import '../../providers/image_provider.dart';
+import '../../providers/kata_provider.dart';
 import '../../utils/responsive_utils.dart';
 import '../../core/theme/app_theme.dart';
 import '../image_gallery.dart';
@@ -27,29 +27,27 @@ class KataCardMedia extends StatelessWidget {
   Widget _buildMediaSection(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
-        final cachedImages = ref.watch(cachedKataImagesProvider(kata.id));
-        final imageError = ref.watch(imageErrorProvider);
-        final isLoading = ref.watch(imageLoadingProvider);
+        // Get images directly from kata model (lazy loaded)
+        final kataImages = kata.imageUrls ?? [];
+        final hasImages = kataImages.isNotEmpty;
 
         // Get video URLs from kata model
         final videoUrls = kata.videoUrls ?? [];
-        final hasImages = cachedImages.isNotEmpty;
         final hasVideos = videoUrls.isNotEmpty;
 
-        // Always try to load images if we don't have any cached and not currently loading
-        if (!hasImages && !isLoading) {
+        // Lazy load images if kata doesn't have them yet
+        if (!hasImages) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            print('🔄 Loading images for kata ${kata.id} (${kata.name})');
-            ref.read(imageNotifierProvider.notifier).loadKataImages(kata.id);
+            ref.read(kataNotifierProvider.notifier).loadKataImages(kata.id);
           });
         }
 
-        // If no cached images and currently loading, show loading state
-        if (!hasImages && !hasVideos && isLoading) {
-    return Container(
+        // If no images and no videos, show placeholder (loading or no media)
+        if (!hasImages && !hasVideos) {
+          return Container(
             height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
-      width: double.infinity,
-      decoration: BoxDecoration(
+            width: double.infinity,
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8.0),
               border: Border.all(color: Colors.grey.shade300),
             ),
@@ -76,95 +74,6 @@ class KataCardMedia extends StatelessWidget {
           );
         }
 
-        // Error state
-        if (imageError != null && imageError.contains('kata ${kata.id}')) {
-          return Container(
-            height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              borderRadius: context.responsiveBorderRadius,
-              border: Border.all(color: Colors.red.shade300),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.error_outline, size: 50, color: Colors.red.shade400),
-                const SizedBox(height: 8),
-                Text(
-                  'Laden van media mislukt',
-                  style: TextStyle(
-                    color: Colors.red.shade600,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _getSimplifiedErrorMessage(imageError),
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    ref.read(imageNotifierProvider.notifier).clearError();
-                    ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
-                  },
-                  icon: const Icon(Icons.refresh, size: 16),
-                  label: const Text('Probeer Opnieuw'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-      ),
-    );
-  }
-
-        // If no media available at all
-        if (!hasImages && !hasVideos && !isLoading) {
-    return Container(
-            height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
-      width: double.infinity,
-      decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.photo_library, size: 50, color: Colors.grey),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Geen media beschikbaar',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: context.responsiveValue(
-                        mobile: 12.0,
-                        tablet: 13.0,
-                        desktop: 14.0,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
-                    },
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: const Text('Opnieuw'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-        ),
-      ),
-    );
-    }
 
     return Column(
       children: [
@@ -177,14 +86,12 @@ class KataCardMedia extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => ImageGallery(
-                      imageUrls: cachedImages,
+                      imageUrls: kataImages,
                           title: '${kata.name} - Images',
                           kataId: kata.id,
                     ),
                   ),
-                ).then((_) {
-                      ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
-                });
+                );
               } else if (hasVideos) {
                 Navigator.push(
                   context,
@@ -198,7 +105,7 @@ class KataCardMedia extends StatelessWidget {
                 );
               }
             },
-                child: _buildMainMediaDisplay(context, hasImages, hasVideos, cachedImages, videoUrls),
+                child: _buildMainMediaDisplay(context, hasImages, hasVideos, kataImages, videoUrls),
           ),
         
         // Navigation buttons - stacked vertically for full width
@@ -213,14 +120,12 @@ class KataCardMedia extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) => ImageGallery(
-                          imageUrls: cachedImages,
+                          imageUrls: kataImages,
                             title: '${kata.name} - Images',
                             kataId: kata.id,
                         ),
                       ),
-                    ).then((_) {
-                        ref.read(imageNotifierProvider.notifier).forceRefreshKataImages(kata.id);
-                    });
+                    );
                   },
                     isElevated: true,
                     fullWidth: true,
@@ -233,7 +138,7 @@ class KataCardMedia extends StatelessWidget {
                         ),
                         SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
                         OverflowSafeText(
-                          'Afbeeldingen (${cachedImages.length})',
+                          'Afbeeldingen (${kataImages.length})',
                           style: TextStyle(
                             fontSize: context.responsiveValue(
                               mobile: 12.0,
@@ -645,17 +550,4 @@ class KataCardMedia extends StatelessWidget {
     );
   }
 
-  String _getSimplifiedErrorMessage(String error) {
-    if (error.contains('bucket not found')) {
-      return 'Storage bucket not configured';
-    } else if (error.contains('access denied') || error.contains('Unauthorized')) {
-      return 'Access denied - check permissions';
-    } else if (error.contains('network') || error.contains('connection')) {
-      return 'Network connection issue';
-    } else if (error.contains('timeout')) {
-      return 'Request timed out';
-    } else {
-      return 'Unknown error occurred';
-    }
-  }
 }

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/kata_model.dart';
 import '../../models/interaction_models.dart';
 import '../../providers/interaction_provider.dart';
-import '../../utils/responsive_utils.dart';
 import '../overflow_safe_widgets.dart';
 import '../avatar_widget.dart';
 import 'kata_card_comments.dart';

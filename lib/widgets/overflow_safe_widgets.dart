@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../utils/responsive_utils.dart';
+import '../providers/accessibility_provider.dart';
 
 /// A comprehensive set of overflow-safe widgets that prevent RenderFlex overflow errors
 /// These widgets automatically handle layout constraints and provide fallback behaviors
@@ -432,10 +433,10 @@ class OverflowSafeText extends StatelessWidget {
               style: style,
               textAlign: textAlign,
               maxLines: maxLines,
-              overflow: overflow ?? TextOverflow.ellipsis,
+              overflow: overflow ?? TextOverflow.visible,
             );
           }
-          
+
           return FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -449,7 +450,7 @@ class OverflowSafeText extends StatelessWidget {
                 style: style,
                 textAlign: textAlign,
                 maxLines: maxLines,
-                overflow: overflow ?? TextOverflow.ellipsis,
+                overflow: overflow ?? TextOverflow.visible,
               ),
             ),
           );
@@ -462,7 +463,84 @@ class OverflowSafeText extends StatelessWidget {
       style: style,
       textAlign: textAlign,
       maxLines: maxLines,
-      overflow: overflow ?? TextOverflow.ellipsis,
+      overflow: overflow ?? TextOverflow.visible,
+    );
+  }
+}
+
+/// An accessibility-aware overflow-safe text widget
+class AccessibleOverflowSafeText extends ConsumerWidget {
+  final String text;
+  final TextStyle? style;
+  final TextAlign? textAlign;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final bool enableAutoSizing;
+  final double? minFontSize;
+  final double? maxFontSize;
+
+  const AccessibleOverflowSafeText(
+    this.text, {
+    super.key,
+    this.style,
+    this.textAlign,
+    this.maxLines,
+    this.overflow,
+    this.enableAutoSizing = false,
+    this.minFontSize,
+    this.maxFontSize,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accessibilityState = ref.watch(accessibilityNotifierProvider);
+
+    // When dyslexia font is enabled, prefer visible text over ellipsis
+    final effectiveOverflow = accessibilityState.isDyslexiaFriendly
+        ? (overflow ?? TextOverflow.visible)
+        : (overflow ?? TextOverflow.visible);
+
+    if (enableAutoSizing) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // Only apply auto-sizing if we have valid constraints
+          if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+            return Text(
+              text,
+              style: style,
+              textAlign: textAlign,
+              maxLines: maxLines,
+              overflow: effectiveOverflow,
+            );
+          }
+
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: constraints.maxWidth,
+                maxHeight: constraints.maxHeight,
+              ),
+              child: Text(
+                text,
+                style: style,
+                textAlign: textAlign,
+                maxLines: maxLines,
+                overflow: effectiveOverflow,
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Text(
+      text,
+      style: style,
+      textAlign: textAlign,
+      maxLines: maxLines,
+      overflow: effectiveOverflow,
     );
   }
 }
@@ -650,7 +728,7 @@ class OverflowSafeDialog extends StatelessWidget {
                 child: Text(
                   title ?? 'Dialog',
                   style: Theme.of(context).textTheme.headlineSmall,
-                  overflow: TextOverflow.ellipsis,
+                  overflow: TextOverflow.visible,
                   maxLines: 2,
                 ),
               ),

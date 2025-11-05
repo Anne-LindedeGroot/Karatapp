@@ -432,27 +432,30 @@ class AppTheme {
   }
 
   /// Create scaled text style based on font scale factor with system integration
-  static TextStyle _createScaledTextStyle(TextStyle baseStyle, double? fontScaleFactor, BuildContext? context) {
+  static TextStyle _createScaledTextStyle(TextStyle baseStyle, double? fontScaleFactor, BuildContext? context, bool isDyslexiaFriendly) {
     if (fontScaleFactor == null || fontScaleFactor == 1.0) {
       // Still check for system dynamic type even if user scaling is disabled
       if (context != null) {
         final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
         if (systemScaleFactor > 1.0) {
+          double effectiveScaleFactor = systemScaleFactor.clamp(1.0, 2.0);
+          // Don't reduce font size for dyslexia font - maintain identical sizing
           return baseStyle.copyWith(
-            fontSize: (baseStyle.fontSize ?? 14) * systemScaleFactor.clamp(1.0, 2.0),
+            fontSize: (baseStyle.fontSize ?? 14) * effectiveScaleFactor,
           );
         }
       }
       return baseStyle;
     }
-    
+
     // Combine user preference with system scaling if context is available
     double effectiveScaleFactor = fontScaleFactor;
     if (context != null) {
       final systemScaleFactor = MediaQuery.textScalerOf(context).scale(1.0);
       effectiveScaleFactor = (fontScaleFactor * systemScaleFactor).clamp(0.5, 3.0);
     }
-    
+
+    // Don't reduce font size for dyslexia font - maintain identical sizing
     return baseStyle.copyWith(
       fontSize: (baseStyle.fontSize ?? 14) * effectiveScaleFactor,
     );
@@ -480,21 +483,21 @@ class AppTheme {
       
       // Typography with accessibility scaling and dyslexia-friendly font
       textTheme: TextTheme(
-        displayLarge: _createScaledTextStyle(_createTextStyleWithFont(_displayLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        displayMedium: _createScaledTextStyle(_createTextStyleWithFont(_displayMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        displaySmall: _createScaledTextStyle(_createTextStyleWithFont(_displaySmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        headlineLarge: _createScaledTextStyle(_createTextStyleWithFont(_headlineLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        headlineMedium: _createScaledTextStyle(_createTextStyleWithFont(_headlineMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        headlineSmall: _createScaledTextStyle(_createTextStyleWithFont(_headlineSmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        titleLarge: _createScaledTextStyle(_createTextStyleWithFont(_titleLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        titleMedium: _createScaledTextStyle(_createTextStyleWithFont(_titleMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        titleSmall: _createScaledTextStyle(_createTextStyleWithFont(_titleSmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        bodyLarge: _createScaledTextStyle(_createTextStyleWithFont(_bodyLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        bodyMedium: _createScaledTextStyle(_createTextStyleWithFont(_bodyMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        bodySmall: _createScaledTextStyle(_createTextStyleWithFont(_bodySmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        labelLarge: _createScaledTextStyle(_createTextStyleWithFont(_labelLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        labelMedium: _createScaledTextStyle(_createTextStyleWithFont(_labelMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
-        labelSmall: _createScaledTextStyle(_createTextStyleWithFont(_labelSmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context),
+        displayLarge: _createScaledTextStyle(_createTextStyleWithFont(_displayLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        displayMedium: _createScaledTextStyle(_createTextStyleWithFont(_displayMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        displaySmall: _createScaledTextStyle(_createTextStyleWithFont(_displaySmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        headlineLarge: _createScaledTextStyle(_createTextStyleWithFont(_headlineLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        headlineMedium: _createScaledTextStyle(_createTextStyleWithFont(_headlineMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        headlineSmall: _createScaledTextStyle(_createTextStyleWithFont(_headlineSmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        titleLarge: _createScaledTextStyle(_createTextStyleWithFont(_titleLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        titleMedium: _createScaledTextStyle(_createTextStyleWithFont(_titleMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        titleSmall: _createScaledTextStyle(_createTextStyleWithFont(_titleSmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        bodyLarge: _createScaledTextStyle(_createTextStyleWithFont(_bodyLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        bodyMedium: _createScaledTextStyle(_createTextStyleWithFont(_bodyMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        bodySmall: _createScaledTextStyle(_createTextStyleWithFont(_bodySmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        labelLarge: _createScaledTextStyle(_createTextStyleWithFont(_labelLarge.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        labelMedium: _createScaledTextStyle(_createTextStyleWithFont(_labelMedium.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
+        labelSmall: _createScaledTextStyle(_createTextStyleWithFont(_labelSmall.copyWith(color: colorScheme.onSurface), isDyslexiaFriendly), fontScaleFactor, context, isDyslexiaFriendly),
       ),
       
       // App Bar Theme

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/forum_models.dart';
 import '../providers/forum_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../widgets/global_tts_overlay.dart';
 import '../widgets/tts_clickable_text.dart';
 import '../widgets/enhanced_accessible_text.dart';
@@ -21,10 +22,61 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
   bool _isSubmitting = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Automatically speak the screen content when it opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakScreenContent();
+    });
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _speakScreenContent() async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+    // Only speak if TTS is enabled
+    if (accessibilityState.isTextToSpeechEnabled && mounted) {
+      final content = _buildScreenContentText();
+      await accessibilityNotifier.speak(content);
+    }
+  }
+
+  String _buildScreenContentText() {
+    final List<String> contentParts = [];
+
+    contentParts.add('Nieuw Forum Bericht Maken');
+    contentParts.add('Scherm geopend voor het maken van een nieuw forum bericht');
+
+    contentParts.add('Categorie sectie');
+    contentParts.add('Selecteer een categorie voor je bericht');
+    contentParts.add('Beschikbare categorieën zijn: Algemeen, Kata Verzoeken, Technieken, Evenementen, en Feedback');
+    contentParts.add('Momenteel geselecteerd: ${_selectedCategory.displayName}');
+
+    contentParts.add('Titel sectie');
+    contentParts.add('Voer een duidelijke beschrijvende titel in voor je bericht');
+    contentParts.add('Titel moet minimaal 5 en maximaal 100 karakters zijn');
+
+    contentParts.add('Inhoud sectie');
+    contentParts.add('Schrijf de inhoud van je bericht');
+    contentParts.add('Inhoud moet minimaal 10 en maximaal 5000 karakters zijn');
+
+    contentParts.add('Community richtlijnen');
+    contentParts.add('Wees respectvol en beleefd naar andere leden');
+    contentParts.add('Blijf bij het onderwerp en kies de juiste categorie');
+    contentParts.add('Gebruik duidelijke en beschrijvende titels');
+    contentParts.add('Zoek voordat je post om duplicaten te voorkomen');
+    contentParts.add('Volg de juiste karate etiquette en terminologie');
+
+    contentParts.add('Gebruik de Bericht Maken knop onderaan om je bericht te plaatsen');
+
+    return contentParts.join('. ');
   }
 
   Future<void> _submitPost() async {
@@ -107,19 +159,20 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
         appBar: AppBar(
           title: const TTSClickableText('Nieuw Bericht Maken'),
         ),
-      body: Column(
-        children: [
-          // Main form content
-          Expanded(
-            child: Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Main form content
+            Expanded(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Category selection
-                    const Text(
+                    const TTSClickableText(
                       'Categorie',
                       style: TextStyle(
                         fontSize: 16,
@@ -206,7 +259,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 4),
-                                        Text(
+                                        TTSClickableText(
                                           _getCategoryDescription(category),
                                           style: TextStyle(
                                             color: Colors.grey[600],
@@ -226,7 +279,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                     const SizedBox(height: 24),
 
                     // Title field
-                    const Text(
+                    const TTSClickableText(
                       'Titel',
                       style: TextStyle(
                         fontSize: 16,
@@ -258,7 +311,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                     const SizedBox(height: 16),
 
                     // Content field
-                    const Text(
+                    const TTSClickableText(
                       'Inhoud',
                       style: TextStyle(
                         fontSize: 16,
@@ -306,7 +359,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                             children: [
                               Icon(Icons.info, color: Colors.blue[700], size: 20),
                               const SizedBox(width: 8),
-                              Text(
+                              TTSClickableText(
                                 'Community Richtlijnen',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
@@ -316,7 +369,7 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                             ],
                           ),
                           const SizedBox(height: 8),
-                          Text(
+                          TTSClickableText(
                             '• Wees respectvol en beleefd naar andere leden\n'
                             '• Blijf bij het onderwerp en kies de juiste categorie\n'
                             '• Gebruik duidelijke en beschrijvende titels\n'
@@ -357,45 +410,51 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                 padding: const EdgeInsets.all(16),
                 child: SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submitPost,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _getCategoryColor(_selectedCategory),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  child: TTSClickableWidget(
+                    ttsText: _isSubmitting
+                        ? 'Bezig met bericht aanmaken, even geduld aub'
+                        : 'Bericht Maken knop om je forum bericht te plaatsen',
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitPost,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _getCategoryColor(_selectedCategory),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                    ),
-                    child: _isSubmitting
-                        ? const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      child: _isSubmitting
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
                                 ),
+                                SizedBox(width: 12),
+                                Text('Bericht Aanmaken...'),
+                              ],
+                            )
+                          : const Text(
+                              'Bericht Maken',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
                               ),
-                              SizedBox(width: 12),
-                              Text('Bericht Aanmaken...'),
-                            ],
-                          )
-                        : const Text(
-                            'Bericht Maken',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ],
+      ),
       ),
     ),
     );

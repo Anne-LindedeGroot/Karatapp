@@ -1,4 +1,53 @@
 
+// Model for ohyo comments
+class OhyoComment {
+  final int id;
+  final int ohyoId;
+  final String content;
+  final String authorId;
+  final String authorName;
+  final String? authorAvatar;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const OhyoComment({
+    required this.id,
+    required this.ohyoId,
+    required this.content,
+    required this.authorId,
+    required this.authorName,
+    this.authorAvatar,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory OhyoComment.fromJson(Map<String, dynamic> json) {
+    return OhyoComment(
+      id: json['id'] as int,
+      ohyoId: json['ohyo_id'] as int,
+      content: json['content'] as String,
+      authorId: json['author_id'] as String,
+      authorName: json['author_name'] as String,
+      authorAvatar: json['author_avatar'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'ohyo_id': ohyoId,
+      'content': content,
+      'author_id': authorId,
+      'author_name': authorName,
+      'author_avatar': authorAvatar,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+    };
+  }
+}
+
 // Model for kata comments (separate from forum comments)
 class KataComment {
   final int id;
@@ -48,13 +97,14 @@ class KataComment {
   }
 }
 
-// Model for likes (can be used for both katas and forum posts)
+// Model for likes (can be used for katas, forum posts, and ohyos)
 class Like {
   final int id;
   final String userId;
   final String userName;
   final int? kataId;
   final int? forumPostId;
+  final int? ohyoId;
   final DateTime createdAt;
 
   const Like({
@@ -63,6 +113,7 @@ class Like {
     required this.userName,
     this.kataId,
     this.forumPostId,
+    this.ohyoId,
     required this.createdAt,
   });
 
@@ -70,21 +121,25 @@ class Like {
     // Handle both old format (kata_id/forum_post_id) and new format (target_type/target_id)
     int? kataId;
     int? forumPostId;
-    
+    int? ohyoId;
+
     if (json.containsKey('target_type') && json.containsKey('target_id')) {
       // New format using target_type and target_id
       final targetType = json['target_type'] as String?;
       final targetId = json['target_id'] as int?;
-      
+
       if (targetType == 'kata') {
         kataId = targetId;
       } else if (targetType == 'forum_post') {
         forumPostId = targetId;
+      } else if (targetType == 'ohyo') {
+        ohyoId = targetId;
       }
     } else {
-      // Old format using direct kata_id/forum_post_id
+      // Old format using direct kata_id/forum_post_id/ohyo_id
       kataId = json['kata_id'] as int?;
       forumPostId = json['forum_post_id'] as int?;
+      ohyoId = json['ohyo_id'] as int?;
     }
 
     return Like(
@@ -93,6 +148,7 @@ class Like {
       userName: json['user_name'] as String? ?? 'Unknown User',
       kataId: kataId,
       forumPostId: forumPostId,
+      ohyoId: ohyoId,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -104,17 +160,19 @@ class Like {
       'user_name': userName,
       'kata_id': kataId,
       'forum_post_id': forumPostId,
+      'ohyo_id': ohyoId,
       'created_at': createdAt.toIso8601String(),
     };
   }
 }
 
-// Model for favorites (can be used for both katas and forum posts)
+// Model for favorites (can be used for katas, forum posts, and ohyos)
 class Favorite {
   final int id;
   final String userId;
   final int? kataId;
   final int? forumPostId;
+  final int? ohyoId;
   final DateTime createdAt;
 
   const Favorite({
@@ -122,6 +180,7 @@ class Favorite {
     required this.userId,
     this.kataId,
     this.forumPostId,
+    this.ohyoId,
     required this.createdAt,
   });
 
@@ -129,21 +188,25 @@ class Favorite {
     // Handle both old format (kata_id/forum_post_id) and new format (target_type/target_id)
     int? kataId;
     int? forumPostId;
-    
+    int? ohyoId;
+
     if (json.containsKey('target_type') && json.containsKey('target_id')) {
       // New format using target_type and target_id
       final targetType = json['target_type'] as String?;
       final targetId = json['target_id'] as int?;
-      
+
       if (targetType == 'kata') {
         kataId = targetId;
       } else if (targetType == 'forum_post') {
         forumPostId = targetId;
+      } else if (targetType == 'ohyo') {
+        ohyoId = targetId;
       }
     } else {
-      // Old format using direct kata_id/forum_post_id
+      // Old format using direct kata_id/forum_post_id/ohyo_id
       kataId = json['kata_id'] as int?;
       forumPostId = json['forum_post_id'] as int?;
+      ohyoId = json['ohyo_id'] as int?;
     }
 
     return Favorite(
@@ -151,6 +214,7 @@ class Favorite {
       userId: json['user_id'] as String,
       kataId: kataId,
       forumPostId: forumPostId,
+      ohyoId: ohyoId,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
@@ -161,6 +225,7 @@ class Favorite {
       'user_id': userId,
       'kata_id': kataId,
       'forum_post_id': forumPostId,
+      'ohyo_id': ohyoId,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -251,6 +316,54 @@ class ForumInteractionState {
       isLiked: isLiked ?? this.isLiked,
       isFavorited: isFavorited ?? this.isFavorited,
       likeCount: likeCount ?? this.likeCount,
+    );
+  }
+}
+
+class OhyoInteractionState {
+  final List<OhyoComment> comments;
+  final List<Like> likes;
+  final List<Favorite> favorites;
+  final bool isLoading;
+  final String? error;
+  final bool isLiked;
+  final bool isFavorited;
+  final int likeCount;
+  final int commentCount;
+
+  const OhyoInteractionState({
+    this.comments = const [],
+    this.likes = const [],
+    this.favorites = const [],
+    this.isLoading = false,
+    this.error,
+    this.isLiked = false,
+    this.isFavorited = false,
+    this.likeCount = 0,
+    this.commentCount = 0,
+  });
+
+  OhyoInteractionState copyWith({
+    List<OhyoComment>? comments,
+    List<Like>? likes,
+    List<Favorite>? favorites,
+    bool? isLoading,
+    String? error,
+    bool? isLiked,
+    bool? isFavorited,
+    int? likeCount,
+    int? commentCount,
+  }) {
+    return OhyoInteractionState(
+      comments: comments ?? this.comments,
+      likes: likes ?? this.likes,
+      favorites: favorites ?? this.favorites,
+      isLoading: isLoading ?? this.isLoading,
+      error: error,
+      isLiked: isLiked ?? this.isLiked,
+      isFavorited: isFavorited ?? this.isFavorited,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
     );
   }
 }

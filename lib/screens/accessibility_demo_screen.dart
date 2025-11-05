@@ -82,7 +82,7 @@ class AccessibilityDemoScreen extends ConsumerWidget {
                     
                     _FeatureItem(
                       icon: Icons.text_format,
-                      title: 'Dyslexie-vriendelijke tekst',
+                      title: 'dyslexie vriendelijke tekst',
                       description: 'Extra ruimte tussen letters en regels voor mensen met dyslexie.',
                     ),
                     

@@ -15,13 +15,16 @@ import 'accessibility_demo_screen.dart';
 import '../core/navigation/app_router.dart';
 
 class AuthWrapper extends ConsumerStatefulWidget {
-  const AuthWrapper({super.key});
+  const AuthWrapper({super.key, this.initialHomeTab = 0});
+
+  final int initialHomeTab;
 
   @override
   ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
 }
 
 class _AuthWrapperState extends ConsumerState<AuthWrapper> {
+  late final int _initialHomeTab;
   bool _hasTimedOut = false;
 
   /// Check if an error is a critical system error that should show full-screen
@@ -48,8 +51,9 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // Set a timeout to prevent infinite loading
-    Future.delayed(const Duration(seconds: 10), () {
+    _initialHomeTab = widget.initialHomeTab;
+    // Set a timeout to prevent infinite loading (reduced for faster UX)
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         final authState = ref.read(authStateProvider);
         if (authState.isLoading) {
@@ -69,39 +73,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
     final currentLocation = GoRouterState.of(context).uri.path;
 
     if (authState.isLoading && !_hasTimedOut) {
-      return Scaffold(
-        backgroundColor: Theme.of(context).primaryColor,
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.sports_martial_arts,
-                size: 64,
-                color: Colors.white,
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Karatapp',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(height: 24),
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Initialiseren...',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white70,
-                ),
-              ),
-            ],
+      // Show minimal loading state for faster initial render
+      return Container(
+        color: Theme.of(context).primaryColor,
+        child: const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
           ),
         ),
       );
@@ -164,7 +141,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
     switch (currentLocation) {
       case AppRoutes.splash:
       case AppRoutes.home:
-        return const HomeScreen();
+        return HomeScreen(initialTabIndex: _initialHomeTab);
       case AppRoutes.profile:
         return const ProfileScreen();
       case AppRoutes.forum:
@@ -194,12 +171,12 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               context.go(AppRoutes.home);
             });
-            return const HomeScreen();
+            return HomeScreen(initialTabIndex: _initialHomeTab);
           }
         }
-        
+
         // Default to home screen for unknown routes
-        return const HomeScreen();
+        return HomeScreen(initialTabIndex: _initialHomeTab);
     }
   }
 }

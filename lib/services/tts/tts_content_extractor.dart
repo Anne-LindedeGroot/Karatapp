@@ -6,7 +6,6 @@ import 'tts_screen_detector.dart';
 import 'tts_text_field_reader.dart';
 import 'tts_dialog_overlay_extractor.dart';
 import 'tts_form_interactive_extractor.dart';
-import 'tts_media_content_extractor.dart';
 
 /// TTS Content Extractor - Handles content extraction for different screen types
 class TTSContentExtractor {
@@ -536,7 +535,7 @@ class TTSContentExtractor {
           if (widget.title is Text) {
             final title = (widget.title as Text).data;
             if (title != null && title.isNotEmpty) {
-              switchTexts.add('${title}: ${widget.value ? 'aan' : 'uit'}');
+              switchTexts.add('$title: ${widget.value ? 'aan' : 'uit'}');
             }
           }
           if (widget.subtitle is Text) {
@@ -549,7 +548,7 @@ class TTSContentExtractor {
           if (widget.title is Text) {
             final title = (widget.title as Text).data;
             if (title != null && title.isNotEmpty) {
-              switchTexts.add('${title}: ${widget.value == true ? 'aangevinkt' : 'niet aangevinkt'}');
+              switchTexts.add('$title: ${widget.value == true ? 'aangevinkt' : 'niet aangevinkt'}');
             }
           }
         }
@@ -1343,154 +1342,8 @@ class TTSContentExtractor {
   }
 
   /// Extract media URLs from text fields and widgets
-  static List<String> _extractMediaUrls(BuildContext context) {
-    final List<String> mediaUrls = [];
-    
-    try {
-      context.visitChildElements((element) {
-        final widget = element.widget;
-        
-        // Check for TextEditingController with URL content
-        if (widget.runtimeType.toString().contains('TextField') || 
-            widget.runtimeType.toString().contains('TextFormField')) {
-          try {
-            // Try to access controller property safely using reflection
-            final dynamic widgetDynamic = widget;
-            if (widgetDynamic.hasProperty('controller')) {
-              final controller = widgetDynamic.controller;
-              if (controller != null && controller.hasProperty('text')) {
-                final text = controller.text;
-                if (text is String && text.isNotEmpty) {
-                  final trimmedText = text.trim();
-                  if (_isValidUrl(trimmedText) && _isMediaUrl(trimmedText)) {
-                    mediaUrls.add(_getUrlDisplayName(trimmedText));
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            // Ignore errors accessing controller
-            debugPrint('TTS: Error accessing TextField controller: $e');
-          }
-        }
-        
-        // Check for VideoUrlInputWidget
-        if (widget.runtimeType.toString().contains('VideoUrlInputWidget')) {
-          try {
-            // Try to access videoUrls property safely using reflection
-            final dynamic widgetDynamic = widget;
-            if (widgetDynamic.hasProperty('videoUrls')) {
-              final videoUrls = widgetDynamic.videoUrls;
-              if (videoUrls != null && videoUrls is List && videoUrls.isNotEmpty) {
-                for (final url in videoUrls) {
-                  if (url is String && _isValidUrl(url)) {
-                    mediaUrls.add(_getUrlDisplayName(url));
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            // Ignore errors accessing videoUrls
-            debugPrint('TTS: Error accessing VideoUrlInputWidget videoUrls: $e');
-          }
-        }
-        
-        // Check for text content that might be URLs
-        if (widget is Text && widget.data != null) {
-          final text = widget.data!;
-          if (_isValidUrl(text) && _isMediaUrl(text)) {
-            mediaUrls.add(_getUrlDisplayName(text));
-          }
-        }
-      });
-    } catch (e) {
-      debugPrint('TTS: Error extracting media URLs: $e');
-    }
-    
-    return mediaUrls;
-  }
 
-  /// Extract image gallery information
-  static String _extractImageGalleryInfo(BuildContext context) {
-    try {
-      final List<String> galleryInfo = [];
-      
-      context.visitChildElements((element) {
-        final widget = element.widget;
-        
-        // Check for ImageGallery widget
-        if (widget.runtimeType.toString().contains('ImageGallery')) {
-          try {
-            // Try to access imageUrls property safely using reflection
-            final dynamic widgetDynamic = widget;
-            if (widgetDynamic.hasProperty('imageUrls')) {
-              final imageUrls = widgetDynamic.imageUrls;
-              if (imageUrls != null && imageUrls is List && imageUrls.isNotEmpty) {
-                galleryInfo.add('Afbeeldingen galerij met ${imageUrls.length} foto\'s');
-              }
-            }
-          } catch (e) {
-            // Ignore errors accessing imageUrls
-            debugPrint('TTS: Error accessing imageUrls: $e');
-          }
-        }
-        
-        // Check for image count displays
-        if (widget is Text && widget.data != null) {
-          final text = widget.data!;
-          if (text.contains('afbeelding') && text.contains(RegExp(r'\d+'))) {
-            galleryInfo.add('Afbeeldingen: $text');
-          }
-        }
-      });
-      
-      return galleryInfo.join('. ');
-    } catch (e) {
-      debugPrint('TTS: Error extracting image gallery info: $e');
-      return '';
-    }
-  }
 
-  /// Extract video gallery information
-  static String _extractVideoGalleryInfo(BuildContext context) {
-    try {
-      final List<String> galleryInfo = [];
-      
-      context.visitChildElements((element) {
-        final widget = element.widget;
-        
-        // Check for VideoGallery widget
-        if (widget.runtimeType.toString().contains('VideoGallery')) {
-          try {
-            // Try to access videoUrls property safely using reflection
-            final dynamic widgetDynamic = widget;
-            if (widgetDynamic.hasProperty('videoUrls')) {
-              final videoUrls = widgetDynamic.videoUrls;
-              if (videoUrls != null && videoUrls is List && videoUrls.isNotEmpty) {
-                galleryInfo.add('Video galerij met ${videoUrls.length} video\'s');
-              }
-            }
-          } catch (e) {
-            // Ignore errors accessing videoUrls
-            debugPrint('TTS: Error accessing videoUrls: $e');
-          }
-        }
-        
-        // Check for video count displays
-        if (widget is Text && widget.data != null) {
-          final text = widget.data!;
-          if (text.contains('video') && text.contains(RegExp(r'\d+'))) {
-            galleryInfo.add('Video\'s: $text');
-          }
-        }
-      });
-      
-      return galleryInfo.join('. ');
-    } catch (e) {
-      debugPrint('TTS: Error extracting video gallery info: $e');
-      return '';
-    }
-  }
 
   /// Extract photo upload information
   static String _extractPhotoUploadInfo(BuildContext context) {
@@ -1551,87 +1404,6 @@ class TTSContentExtractor {
     }
   }
 
-  /// Extract video URL input information
-  static String _extractVideoUrlInputInfo(BuildContext context) {
-    try {
-      final List<String> inputInfo = [];
-      
-      context.visitChildElements((element) {
-        final widget = element.widget;
-        
-        // Check for VideoUrlInputWidget
-        if (widget.runtimeType.toString().contains('VideoUrlInputWidget')) {
-          try {
-            // Try to access widget properties safely using reflection
-            final dynamic widgetDynamic = widget;
-            String? title;
-            List<String>? videoUrls;
-            
-            if (widgetDynamic.hasProperty('title')) {
-              title = widgetDynamic.title;
-            }
-            if (widgetDynamic.hasProperty('videoUrls')) {
-              final urls = widgetDynamic.videoUrls;
-              if (urls is List) {
-                videoUrls = urls.cast<String>();
-              }
-            }
-            
-            if (title != null && title.isNotEmpty) {
-              inputInfo.add('Video URL sectie: $title');
-            }
-            
-            if (videoUrls != null && videoUrls.isNotEmpty) {
-              inputInfo.add('Toegevoegde video URLs: ${videoUrls.length}');
-              for (int i = 0; i < videoUrls.length && i < 3; i++) {
-                inputInfo.add('Video ${i + 1}: ${_getUrlDisplayName(videoUrls[i])}');
-              }
-              if (videoUrls.length > 3) {
-                inputInfo.add('En ${videoUrls.length - 3} meer video\'s');
-              }
-            } else {
-              inputInfo.add('Geen video URLs toegevoegd');
-            }
-          } catch (e) {
-            // Ignore errors accessing widget properties
-            debugPrint('TTS: Error accessing VideoUrlInputWidget properties: $e');
-          }
-        }
-        
-        // Check for video URL input fields
-        if (widget is TextField) {
-          try {
-            final textField = widget;
-            final decoration = textField.decoration;
-            if (decoration != null) {
-              final labelText = decoration.labelText;
-              final hintText = decoration.hintText;
-              
-              if (labelText != null && 
-                  (labelText.toLowerCase().contains('video') || 
-                   labelText.toLowerCase().contains('url'))) {
-                inputInfo.add('Video URL invoerveld: $labelText');
-              } else if (hintText != null && 
-                         (hintText.toLowerCase().contains('video') || 
-                          hintText.toLowerCase().contains('url'))) {
-                inputInfo.add('Video URL hint: $hintText');
-              }
-            }
-          } catch (e) {
-            // Ignore errors accessing decoration
-          }
-        } else if (widget is TextFormField) {
-          // TextFormField doesn't expose decoration directly, skip for now
-          // Could be enhanced in the future with more sophisticated reflection
-        }
-      });
-      
-      return inputInfo.join('. ');
-    } catch (e) {
-      debugPrint('TTS: Error extracting video URL input info: $e');
-      return '';
-    }
-  }
 
   /// Check if a string is a valid URL
   static bool _isValidUrl(String url) {
@@ -1680,61 +1452,6 @@ class TTSContentExtractor {
   }
 
   /// Get a readable display name for a URL
-  static String _getUrlDisplayName(String url) {
-    try {
-      final uri = Uri.parse(url);
-      
-      // YouTube
-      if (uri.host.contains('youtube.com') || uri.host.contains('youtu.be')) {
-        return 'YouTube Video';
-      }
-      
-      // Vimeo
-      if (uri.host.contains('vimeo.com')) {
-        return 'Vimeo Video';
-      }
-      
-      // Dailymotion
-      if (uri.host.contains('dailymotion.com')) {
-        return 'Dailymotion Video';
-      }
-      
-      // Twitch
-      if (uri.host.contains('twitch.tv')) {
-        return 'Twitch Video';
-      }
-      
-      // Direct file
-      final path = uri.path.toLowerCase();
-      if (path.endsWith('.mp4')) return 'MP4 Video';
-      if (path.endsWith('.avi')) return 'AVI Video';
-      if (path.endsWith('.mov')) return 'MOV Video';
-      if (path.endsWith('.wmv')) return 'WMV Video';
-      if (path.endsWith('.flv')) return 'FLV Video';
-      if (path.endsWith('.webm')) return 'WebM Video';
-      if (path.endsWith('.mkv')) return 'MKV Video';
-      if (path.endsWith('.m4v')) return 'M4V Video';
-      
-      if (path.endsWith('.mp3')) return 'MP3 Audio';
-      if (path.endsWith('.wav')) return 'WAV Audio';
-      if (path.endsWith('.aac')) return 'AAC Audio';
-      if (path.endsWith('.ogg')) return 'OGG Audio';
-      if (path.endsWith('.flac')) return 'FLAC Audio';
-      if (path.endsWith('.m4a')) return 'M4A Audio';
-      
-      if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'JPEG Afbeelding';
-      if (path.endsWith('.png')) return 'PNG Afbeelding';
-      if (path.endsWith('.gif')) return 'GIF Afbeelding';
-      if (path.endsWith('.bmp')) return 'BMP Afbeelding';
-      if (path.endsWith('.webp')) return 'WebP Afbeelding';
-      if (path.endsWith('.svg')) return 'SVG Afbeelding';
-      
-      // Generic
-      return uri.host.isNotEmpty ? uri.host : 'Media URL';
-    } catch (e) {
-      return 'Media URL';
-    }
-  }
 
   /// Extract media URLs with enhanced descriptions
   static List<String> _extractMediaUrlsWithDescriptions(BuildContext context) {
@@ -2183,7 +1900,7 @@ class TTSContentExtractor {
           try {
             final cachedImage = widget;
             final imageUrl = cachedImage.imageUrl;
-            if (imageUrl != null && imageUrl.isNotEmpty) {
+            if (imageUrl.isNotEmpty) {
               final imageInfo = _getDetailedImageMetadata(imageUrl);
               metadata.add('Afbeelding metadata: $imageInfo');
             }
@@ -2197,7 +1914,7 @@ class TTSContentExtractor {
           try {
             final videoPlayer = widget;
             final videoUrl = videoPlayer.videoUrl;
-            if (videoUrl != null && videoUrl.isNotEmpty) {
+            if (videoUrl.isNotEmpty) {
               final videoInfo = _getDetailedVideoMetadata(videoUrl);
               metadata.add('Video metadata: $videoInfo');
             }
@@ -2208,7 +1925,7 @@ class TTSContentExtractor {
           try {
             final universalPlayer = widget;
             final videoUrl = universalPlayer.videoUrl;
-            if (videoUrl != null && videoUrl.isNotEmpty) {
+            if (videoUrl.isNotEmpty) {
               final videoInfo = _getDetailedVideoMetadata(videoUrl);
               metadata.add('Video metadata: $videoInfo');
             }

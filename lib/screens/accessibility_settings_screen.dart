@@ -92,6 +92,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                       children: AccessibilityFontSize.values.map((fontSize) {
                         final isSelected = accessibilityState.fontSize == fontSize;
                         return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                           leading: Icon(
                             isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
                             color: isSelected ? Theme.of(context).colorScheme.primary : null,
@@ -151,9 +152,9 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: AccessibleText(
-                            'Dyslexie-vriendelijke tekst',
+                            'dyslexie vriendelijke tekst',
                             style: TextStyle(
-                        fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
                         fontWeight: FontWeight.w600,
                       ),
                             enableTextToSpeech: true,
@@ -165,7 +166,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                     AccessibleText(
                       'Verbetert de leesbaarheid voor mensen met dyslexie door extra ruimte tussen letters en regels.',
                       style: TextStyle(
-                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
+                        fontSize: context.responsiveValue(mobile: 12.0, tablet: 13.0, desktop: 14.0),
                       ),
                       enableTextToSpeech: true,
                     ),
@@ -173,7 +174,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                     
                     SwitchListTile(
                       title: const AccessibleText(
-                        'Dyslexie-vriendelijke modus',
+                        'dyslexie vriendelijke modus',
                         enableTextToSpeech: true,
                       ),
                       subtitle: AccessibleText(
@@ -205,7 +206,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
                           AccessibleText(
-                            'Dit is een voorbeeld van hoe tekst eruitziet met de dyslexie-vriendelijke instellingen. De letters hebben meer ruimte en zijn makkelijker te lezen.',
+                            'Dit is een voorbeeld van hoe tekst eruitziet met de dyslexie vriendelijke instellingen. De letters hebben meer ruimte en zijn makkelijker te lezen.',
                             enableTextToSpeech: true,
                           ),
                         ],

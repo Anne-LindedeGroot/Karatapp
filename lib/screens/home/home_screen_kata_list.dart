@@ -9,11 +9,13 @@ import '../../utils/responsive_utils.dart';
 class HomeScreenKataList extends ConsumerWidget {
   final List<dynamic> katas;
   final Function(int kataId, String kataName) onDeleteKata;
+  final Future<void> Function() onRefresh;
 
   const HomeScreenKataList({
     super.key,
     required this.katas,
     required this.onDeleteKata,
+    required this.onRefresh,
   });
 
   @override
@@ -33,6 +35,7 @@ class HomeScreenKataList extends ConsumerWidget {
           itemBuilder: (context, index) {
             final kata = katas[index];
             return CollapsibleKataCard(
+              key: ValueKey('search_kata_${kata.id}'),
               kata: kata,
               onDelete: () => onDeleteKata(kata.id, kata.name),
             );
@@ -53,6 +56,7 @@ class HomeScreenKataList extends ConsumerWidget {
           children: katas
               .map(
                 (kata) => CollapsibleKataCard(
+                  key: ValueKey('search_kata_${kata.id}'),
                   kata: kata,
                   onDelete: () => onDeleteKata(kata.id, kata.name),
                   useAdaptiveWidth: false,
@@ -75,6 +79,7 @@ class HomeScreenKataList extends ConsumerWidget {
           children: katas
               .map(
                 (kata) => CollapsibleKataCard(
+                  key: ValueKey('search_kata_${kata.id}'),
                   kata: kata,
                   onDelete: () => onDeleteKata(kata.id, kata.name),
                   useAdaptiveWidth: false,
@@ -97,6 +102,7 @@ class HomeScreenKataList extends ConsumerWidget {
           children: katas
               .map(
                 (kata) => CollapsibleKataCard(
+                  key: ValueKey('search_kata_${kata.id}'),
                   kata: kata,
                   onDelete: () => onDeleteKata(kata.id, kata.name),
                   useAdaptiveWidth: false,
@@ -119,6 +125,7 @@ class HomeScreenKataList extends ConsumerWidget {
           children: katas
               .map(
                 (kata) => CollapsibleKataCard(
+                  key: ValueKey('search_kata_${kata.id}'),
                   kata: kata,
                   onDelete: () => onDeleteKata(kata.id, kata.name),
                   useAdaptiveWidth: false,
@@ -146,8 +153,9 @@ class HomeScreenKataList extends ConsumerWidget {
         itemBuilder: (context, index) {
           final kata = katas[index];
           return Container(
-            key: ValueKey(kata.id),
+            key: ValueKey('reorder_kata_${kata.id}'),
             child: CollapsibleKataCard(
+              key: ValueKey('reorder_card_kata_${kata.id}'),
               kata: kata,
               onDelete: () => onDeleteKata(kata.id, kata.name),
             ),
@@ -183,6 +191,7 @@ class HomeScreenKataList extends ConsumerWidget {
         children: katas
             .map(
               (kata) => CollapsibleKataCard(
+                key: ValueKey('grid_kata_${kata.id}'),
                 kata: kata,
                 onDelete: () => onDeleteKata(kata.id, kata.name),
               ),
@@ -204,6 +213,7 @@ class HomeScreenKataList extends ConsumerWidget {
         children: katas
             .map(
               (kata) => CollapsibleKataCard(
+                key: ValueKey('grid_kata_${kata.id}'),
                 kata: kata,
                 onDelete: () => onDeleteKata(kata.id, kata.name),
                 useAdaptiveWidth: false,
@@ -226,6 +236,7 @@ class HomeScreenKataList extends ConsumerWidget {
         children: katas
             .map(
               (kata) => CollapsibleKataCard(
+                key: ValueKey('grid_kata_${kata.id}'),
                 kata: kata,
                 onDelete: () => onDeleteKata(kata.id, kata.name),
                 useAdaptiveWidth: false,
@@ -248,6 +259,7 @@ class HomeScreenKataList extends ConsumerWidget {
         children: katas
             .map(
               (kata) => CollapsibleKataCard(
+                key: ValueKey('grid_kata_${kata.id}'),
                 kata: kata,
                 onDelete: () => onDeleteKata(kata.id, kata.name),
                 useAdaptiveWidth: false,
@@ -270,6 +282,7 @@ class HomeScreenKataList extends ConsumerWidget {
         children: katas
             .map(
               (kata) => CollapsibleKataCard(
+                key: ValueKey('grid_kata_${kata.id}'),
                 kata: kata,
                 onDelete: () => onDeleteKata(kata.id, kata.name),
                 useAdaptiveWidth: false,
