@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../models/ohyo_model.dart';
 import '../providers/ohyo_provider.dart';
 import '../utils/image_utils.dart';
@@ -197,6 +198,7 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
       final deletedImages = _originalImageUrls.where((url) => !_currentImageUrls.contains(url)).toList();
 
       // Update ohyo with new data
+      debugPrint('Save: Starting ohyo update operation');
       await ohyoNotifier.updateOhyo(
         widget.ohyo.id,
         name: _nameController.text.trim(),
@@ -206,18 +208,32 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
         videoUrls: _videoUrls,
         deletedImageUrls: deletedImages,
       );
+      debugPrint('Save: Ohyo update operation completed successfully');
 
+      // Show success message and navigate immediately
+      debugPrint('Save: Showing success message and navigating immediately');
+
+      // Show success message
       if (mounted && context.mounted) {
-        setState(() {
-          _hasChanges = false; // Reset changes flag after successful save
-        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Ohyo succesvol bijgewerkt!'),
             backgroundColor: Colors.green,
           ),
         );
-        // Stay on the edit page after successful save
+      }
+
+      // Navigate immediately - use the router directly to avoid context issues
+      debugPrint('Navigation: Executing immediate navigation to home ohyo');
+      final router = GoRouter.of(context);
+      router.go('/home?tab=ohyo');
+      debugPrint('Navigation: GoRouter.go() executed successfully');
+
+      // Reset changes flag after successful navigation (only if still mounted)
+      if (mounted) {
+        setState(() {
+          _hasChanges = false; // Reset changes flag after successful save
+        });
       }
     } catch (e) {
       debugPrint('Error saving changes: $e');
@@ -230,7 +246,7 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
         );
       }
     } finally {
-      if (mounted) {
+      if (mounted && context.mounted) {
         setState(() {
           _isLoading = false;
         });

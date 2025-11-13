@@ -728,17 +728,24 @@ class ImageUtils {
         try {
           final supabase = Supabase.instance.client;
 
-          // Check if the ohyo_images bucket exists - but don't fail if we can't check
-          // Since user already has the bucket, we'll assume it's there and handle errors during actual operations
+          // Check if the ohyo_images bucket exists by trying to list files in root
+          // This is more reliable than getBucket() which may fail due to permissions
           try {
-            final bucket = await supabase.storage.getBucket('ohyo_images');
-            debugPrint('✅ ohyo_images bucket found (public: ${bucket.public})');
+            final testList = await supabase.storage
+                .from('ohyo_images')
+                .list(path: ''); // Just check if we can list anything
+            debugPrint('✅ ohyo_images bucket is accessible (found ${testList.length} items in root)');
           } catch (bucketError) {
-            debugPrint('⚠️ Could not verify ohyo_images bucket exists: $bucketError');
-            debugPrint('💡 The ohyo_images bucket may not exist yet.');
-            debugPrint('💡 To create it: Go to Supabase Dashboard → Storage → New bucket → Name: ohyo_images → Make it Public → Create');
-            debugPrint('💡 Then add the storage policies from OH YO_DATABASE_SETUP.md');
-            debugPrint('💡 Proceeding anyway - images will fail to load until bucket exists');
+            // If listing fails, try the old method as fallback
+            try {
+              final bucket = await supabase.storage.getBucket('ohyo_images');
+              debugPrint('✅ ohyo_images bucket found via getBucket (public: ${bucket.public})');
+            } catch (fallbackError) {
+              debugPrint('⚠️ Could not verify ohyo_images bucket exists: $bucketError');
+              debugPrint('💡 This might be a permission issue, but the bucket may still exist.');
+              debugPrint('💡 If images are being stored successfully, the bucket exists and this is just a verification issue.');
+              debugPrint('💡 Proceeding anyway - images should work despite verification failure');
+            }
           }
 
           // List all files in the ohyo's folder with proper error handling
