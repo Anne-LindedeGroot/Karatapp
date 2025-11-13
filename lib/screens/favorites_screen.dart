@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/kata_model.dart';
 import '../models/forum_models.dart';
+import '../models/ohyo_model.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/forum_provider.dart';
+import '../providers/ohyo_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/collapsible_kata_card.dart';
+import '../widgets/collapsible_ohyo_card.dart';
 import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
@@ -26,7 +29,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -39,12 +42,13 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     // Invalidate the providers to refresh data
     ref.invalidate(userFavoriteKatasProvider);
     ref.invalidate(userFavoriteForumPostsProvider);
+    ref.invalidate(userFavoriteOhyosProvider);
   }
 
   Future<void> _speakKataContent(Kata kata, int index) async {
     try {
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSProvider);
+      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSKataProvider);
       
       // Build content for TTS based on settings
       final content = StringBuffer();
@@ -78,35 +82,69 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   Future<void> _speakForumPostContent(ForumPost post, int index) async {
     try {
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      
+
       // Build comprehensive content for TTS
       final content = StringBuffer();
       content.write('Forum Post $index: ${post.title}. ');
       content.write('Categorie: ${post.category.displayName}. ');
-      
+
       if (post.content.isNotEmpty) {
         content.write('Inhoud: ${post.content}. ');
       }
-      
+
       content.write('Geschreven door: ${post.authorName}. ');
-      
+
       if (post.commentCount > 0) {
         content.write('Dit bericht heeft ${post.commentCount} reacties. ');
       }
-      
+
       if (post.isPinned) {
         content.write('Dit bericht is vastgepind. ');
       }
-      
+
       if (post.isLocked) {
         content.write('Dit bericht is gesloten. ');
       }
-      
+
       content.write('Gepost ${_formatDate(post.createdAt)}. ');
-      
+
       await accessibilityNotifier.speak(content.toString());
     } catch (e) {
       debugPrint('Error speaking forum post content: $e');
+    }
+  }
+
+  Future<void> _speakOhyoContent(Ohyo ohyo, int index) async {
+    try {
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSOhyoProvider);
+
+      // Build content for TTS based on settings
+      final content = StringBuffer();
+      content.write('Ohyo $index: ${ohyo.name}. ');
+
+      // Always include style (this is important ohyo information)
+      if (ohyo.style.isNotEmpty && ohyo.style != 'Unknown') {
+        content.write('Stijl: ${ohyo.style}. ');
+      }
+
+      // Include description only if not skipping general info
+      if (!skipGeneralInfo && ohyo.description.isNotEmpty) {
+        content.write('Beschrijving: ${ohyo.description}. ');
+      }
+
+      // Always include media information (this is specific content, not general info)
+      if (ohyo.imageUrls?.isNotEmpty == true) {
+        content.write('Deze ohyo heeft ${ohyo.imageUrls?.length} afbeeldingen. ');
+      }
+
+      if (ohyo.videoUrls?.isNotEmpty == true) {
+        content.write('Deze ohyo heeft ${ohyo.videoUrls?.length} video\'s. ');
+      }
+
+      await accessibilityNotifier.speak(content.toString());
+    } catch (e) {
+      debugPrint('Error speaking ohyo content: $e');
     }
   }
 
@@ -114,13 +152,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
   Widget build(BuildContext context) {
     final kataState = ref.watch(kataNotifierProvider);
     final forumState = ref.watch(forumNotifierProvider);
+    final ohyoState = ref.watch(ohyoNotifierProvider);
     final favoriteKatasAsync = ref.watch(userFavoriteKatasProvider);
     final favoriteForumPostsAsync = ref.watch(userFavoriteForumPostsProvider);
+    final favoriteOhyosAsync = ref.watch(userFavoriteOhyosProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Semantics(
-          label: 'Mijn Favorieten pagina. Gebruik de tabbladen om tussen favoriete kata\'s en forumberichten te wisselen.',
+          label: 'Mijn Favorieten pagina. Gebruik de tabbladen om tussen favoriete kata\'s, ohyo\'s en forumberichten te wisselen.',
           child: const Text('Mijn Favorieten'),
         ),
         leading: IconButton(
@@ -131,7 +171,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
           controller: _tabController,
           tabs: [
             Tab(
-              icon: const Icon(Icons.sports_martial_arts),
+              icon: const Icon(Icons.self_improvement),
               text: favoriteKatasAsync.when(
                 data: (favoriteKataIds) {
                   final favoriteKatas = kataState.katas
@@ -141,6 +181,19 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                 },
                 loading: () => 'Kata\'s (...)',
                 error: (_, __) => 'Kata\'s (0)',
+              ),
+            ),
+            Tab(
+              icon: const Icon(Icons.sports_martial_arts),
+              text: favoriteOhyosAsync.when(
+                data: (favoriteOhyoIds) {
+                  final favoriteOhyos = ohyoState.ohyos
+                      .where((ohyo) => favoriteOhyoIds.contains(ohyo.id))
+                      .toList();
+                  return 'Ohyo\'s (${favoriteOhyos.length})';
+                },
+                loading: () => 'Ohyo\'s (...)',
+                error: (_, __) => 'Ohyo\'s (0)',
               ),
             ),
             Tab(
@@ -186,6 +239,32 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                     return _buildFavoriteKatasTab(favoriteKatas, false);
                   },
                   loading: () => _buildFavoriteKatasTab([], true),
+                  error: (error, _) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error, size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Fout bij laden favorieten: $error'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _refreshFavorites,
+                          child: const Text('Opnieuw proberen'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Favorite Ohyos Tab
+                favoriteOhyosAsync.when(
+                  data: (favoriteOhyoIds) {
+                    final favoriteOhyos = ohyoState.ohyos
+                        .where((ohyo) => favoriteOhyoIds.contains(ohyo.id))
+                        .toList();
+                    return _buildFavoriteOhyosTab(favoriteOhyos, false);
+                  },
+                  loading: () => _buildFavoriteOhyosTab([], true),
                   error: (error, _) => Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -343,6 +422,56 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     );
   }
 
+  Widget _buildFavoriteOhyosTab(List<Ohyo> favoriteOhyos, bool isLoading) {
+    if (isLoading) {
+      return const SkeletonKataList(itemCount: 3);
+    }
+
+    if (favoriteOhyos.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _refreshFavorites,
+        child: ListView(
+          children: [
+            const SizedBox(height: 100),
+            Semantics(
+              label: 'Nog geen favoriete ohyo\'s. Tik op het hartje bij een ohyo om deze toe te voegen aan je favorieten.',
+              child: const Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'Nog geen favoriete ohyo\'s',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Tik op het hartje bij een ohyo om deze toe te voegen aan je favorieten',
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshFavorites,
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 80.0),
+        itemCount: favoriteOhyos.length,
+        itemBuilder: (context, index) {
+          final ohyo = favoriteOhyos[index];
+          return _buildOhyoCard(ohyo, index + 1);
+        },
+      ),
+    );
+  }
+
   Widget _buildKataCard(Kata kata, int index) {
     return Semantics(
       label: 'Favoriete kata $index van ${kata.name}. ${kata.style.isNotEmpty && kata.style != 'Unknown' ? 'Stijl: ${kata.style}.' : ''} ${kata.description.isNotEmpty ? 'Beschrijving: ${kata.description}.' : ''} ${kata.imageUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.imageUrls?.length} afbeeldingen.' : ''} ${kata.videoUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.videoUrls?.length} video\'s.' : ''} Tik om te bekijken.',
@@ -365,7 +494,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                 child: Row(
                   children: [
                     Icon(
-                      Icons.sports_martial_arts,
+                      Icons.self_improvement,
                       size: 20,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -561,6 +690,55 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOhyoCard(Ohyo ohyo, int index) {
+    return Semantics(
+      label: 'Favoriete ohyo $index van ${ohyo.name}. ${ohyo.style.isNotEmpty && ohyo.style != 'Unknown' ? 'Stijl: ${ohyo.style}.' : ''} ${ohyo.description.isNotEmpty ? 'Beschrijving: ${ohyo.description}.' : ''} ${ohyo.imageUrls?.isNotEmpty == true ? 'Deze ohyo heeft ${ohyo.imageUrls?.length} afbeeldingen.' : ''} ${ohyo.videoUrls?.isNotEmpty == true ? 'Deze ohyo heeft ${ohyo.videoUrls?.length} video\'s.' : ''} Tik om te bekijken.',
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: InkWell(
+          onTap: () => _speakOhyoContent(ohyo, index),
+          child: Column(
+            children: [
+              // Card header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.sports_martial_arts,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Ohyo $index',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Ohyo card content
+              CollapsibleOhyoCard(
+                ohyo: ohyo,
+                onDelete: () {}, // Empty callback instead of null
+              ),
+            ],
+          ),
         ),
       ),
     );

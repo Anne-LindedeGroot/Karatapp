@@ -48,34 +48,39 @@ class _HomeSearchSectionState extends ConsumerState<HomeSearchSection> {
   }
 
   Widget _buildSearchBar() {
-    return EnhancedAccessibleTextField(
-      controller: _searchController,
-      focusNode: _searchFocusNode,
-      decoration: InputDecoration(
-        hintText: 'Zoek kata\'s...',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: _searchController.text.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  ref.read(kataNotifierProvider.notifier).searchKatas('');
-                },
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+    return SizedBox(
+      width: double.infinity,
+      child: EnhancedAccessibleTextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        maxLines: 1, // Ensure single line for search
+        decoration: InputDecoration(
+          hintText: 'Zoek kata\'s...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(kataNotifierProvider.notifier).searchKatas('');
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surface,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
         ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
+        onChanged: (value) {
+          ref.read(kataNotifierProvider.notifier).searchKatas(value);
+        },
+        onSubmitted: (value) {
+          _searchFocusNode.unfocus();
+        },
+        customTTSLabel: 'Zoek kata\'s invoerveld',
       ),
-      onChanged: (value) {
-        ref.read(kataNotifierProvider.notifier).searchKatas(value);
-      },
-      onSubmitted: (value) {
-        _searchFocusNode.unfocus();
-      },
-      customTTSLabel: 'Zoek kata\'s invoerveld',
     );
   }
 

@@ -148,9 +148,30 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
     }
 
     final filtered = state.ohyos.where((ohyo) {
-      final matchesQuery = ohyo.name.toLowerCase().contains(trimmedQuery) ||
-                          ohyo.description.toLowerCase().contains(trimmedQuery) ||
-                          ohyo.style.toLowerCase().contains(trimmedQuery);
+      // Search by exact numbers (order, ID) - highest priority
+      final matchesNumericQuery = ohyo.order.toString() == trimmedQuery ||
+                                 ohyo.id.toString() == trimmedQuery;
+
+      // Search in text fields with better matching logic
+      bool matchesTextQuery = false;
+      if (!matchesNumericQuery) {
+        // Check if name starts with the query (for "1" -> "ohyo 1" but not "ohyo 2")
+        matchesTextQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
+
+        // If not, check if any word in the name starts with the query
+        if (!matchesTextQuery) {
+          final nameWords = ohyo.name.toLowerCase().split(' ');
+          matchesTextQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
+        }
+
+        // Also check description and style with contains (less strict for these)
+        if (!matchesTextQuery) {
+          matchesTextQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
+                           ohyo.style.toLowerCase().contains(trimmedQuery);
+        }
+      }
+
+      final matchesQuery = matchesTextQuery || matchesNumericQuery;
 
       if (state.selectedCategory != null && state.selectedCategory != OhyoCategory.all) {
         final category = OhyoCategory.fromStyle(ohyo.style);
@@ -182,9 +203,32 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
       // Also apply search filter if present
       if (state.searchQuery.isNotEmpty) {
-        final matchesQuery = ohyo.name.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
-                            ohyo.description.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
-                            ohyo.style.toLowerCase().contains(state.searchQuery.toLowerCase());
+        final trimmedQuery = state.searchQuery.toLowerCase().trim();
+
+        // Check numeric match first
+        final matchesNumericQuery = ohyo.order.toString() == trimmedQuery ||
+                                   ohyo.id.toString() == trimmedQuery;
+
+        // Check text match with improved logic
+        bool matchesTextQuery = false;
+        if (!matchesNumericQuery) {
+          // Check if name starts with the query
+          matchesTextQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
+
+          // If not, check if any word in the name starts with the query
+          if (!matchesTextQuery) {
+            final nameWords = ohyo.name.toLowerCase().split(' ');
+            matchesTextQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
+          }
+
+          // Also check description and style with contains (less strict for these)
+          if (!matchesTextQuery) {
+            matchesTextQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
+                             ohyo.style.toLowerCase().contains(trimmedQuery);
+          }
+        }
+
+        final matchesQuery = matchesTextQuery || matchesNumericQuery;
         return matchesCategory && matchesQuery;
       }
 
@@ -280,6 +324,7 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
     List<File>? newImages,
     List<String>? videoUrls,
     bool? removeAllImages,
+    List<String>? deletedImageUrls,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -302,6 +347,23 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
           // Handle image operations
           if (removeAllImages == true) {
             await ImageUtils.deleteOhyoImages(ohyoId);
+          }
+
+          // Delete specific images if provided
+          if (deletedImageUrls != null && deletedImageUrls.isNotEmpty) {
+            // Extract filenames from URLs for deletion
+            final filenamesToDelete = deletedImageUrls.map((url) {
+              final uri = Uri.parse(url);
+              final segments = uri.pathSegments;
+              if (segments.length >= 2) {
+                return '${segments[segments.length - 2]}/${segments.last}';
+              }
+              return '';
+            }).where((name) => name.isNotEmpty).toList();
+
+            if (filenamesToDelete.isNotEmpty) {
+              await ImageUtils.deleteMultipleImagesFromSupabase(filenamesToDelete);
+            }
           }
 
           if (newImages != null && newImages.isNotEmpty) {
@@ -367,6 +429,15 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
   void clearError() {
     state = state.copyWith(error: null);
+  }
+
+  /// Reset the ohyo tab to its initial state (clear search, filters, etc.)
+  void resetOhyoTab() {
+    state = state.copyWith(
+      searchQuery: '',
+      selectedCategory: null,
+      filteredOhyos: state.ohyos, // Reset to show all ohyos
+    );
   }
 
   Future<void> reorderOhyos(List<Ohyo> reorderedOhyos) async {

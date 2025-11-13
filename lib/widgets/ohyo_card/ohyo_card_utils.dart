@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../models/kata_model.dart';
+import '../../models/ohyo_model.dart';
 import '../../providers/accessibility_provider.dart';
 
-class KataCardUtils {
+class OhyoCardUtils {
   /// Always return the full description - no truncation
   static String getTruncatedDescription(String description) {
     return description;
@@ -14,60 +14,58 @@ class KataCardUtils {
     return false;
   }
 
-  /// Speak kata content using TTS
-  static Future<void> speakKataContent(BuildContext context, WidgetRef ref, Kata kata) async {
+  /// Speak ohyo content using TTS
+  static Future<void> speakOhyoContent(BuildContext context, WidgetRef ref, Ohyo ohyo) async {
     try {
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSKataProvider);
+      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSOhyoProvider);
       final content = StringBuffer();
 
-      // Always include kata name
-      content.write('Kata: ${kata.name}. ');
+      // Always include ohyo name
+      content.write('Ohyo: ${ohyo.name}. ');
 
-      // Always include style (this is important kata information)
-      if (kata.style.isNotEmpty && kata.style != 'Unknown') {
-        content.write('Stijl: ${kata.style}. ');
-      }
+      // Always include style (this is important ohyo information)
+      content.write('Stijl: ${ohyo.style}. ');
 
       // Handle description based on skip setting
-      if (kata.description.isNotEmpty) {
+      if (ohyo.description.isNotEmpty) {
         if (skipGeneralInfo) {
-          // Only include "Kata uitleg:" section, skip general information
-          final descriptionParts = kata.description.split('\n');
-          final kataUitlegParts = <String>[];
-          bool foundKataUitleg = false;
+          // Only include "Ohyo uitleg:" section, skip general information
+          final descriptionParts = ohyo.description.split('\n');
+          final ohyoUitlegParts = <String>[];
+          bool foundOhyoUitleg = false;
 
           for (final part in descriptionParts) {
-            if (part.toLowerCase().contains('kata uitleg:')) {
-              foundKataUitleg = true;
-              kataUitlegParts.add(part);
-            } else if (foundKataUitleg) {
-              // Add subsequent paragraphs to kata uitleg section
-              kataUitlegParts.add(part);
+            if (part.toLowerCase().contains('ohyo uitleg:')) {
+              foundOhyoUitleg = true;
+              ohyoUitlegParts.add(part);
+            } else if (foundOhyoUitleg) {
+              // Add subsequent paragraphs to ohyo uitleg section
+              ohyoUitlegParts.add(part);
             }
           }
 
-          if (foundKataUitleg) {
-            content.write('${kataUitlegParts.join(' ')}. ');
+          if (foundOhyoUitleg) {
+            content.write('${ohyoUitlegParts.join(' ')}. ');
           }
         } else {
           // Include full description
-          content.write('Beschrijving: ${kata.description}. ');
+          content.write('Beschrijving: ${ohyo.description}. ');
         }
       }
 
       // Always include media information (this is specific content, not general info)
-      if (kata.imageUrls?.isNotEmpty == true) {
-        content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
+      if (ohyo.imageUrls?.isNotEmpty == true) {
+        content.write('Deze ohyo heeft ${ohyo.imageUrls?.length} afbeeldingen. ');
       }
 
-      if (kata.videoUrls?.isNotEmpty == true) {
-        content.write('Deze kata heeft ${kata.videoUrls?.length} video\'s. ');
+      if (ohyo.videoUrls?.isNotEmpty == true) {
+        content.write('Deze ohyo heeft ${ohyo.videoUrls?.length} video\'s. ');
       }
 
       await accessibilityNotifier.speak(content.toString());
     } catch (e) {
-      debugPrint('Error speaking kata content: $e');
+      debugPrint('Error speaking ohyo content: $e');
     }
   }
 

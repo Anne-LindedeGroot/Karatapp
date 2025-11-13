@@ -349,129 +349,125 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         },
         builder: (context, candidateData, rejectedData) {
           final isHovered = candidateData.isNotEmpty;
-          return Container(
-            width: 100,
-            height: 100,
-            margin: const EdgeInsets.only(right: 12),
-            child: Stack(
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isHovered ? borderColor.withOpacity(0.8) : borderColor,
-                      width: isHovered ? 3 : 2,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: isHovered ? [
-                      BoxShadow(
-                        color: borderColor.withOpacity(0.3),
-                        blurRadius: 8,
-                        spreadRadius: 2,
-                      ),
-                    ] : null,
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: imageFile != null
-                        ? Image.file(imageFile, fit: BoxFit.cover, width: 96, height: 96)
-                        : Image.network(
-                            imageUrl!,
-                            fit: BoxFit.cover,
-                            width: 96,
-                            height: 96,
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Container(
-                                width: 96,
-                                height: 96,
-                                color: Colors.grey[200],
-                                child: const Center(child: CircularProgressIndicator()),
-                              );
-                            },
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 96,
-                                height: 96,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.broken_image, color: Colors.grey),
-                              );
-                            },
-                          ),
-                  ),
-                ),
-                Positioned(
-                  top: 4,
-                  left: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: borderColor,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      '${index + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-                // Remove button for both existing and new images
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: GestureDetector(
-                    onTap: onRemove,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
+          return Column(
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                margin: const EdgeInsets.only(right: 12),
+                child: Stack(
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
-                        color: Colors.red[600],
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
+                        border: Border.all(
+                          color: isHovered ? borderColor.withOpacity(0.8) : borderColor,
+                          width: isHovered ? 3 : 2,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: isHovered ? [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
+                            color: borderColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            spreadRadius: 2,
                           ),
-                        ],
+                        ] : null,
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 14,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: imageFile != null
+                            ? Image.file(imageFile, fit: BoxFit.cover, width: 96, height: 96)
+                            : Image.network(
+                                imageUrl!,
+                                fit: BoxFit.cover,
+                                width: 96,
+                                height: 96,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Container(
+                                    width: 96,
+                                    height: 96,
+                                    color: Colors.grey[200],
+                                    child: const Center(child: CircularProgressIndicator()),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: 96,
+                                    height: 96,
+                                    color: Colors.grey[200],
+                                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                                  );
+                                },
+                              ),
                       ),
                     ),
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: borderColor,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${index + 1}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Remove button for both existing and new images
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: onRemove,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red[600],
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (totalItems > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Icon(
+                    Icons.drag_handle,
+                    size: 16,
+                    color: Colors.grey[600],
                   ),
                 ),
-                // Drag indicator
-                Positioned(
-                  bottom: 4,
-                  right: 4,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(
-                      Icons.drag_indicator,
-                      color: Colors.white,
-                      size: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            ],
           );
         },
       ),

@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/ohyo_model.dart';
 import '../../utils/responsive_utils.dart';
+import '../../core/navigation/app_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/accessibility_provider.dart';
 import '../overflow_safe_widgets.dart';
+import 'ohyo_card_tts_toggle.dart';
 
 class OhyoCardHeader extends StatelessWidget {
   final Ohyo ohyo;
   final VoidCallback onDelete;
-  final VoidCallback onSpeak;
 
   const OhyoCardHeader({
     super.key,
     required this.ohyo,
     required this.onDelete,
-    required this.onSpeak,
   });
 
   @override
@@ -63,22 +65,30 @@ class OhyoCardHeader extends StatelessWidget {
                   ),
                   SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
                   // Display style with overflow handling
-                  if (ohyo.style.isNotEmpty && ohyo.style != 'Andere')
-                    Semantics(
-                      label: 'Ohyo stijl: ${ohyo.style}',
-                      child: AccessibleOverflowSafeText(
-                        ohyo.style,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
-                              color: Colors.blueGrey,
-                              fontStyle: FontStyle.italic,
-                            ),
-                        maxLines: 2,
-                        overflow: TextOverflow.visible,
-                      ),
-                    ),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final accessibilityState = ref.watch(accessibilityNotifierProvider);
+                      // Allow multiple lines when dyslexia mode is enabled or when font size is extra large
+                      final maxLines = (accessibilityState.isDyslexiaFriendly ||
+                          accessibilityState.fontSize == AccessibilityFontSize.extraLarge) ? null : 2;
+
+                      return Semantics(
+                        label: 'Ohyo stijl: ${ohyo.style}',
+                        child: AccessibleOverflowSafeText(
+                          ohyo.style,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                color: Colors.blueGrey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                          maxLines: maxLines,
+                          overflow: TextOverflow.visible,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -88,21 +98,43 @@ class OhyoCardHeader extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               enableWrapping: false,
               children: [
-                // Speak button - Responsive
+                // TTS Toggle with label
+                Consumer(
+                  builder: (context, ref, child) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Skip algemene info:',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: context.responsiveValue(mobile: 10.0, tablet: 11.0, desktop: 12.0),
+                          ),
+                        ),
+                        SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                        CompactOhyoCardTTSToggle(),
+                      ],
+                    );
+                  },
+                ),
+                SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                // Edit button - Responsive
                 Semantics(
-                  label: 'Lees ohyo ${ohyo.name} voor',
+                  label: 'Bewerk ohyo ${ohyo.name}',
                   button: true,
                   child: SizedBox(
                     width: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
                     height: context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0),
                     child: IconButton(
                       icon: Icon(
-                        Icons.volume_up,
-                        color: Theme.of(context).colorScheme.primary,
+                        Icons.edit,
+                        color: Colors.blue,
                         size: AppTheme.getResponsiveIconSize(context, baseSize: 16.0),
                       ),
-                      onPressed: onSpeak,
-                      tooltip: 'Lees ohyo voor',
+                      onPressed: () {
+                        context.goToEditOhyo(ohyo.id.toString());
+                      },
+                      tooltip: 'Bewerk ohyo',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),

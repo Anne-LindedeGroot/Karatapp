@@ -20,7 +20,6 @@ import 'home/home_screen_search_section.dart';
 import 'home/home_screen_kata_list.dart';
 import 'home/home_ohyo_list.dart';
 import 'home/home_screen_error_display.dart';
-import 'home/home_screen_add_kata_dialog.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.initialTabIndex = 0});
@@ -41,6 +40,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     super.initState();
     _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTabIndex);
 
+    // Listen to tab changes to clear search when switching tabs
+    _tabController.addListener(_onTabChanged);
+
     // Initialize kata and ohyo loading when home screen is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(kataNotifierProvider.notifier).initializeKataLoading();
@@ -54,10 +56,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    // Clear search when switching tabs to avoid confusion
+    if (_searchController.text.isNotEmpty) {
+      _searchController.clear();
+      _searchFocusNode.unfocus();
+
+      // Reset the appropriate provider based on the new tab
+      if (_tabController.index == 0) {
+        // Switched to Kata tab - reset kata search
+        ref.read(kataNotifierProvider.notifier).searchKatas('');
+      } else if (_tabController.index == 1) {
+        // Switched to Ohyo tab - reset ohyo search
+        ref.read(ohyoNotifierProvider.notifier).resetOhyoTab();
+      }
+    }
   }
 
   Future<void> _refreshKatas() async {
@@ -189,6 +209,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     ref.read(ohyoNotifierProvider.notifier).searchOhyos(query);
   }
 
+  void _resetOhyoTab() {
+    // Clear search text
+    _searchController.clear();
+    // Reset focus
+    _searchFocusNode.unfocus();
+    // Reset ohyo provider state
+    ref.read(ohyoNotifierProvider.notifier).resetOhyoTab();
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return HomeScreenAppBar(
+      onRefresh: () {
+        _refreshKatas();
+        _refreshOhyos();
+      },
+      onLogout: _showLogoutConfirmationDialog,
+      onResetOhyoTab: _resetOhyoTab,
+      showResetButton: _tabController.index == 1 && (_searchController.text.isNotEmpty),
+    );
+  }
+
   Future<void> _showLogoutConfirmationDialog() async {
     final confirmed = await HomeScreenDialogManager.showLogoutConfirmationDialog(context);
 
@@ -239,9 +280,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
       searchFocusNode: _searchFocusNode,
       onSearchChanged: _tabController.index == 0 ? _filterKatas : _filterOhyos,
       isConnected: isConnected,
+      currentTabIndex: _tabController.index,
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -261,13 +302,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         _searchFocusNode.unfocus();
       },
       child: Scaffold(
-        appBar: HomeScreenAppBar(
-          onRefresh: () {
-            _refreshKatas();
-            _refreshOhyos();
-          },
-          onLogout: _showLogoutConfirmationDialog,
-        ),
+        appBar: _buildAppBar(),
         body: SafeArea(
           child: Column(
             children: [
@@ -294,11 +329,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               controller: _tabController,
               tabs: const [
                 Tab(
-                  icon: Icon(Icons.sports_martial_arts),
+                  icon: Icon(Icons.self_improvement),
                   text: 'Kata',
                 ),
                 Tab(
-                  icon: Icon(Icons.psychology),
+                  icon: Icon(Icons.sports_martial_arts),
                   text: 'Ohyo',
                 ),
               ],
@@ -359,7 +394,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   heroTag: "home_fab",
                   onPressed: () {
                     if (_tabController.index == 0) {
-                      _showAddKataDialog();
+                      context.goToCreateKata();
                     } else {
                       // Check permissions for ohyo creation (same as kata)
                       if (role != UserRole.host) {
@@ -392,12 +427,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     );
   }
 
-  Future<void> _showAddKataDialog() async {
-    await showDialog(
-      context: context,
-      builder: (context) => const HomeScreenAddKataDialog(),
-    );
-  }
 
   void _showPermissionDeniedDialog(BuildContext context) {
     showDialog(

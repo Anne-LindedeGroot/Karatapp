@@ -35,12 +35,15 @@ class _OhyoCardCommentsState extends State<OhyoCardComments> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: isDark ? theme.colorScheme.surface : Colors.grey[50],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,13 +96,16 @@ class _OhyoCardCommentsState extends State<OhyoCardComments> {
   }
 
   Widget _buildCommentItem(OhyoComment comment) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.white,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade200),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,14 +155,17 @@ class _OhyoCardCommentsState extends State<OhyoCardComments> {
   }
 
   Widget _buildAddCommentSection() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Consumer(
       builder: (context, ref, child) {
         return Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: isDark ? theme.colorScheme.surface : Colors.white,
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade200),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

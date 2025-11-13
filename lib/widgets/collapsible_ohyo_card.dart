@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/ohyo_model.dart';
 import '../utils/responsive_utils.dart';
 import '../core/theme/app_theme.dart';
-import '../services/unified_tts_service.dart';
 import 'formatted_text.dart';
 import 'responsive_layout.dart';
 import 'ohyo_card/ohyo_card_header.dart';
 import 'ohyo_card/ohyo_card_media.dart';
 import 'ohyo_card/ohyo_card_interactions.dart';
+import 'ohyo_card/ohyo_card_utils.dart';
 
 class CollapsibleOhyoCard extends ConsumerStatefulWidget {
   final Ohyo ohyo;
@@ -30,35 +30,7 @@ class CollapsibleOhyoCard extends ConsumerStatefulWidget {
 
 class _CollapsibleOhyoCardState extends ConsumerState<CollapsibleOhyoCard> {
   Future<void> _speakOhyoContent() async {
-    try {
-      // Build comprehensive text content for TTS
-      final StringBuffer content = StringBuffer();
-
-      // Add ohyo name
-      content.write('Ohyo: ${widget.ohyo.name}. ');
-
-      // Add category if available
-      if (widget.ohyo.style.isNotEmpty && widget.ohyo.style != 'Andere') {
-        content.write('Stijl: ${widget.ohyo.style}. ');
-      }
-
-      // Add description
-      content.write('Beschrijving: ${widget.ohyo.description}');
-
-      // Speak the content using Unified TTS Service
-      await UnifiedTTSService.readText(context, ref, content.toString());
-
-    } catch (e) {
-      debugPrint('TTS Error reading ohyo content: $e');
-      if (mounted && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Fout bij voorlezen van ohyo: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    await OhyoCardUtils.speakOhyoContent(context, ref, widget.ohyo);
   }
 
   @override
@@ -81,7 +53,6 @@ class _CollapsibleOhyoCardState extends ConsumerState<CollapsibleOhyoCard> {
               OhyoCardHeader(
                 ohyo: ohyo,
                 onDelete: widget.onDelete,
-                onSpeak: _speakOhyoContent,
               ),
               SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
 
@@ -97,7 +68,7 @@ class _CollapsibleOhyoCardState extends ConsumerState<CollapsibleOhyoCard> {
                   headingStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                   ),
-                  enableSelectiveCollapse: true, // Enable selective collapse for ohyo cards like kata cards
+                  enableSelectiveCollapse: true, // Enable selective collapse for ohyo cards
                 ),
               ),
 

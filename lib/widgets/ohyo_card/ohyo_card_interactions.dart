@@ -77,8 +77,8 @@ class _OhyoCardInteractionsState extends State<OhyoCardInteractions> {
                           SnackBar(
                             content: Text(
                               isFavorited
-                                ? 'Removed from favorites'
-                                : 'Added to favorites'
+                                ? 'Verwijderd uit favorieten'
+                                : 'Toegevoegd aan favorieten'
                             ),
                             backgroundColor: Colors.green,
                           ),

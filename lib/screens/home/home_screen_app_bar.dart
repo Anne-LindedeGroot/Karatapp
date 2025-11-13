@@ -7,15 +7,20 @@ import '../../services/role_service.dart';
 import '../../providers/network_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/accessibility_provider.dart';
+import '../../widgets/enhanced_accessible_text.dart';
 
 class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final VoidCallback? onRefresh;
   final VoidCallback? onLogout;
+  final VoidCallback? onResetOhyoTab;
+  final bool showResetButton;
 
   const HomeScreenAppBar({
     super.key,
     this.onRefresh,
     this.onLogout,
+    this.onResetOhyoTab,
+    this.showResetButton = false,
   });
 
   @override
@@ -218,6 +223,15 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
           onPressed: isConnected ? onRefresh : null,
           tooltip: isConnected ? 'Kata\'s verversen' : 'Geen verbinding',
         ),
+
+        // Reset Ohyo tab button (only shown when there are active filters)
+        if (showResetButton)
+          IconButton(
+            icon: const Icon(Icons.home),
+            onPressed: onResetOhyoTab,
+            tooltip: 'Terug naar ohyo hoofdpagina',
+            color: Theme.of(context).colorScheme.primary,
+          ),
         IconButton(
           icon: const Icon(Icons.forum),
           onPressed: () {
@@ -231,34 +245,49 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
           child: PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             tooltip: 'Meer opties',
+            constraints: const BoxConstraints(minWidth: 200, maxWidth: 400),
             itemBuilder: (context) => [
               PopupMenuItem<String>(
                 // ignore: sort_child_properties_last
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 200),
-                  child: Text(
-                    currentUser?.userMetadata?['full_name'] ??
-                        currentUser?.email ??
-                        'User',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.visible,
-                    maxLines: 1,
-                  ),
+                child: Consumer(
+                  builder: (context, ref, child) {
+                    final accessibilityState = ref.watch(accessibilityNotifierProvider);
+                    final maxWidth = accessibilityState.fontSize == AccessibilityFontSize.extraLarge ||
+                                    accessibilityState.isDyslexiaFriendly
+                        ? 350.0
+                        : 250.0;
+                    return ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: maxWidth),
+                      child: EnhancedAccessibleText(
+                        currentUser?.userMetadata?['full_name'] ??
+                            currentUser?.email ??
+                            'User',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.visible,
+                        maxLines: null, // Allow multiple lines for long names
+                        enableTTS: false,
+                      ),
+                    );
+                  },
                 ),
                 enabled: false,
               ),
               const PopupMenuDivider(),
               PopupMenuItem<String>(
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.person, size: 20),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.person, size: 20),
+                    ),
                     const SizedBox(width: 12),
-                    const Flexible(
-                      child: Text(
+                    Expanded(
+                      child: EnhancedAccessibleText(
                         'Profiel',
                         overflow: TextOverflow.visible,
-                        maxLines: 1,
+                        maxLines: null,
+                        enableTTS: false,
                       ),
                     ),
                   ],
@@ -274,15 +303,19 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
               PopupMenuItem<String>(
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.favorite, size: 20),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.favorite, size: 20),
+                    ),
                     const SizedBox(width: 12),
-                    const Flexible(
-                      child: Text(
+                    Expanded(
+                      child: EnhancedAccessibleText(
                         'Mijn Favorieten',
                         overflow: TextOverflow.visible,
-                        maxLines: 1,
+                        maxLines: null, // Allow multiple lines for large fonts
+                        enableTTS: false, // Disable TTS for menu items to avoid confusion
                       ),
                     ),
                   ],
@@ -298,30 +331,34 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
               // Show admin options for hosts and mediators
               if (isHost)
-                PopupMenuItem<String>(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.admin_panel_settings, size: 20),
-                      const SizedBox(width: 12),
-                      const Flexible(
-                        child: Text(
-                          'Gebruikersbeheer',
-                          overflow: TextOverflow.visible,
-                          maxLines: 1,
-                        ),
+              PopupMenuItem<String>(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.admin_panel_settings, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: EnhancedAccessibleText(
+                        'Gebruikersbeheer',
+                        overflow: TextOverflow.visible,
+                        maxLines: null,
+                        enableTTS: false,
                       ),
-                    ],
-                  ),
-                  onTap: () {
-                    // Add a slight delay to ensure the popup menu closes first
-                    Future.microtask(() {
-                      if (context.mounted) {
-                        context.go('/user-management');
-                      }
-                    });
-                  },
+                    ),
+                  ],
                 ),
+                onTap: () {
+                  // Add a slight delay to ensure the popup menu closes first
+                  Future.microtask(() {
+                    if (context.mounted) {
+                      context.go('/user-management');
+                    }
+                  });
+                },
+              ),
               const PopupMenuDivider(),
               // Theme switcher
               PopupMenuItem<String>(
@@ -427,16 +464,20 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
               const PopupMenuDivider(),
               PopupMenuItem<String>(
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.logout, size: 20, color: Colors.red),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(Icons.logout, size: 20, color: Colors.red),
+                    ),
                     const SizedBox(width: 12),
-                    const Flexible(
-                      child: Text(
+                    Expanded(
+                      child: EnhancedAccessibleText(
                         'Uitloggen',
                         style: TextStyle(color: Colors.red),
                         overflow: TextOverflow.visible,
-                        maxLines: 1,
+                        maxLines: null,
+                        enableTTS: false,
                       ),
                     ),
                   ],

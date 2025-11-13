@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/ohyo_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/enhanced_accessible_text.dart';
+import '../core/navigation/app_router.dart';
 
 class CreateOhyoScreen extends ConsumerStatefulWidget {
   const CreateOhyoScreen({super.key});
@@ -308,7 +309,7 @@ class _CreateOhyoScreenState extends ConsumerState<CreateOhyoScreen> {
               if (GoRouter.of(context).canPop()) {
                 context.pop();
               } else {
-                context.go('/home');
+                context.goToHomeOhyo();
               }
             },
             tooltip: 'Terug',

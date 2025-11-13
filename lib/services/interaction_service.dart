@@ -614,7 +614,8 @@ class InteractionService {
       final response = await _client
           .from('likes')
           .select('*')
-          .eq('ohyo_id', ohyoId)
+          .eq('target_type', 'ohyo')
+          .eq('target_id', ohyoId)
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response)
@@ -635,7 +636,8 @@ class InteractionService {
           .from('likes')
           .select('id')
           .eq('user_id', user.id)
-          .eq('ohyo_id', ohyoId)
+          .eq('target_type', 'ohyo')
+          .eq('target_id', ohyoId)
           .maybeSingle();
 
       return response != null;
@@ -657,7 +659,8 @@ class InteractionService {
           .from('likes')
           .select('id')
           .eq('user_id', user.id)
-          .eq('ohyo_id', ohyoId)
+          .eq('target_type', 'ohyo')
+          .eq('target_id', ohyoId)
           .maybeSingle();
 
       if (existingLike != null) {
@@ -673,7 +676,8 @@ class InteractionService {
         final likeData = {
           'user_id': user.id,
           'user_name': userName,
-          'ohyo_id': ohyoId,
+          'target_type': 'ohyo',
+          'target_id': ohyoId,
           'created_at': DateTime.now().toIso8601String(),
         };
 
@@ -695,7 +699,8 @@ class InteractionService {
       final response = await _client
           .from('favorites')
           .select('*')
-          .eq('ohyo_id', ohyoId)
+          .eq('target_type', 'ohyo')
+          .eq('target_id', ohyoId)
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response)
@@ -716,7 +721,8 @@ class InteractionService {
           .from('favorites')
           .select('id')
           .eq('user_id', user.id)
-          .eq('ohyo_id', ohyoId)
+          .eq('target_type', 'ohyo')
+          .eq('target_id', ohyoId)
           .maybeSingle();
 
       return response != null;
@@ -738,7 +744,8 @@ class InteractionService {
           .from('favorites')
           .select('id')
           .eq('user_id', user.id)
-          .eq('ohyo_id', ohyoId)
+          .eq('target_type', 'ohyo')
+          .eq('target_id', ohyoId)
           .maybeSingle();
 
       if (existingFavorite != null) {
@@ -752,7 +759,8 @@ class InteractionService {
         // Favorite
         final favoriteData = {
           'user_id': user.id,
-          'ohyo_id': ohyoId,
+          'target_type': 'ohyo',
+          'target_id': ohyoId,
           'created_at': DateTime.now().toIso8601String(),
         };
 
@@ -774,12 +782,12 @@ class InteractionService {
 
       final response = await _client
           .from('favorites')
-          .select('ohyo_id')
+          .select('target_id')
           .eq('user_id', user.id)
-          .not('ohyo_id', 'is', null);
+          .eq('target_type', 'ohyo');
 
       return List<Map<String, dynamic>>.from(response)
-          .map((favorite) => favorite['ohyo_id'] as int)
+          .map((favorite) => favorite['target_id'] as int)
           .toList();
     } catch (e) {
       return [];

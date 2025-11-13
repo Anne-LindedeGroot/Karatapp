@@ -11,6 +11,7 @@ class HomeScreenSearchSection extends ConsumerWidget {
   final FocusNode searchFocusNode;
   final ValueChanged<String> onSearchChanged;
   final bool isConnected;
+  final int currentTabIndex; // 0 = Kata, 1 = Ohyo
 
   const HomeScreenSearchSection({
     super.key,
@@ -18,24 +19,34 @@ class HomeScreenSearchSection extends ConsumerWidget {
     required this.searchFocusNode,
     required this.onSearchChanged,
     required this.isConnected,
+    required this.currentTabIndex,
   });
 
   Widget _buildSearchBar(BuildContext context) {
-    return EnhancedAccessibleTextField(
-      controller: searchController,
-      focusNode: searchFocusNode,
-      customTTSLabel: 'Zoek kata\'s invoerveld',
-      decoration: InputDecoration(
-        hintText: 'Zoek kata\'s...',
-        prefixIcon: Icon(
-          Icons.search,
-          size: AppTheme.getResponsiveIconSize(context),
+    final isKataTab = currentTabIndex == 0;
+    final hintText = isKataTab ? 'Zoek kata\'s...' : 'Zoek ohyo\'s...';
+    final ttsLabel = isKataTab ? 'Zoek kata\'s invoerveld' : 'Zoek ohyo\'s invoerveld';
+
+    return SizedBox(
+      width: double.infinity,
+      child: EnhancedAccessibleTextField(
+        controller: searchController,
+        focusNode: searchFocusNode,
+        customTTSLabel: ttsLabel,
+        maxLines: 1, // Ensure single line for search
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(
+            Icons.search,
+            size: AppTheme.getResponsiveIconSize(context),
+          ),
+          border: OutlineInputBorder(
+            borderRadius: context.responsiveBorderRadius,
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
         ),
-        border: OutlineInputBorder(
-          borderRadius: context.responsiveBorderRadius,
-        ),
+        onChanged: onSearchChanged,
       ),
-      onChanged: onSearchChanged,
     );
   }
 

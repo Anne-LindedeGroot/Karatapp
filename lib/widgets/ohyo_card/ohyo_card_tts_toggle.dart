@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/accessibility_provider.dart';
 import '../../utils/responsive_utils.dart';
 
-/// Toggle widget for controlling TTS general information skipping in kata cards
-class KataCardTTSToggle extends ConsumerWidget {
+/// Toggle widget for controlling TTS general information skipping in ohyo cards
+class OhyoCardTTSToggle extends ConsumerWidget {
   final bool showLabel;
   final EdgeInsets? margin;
 
-  const KataCardTTSToggle({
+  const OhyoCardTTSToggle({
     super.key,
     this.showLabel = true,
     this.margin,
@@ -16,7 +16,7 @@ class KataCardTTSToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final skipGeneralInfo = ref.watch(skipGeneralInfoInTTSKataProvider);
+    final skipGeneralInfo = ref.watch(skipGeneralInfoInTTSOhyoProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
 
     return Container(
@@ -29,13 +29,13 @@ class KataCardTTSToggle extends ConsumerWidget {
         children: [
           // Toggle switch
           Semantics(
-            label: skipGeneralInfo 
+            label: skipGeneralInfo
                 ? 'TTS: Algemene informatie wordt overgeslagen. Tik om algemene informatie weer te geven.'
                 : 'TTS: Algemene informatie wordt voorgelezen. Tik om algemene informatie over te slaan.',
             child: Switch(
               value: skipGeneralInfo,
               onChanged: (value) async {
-                await accessibilityNotifier.toggleSkipGeneralInfoInTTSKata();
+                await accessibilityNotifier.toggleSkipGeneralInfoInTTSOhyo();
               },
               activeThumbColor: Theme.of(context).colorScheme.primary,
               activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
@@ -43,7 +43,7 @@ class KataCardTTSToggle extends ConsumerWidget {
               inactiveTrackColor: Theme.of(context).colorScheme.surfaceContainerHighest,
             ),
           ),
-          
+
           // Label (optional)
           if (showLabel) ...[
             SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
@@ -63,16 +63,16 @@ class KataCardTTSToggle extends ConsumerWidget {
 }
 
 /// Compact version of the toggle for use in tight spaces
-class CompactKataCardTTSToggle extends ConsumerWidget {
-  const CompactKataCardTTSToggle({super.key});
+class CompactOhyoCardTTSToggle extends ConsumerWidget {
+  const CompactOhyoCardTTSToggle({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final skipGeneralInfo = ref.watch(skipGeneralInfoInTTSKataProvider);
+    final skipGeneralInfo = ref.watch(skipGeneralInfoInTTSOhyoProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
 
     return Semantics(
-      label: skipGeneralInfo 
+      label: skipGeneralInfo
           ? 'TTS: Algemene informatie wordt overgeslagen. Tik om algemene informatie weer te geven.'
           : 'TTS: Algemene informatie wordt voorgelezen. Tik om algemene informatie over te slaan.',
       child: Transform.scale(
@@ -80,7 +80,7 @@ class CompactKataCardTTSToggle extends ConsumerWidget {
         child: Switch(
           value: skipGeneralInfo,
           onChanged: (value) async {
-            await accessibilityNotifier.toggleSkipGeneralInfoInTTSKata();
+            await accessibilityNotifier.toggleSkipGeneralInfoInTTSOhyo();
           },
           activeThumbColor: Theme.of(context).colorScheme.primary,
           activeTrackColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),

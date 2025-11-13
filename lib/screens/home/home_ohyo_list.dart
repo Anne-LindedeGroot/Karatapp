@@ -26,23 +26,29 @@ class HomeOhyoList extends ConsumerStatefulWidget {
 class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
 
   Widget _buildOhyoList(List<dynamic> ohyos) {
-    return ResponsiveLayout(
-      mobile: ResponsiveGrid(
-        maxColumns: 1,
+    // Use ListView for mobile (natural height) like kata cards
+    if (context.isMobile) {
+      return ListView.builder(
         padding: EdgeInsets.only(
           bottom: ResponsiveUtils.responsiveButtonHeight(context) +
                   context.responsiveSpacing(SpacingSize.lg),
         ),
-        mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 1.2,
-        children: ohyos.map((ohyo) => CollapsibleOhyoCard(
-          key: ValueKey('ohyo_${ohyo.id}'),
-          ohyo: ohyo,
-          onDelete: () => widget.onDelete(ohyo.id, ohyo.name),
-          useAdaptiveWidth: true,
-        )).toList(),
-      ),
+        itemCount: ohyos.length,
+        itemBuilder: (context, index) {
+          final ohyo = ohyos[index];
+          return CollapsibleOhyoCard(
+            key: ValueKey('ohyo_${ohyo.id}'),
+            ohyo: ohyo,
+            onDelete: () => widget.onDelete(ohyo.id, ohyo.name),
+            useAdaptiveWidth: true,
+          );
+        },
+      );
+    }
+
+    // Use grid for larger screens with appropriate aspect ratios
+    return ResponsiveLayout(
+      mobile: Container(), // Mobile handled above
       tablet: ResponsiveGrid(
         maxColumns: 2,
         padding: EdgeInsets.only(
@@ -51,7 +57,9 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
         ),
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.8, // Match kata aspect ratio
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: ohyos.map((ohyo) => CollapsibleOhyoCard(
           key: ValueKey('ohyo_${ohyo.id}'),
           ohyo: ohyo,
@@ -67,7 +75,9 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
         ),
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.85, // Match kata aspect ratio
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: ohyos.map((ohyo) => CollapsibleOhyoCard(
           key: ValueKey('ohyo_${ohyo.id}'),
           ohyo: ohyo,
@@ -83,7 +93,9 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
         ),
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.9, // Match kata aspect ratio
+        shrinkWrap: false,
+        physics: const AlwaysScrollableScrollPhysics(),
         children: ohyos.map((ohyo) => CollapsibleOhyoCard(
           key: ValueKey('ohyo_${ohyo.id}'),
           ohyo: ohyo,

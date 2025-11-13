@@ -64,10 +64,10 @@ class EnhancedAccessibleText extends ConsumerWidget {
       textAlign: textAlign,
       textDirection: textDirection,
       locale: locale,
-      softWrap: softWrap,
-      overflow: overflow,
+      softWrap: softWrap ?? true, // Default to softWrap to prevent overflow
+      overflow: overflow ?? TextOverflow.ellipsis, // Default to ellipsis to prevent overflow
       textScaler: textScaleFactor != null ? TextScaler.linear(textScaleFactor!) : TextScaler.noScaling,
-      maxLines: maxLines,
+      maxLines: maxLines, // Allow null for unlimited lines, or specific number
       semanticsLabel: semanticsLabel,
       textWidthBasis: textWidthBasis,
       textHeightBehavior: textHeightBehavior,
@@ -333,10 +333,15 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
       accessibleStyle = widget.style ?? Theme.of(context).textTheme.bodyMedium ?? const TextStyle();
     }
 
+    // Apply accessible styling to hint text as well
+    final updatedDecoration = widget.decoration?.copyWith(
+      hintStyle: widget.decoration?.hintStyle?.merge(accessibleStyle) ?? accessibleStyle,
+    ) ?? InputDecoration(hintStyle: accessibleStyle);
+
     Widget textField = TextField(
       controller: _controller,
       focusNode: _focusNode,
-      decoration: widget.decoration,
+      decoration: updatedDecoration,
       keyboardType: widget.keyboardType,
       textCapitalization: widget.textCapitalization,
       textInputAction: widget.textInputAction,
@@ -386,7 +391,7 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
       placeholder: TextField(
         controller: _controller,
         focusNode: _focusNode,
-        decoration: widget.decoration,
+        decoration: updatedDecoration,
         keyboardType: widget.keyboardType,
         textCapitalization: widget.textCapitalization,
         textInputAction: widget.textInputAction,

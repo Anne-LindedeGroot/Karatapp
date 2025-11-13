@@ -668,22 +668,18 @@ class ImageUtils {
       () async {
         try {
           final supabase = Supabase.instance.client;
+          debugPrint('🖼️ DEBUG: Uploading ohyo image for ohyoId: $ohyoId, fileName: $fileName');
 
           // Validate file exists and is readable
           if (!await imageFile.exists()) {
             throw Exception('Image file does not exist: ${imageFile.path}');
           }
 
-          // Try to create the bucket if it doesn't exist
-          try {
-            await supabase.storage.createBucket('ohyo_images');
-          } catch (e) {
-            // Bucket might already exist, which is fine
-            debugPrint('Bucket creation attempt: $e');
-          }
+          // Bucket should already exist - don't try to create it
 
           // Create a folder structure: ohyo_images/{ohyo_id}/filename
           final filePath = '$ohyoId/$fileName';
+          debugPrint('🖼️ DEBUG: Upload path will be: ohyo_images/$filePath');
 
           // Read the file as bytes
           final bytes = await imageFile.readAsBytes();
@@ -727,44 +723,26 @@ class ImageUtils {
 
   /// Fetch all images for a specific ohyo ID from the bucket
   static Future<List<String>> fetchOhyoImagesFromBucket(int ohyoId) async {
-    return await RetryUtils.executeWithRetry(
+    return await RetryUtils.executeWithRetry<List<String>>(
       () async {
         try {
           final supabase = Supabase.instance.client;
 
-          // First check if the bucket exists
+          // Check if the ohyo_images bucket exists - but don't fail if we can't check
+          // Since user already has the bucket, we'll assume it's there and handle errors during actual operations
           try {
-            await supabase.storage.getBucket('ohyo_images');
-            debugPrint('✅ ohyo_images bucket found');
-          } catch (e) {
-            debugPrint('⚠️ ohyo_images bucket not found or not accessible: $e');
-
-            // Check if this is a network error or file descriptor error
-            if (_isNetworkError(e) || _isFileDescriptorError(e)) {
-              debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
-              return [];
-            }
-
-            // Try to create the bucket if it doesn't exist (only if we have network)
-            try {
-              await supabase.storage.createBucket('ohyo_images',
-                BucketOptions(public: true, allowedMimeTypes: ['image/*']));
-              debugPrint('✅ Created ohyo_images bucket');
-            } catch (createError) {
-              debugPrint('❌ Failed to create ohyo_images bucket: $createError');
-
-              // If it's a network or file descriptor error, return empty list instead of throwing
-              if (_isNetworkError(createError) || _isFileDescriptorError(createError)) {
-                debugPrint('🌐 Network/file error during bucket creation, returning empty list');
-                return [];
-              }
-
-              throw Exception('Storage bucket not available. Please check your Supabase configuration.');
-            }
+            final bucket = await supabase.storage.getBucket('ohyo_images');
+            debugPrint('✅ ohyo_images bucket found (public: ${bucket.public})');
+          } catch (bucketError) {
+            debugPrint('⚠️ Could not verify ohyo_images bucket exists: $bucketError');
+            debugPrint('💡 The ohyo_images bucket may not exist yet.');
+            debugPrint('💡 To create it: Go to Supabase Dashboard → Storage → New bucket → Name: ohyo_images → Make it Public → Create');
+            debugPrint('💡 Then add the storage policies from OH YO_DATABASE_SETUP.md');
+            debugPrint('💡 Proceeding anyway - images will fail to load until bucket exists');
           }
 
           // List all files in the ohyo's folder with proper error handling
-          debugPrint('🔍 Listing files for ohyo $ohyoId...');
+          debugPrint('🔍 DEBUG: Listing files for ohyo $ohyoId in path: ${ohyoId.toString()}');
           List<dynamic> response = [];
 
           try {
@@ -777,6 +755,15 @@ class ImageUtils {
             // If it's a file descriptor error, return empty list
             if (_isFileDescriptorError(listError)) {
               debugPrint('🔧 File descriptor error detected, returning empty list');
+              return [];
+            }
+
+            // If it's a bucket not found error, provide helpful message
+            if (listError.toString().contains('Bucket not found') ||
+                listError.toString().contains('404')) {
+              debugPrint('🪣 ohyo_images bucket not found!');
+              debugPrint('💡 Create it in Supabase Dashboard: Storage → New bucket → ohyo_images (Public)');
+              debugPrint('💡 Create ohyo tables following the same pattern as kata tables');
               return [];
             }
 
@@ -869,12 +856,15 @@ class ImageUtils {
 
           // Provide more specific error messages for non-network errors
           if (e.toString().contains('bucket') && e.toString().contains('not found')) {
-            throw Exception('Storage bucket not found. Please create the ohyo_images bucket in your Supabase dashboard.');
+            debugPrint('⚠️ Bucket not found error, but user confirmed bucket exists. This might be a permission issue.');
+            debugPrint('💡 Please check your Supabase storage policies for ohyo_images bucket.');
+            throw Exception('Storage bucket access issue. Please check your storage policies for ohyo_images bucket.');
           } else if (e.toString().contains('row-level security') || e.toString().contains('Unauthorized')) {
             throw Exception('Storage access denied. Please check your storage policies.');
           }
 
-          rethrow;
+          // For other errors, throw to let retry logic handle it
+          throw Exception('Failed to fetch ohyo images: $e');
         }
       },
       maxRetries: 3,

@@ -19,7 +19,7 @@ class FormattedText extends StatefulWidget {
 }
 
 class _FormattedTextState extends State<FormattedText> {
-  bool _isKataUitlegExpanded = false;
+  bool _isUitlegExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -47,25 +47,26 @@ class _FormattedTextState extends State<FormattedText> {
   Widget _buildSelectiveCollapsibleText(BuildContext context) {
     final paragraphs = widget.text.split('\n');
     final List<Widget> widgets = [];
-    bool foundKataUitleg = false;
-    final List<String> kataUitlegParagraphs = [];
+    bool foundUitleg = false;
+    final List<String> uitlegParagraphs = [];
     
     for (final paragraph in paragraphs) {
-      if (paragraph.toLowerCase().contains('kata uitleg:')) {
-        foundKataUitleg = true;
-        kataUitlegParagraphs.add(paragraph);
-      } else if (foundKataUitleg) {
-        // Add subsequent paragraphs to kata uitleg section
-        kataUitlegParagraphs.add(paragraph);
+      if (paragraph.toLowerCase().contains('kata uitleg:') ||
+          paragraph.toLowerCase().contains('ohyo uitleg:')) {
+        foundUitleg = true;
+        uitlegParagraphs.add(paragraph);
+      } else if (foundUitleg) {
+        // Add subsequent paragraphs to uitleg section
+        uitlegParagraphs.add(paragraph);
       } else {
         // Add to main content (always visible)
         widgets.add(_buildFormattedParagraph(paragraph, context, false));
       }
     }
-    
-    // Add kata uitleg section with collapse functionality
-    if (foundKataUitleg) {
-      widgets.add(_buildKataUitlegSection(kataUitlegParagraphs, context));
+
+    // Add uitleg section with collapse functionality
+    if (foundUitleg) {
+      widgets.add(_buildUitlegSection(uitlegParagraphs, context));
     }
     
     return Column(
@@ -74,7 +75,7 @@ class _FormattedTextState extends State<FormattedText> {
     );
   }
 
-  Widget _buildKataUitlegSection(List<String> paragraphs, BuildContext context) {
+  Widget _buildUitlegSection(List<String> paragraphs, BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -86,15 +87,15 @@ class _FormattedTextState extends State<FormattedText> {
             child: TextButton.icon(
               onPressed: () {
                 setState(() {
-                  _isKataUitlegExpanded = !_isKataUitlegExpanded;
+                  _isUitlegExpanded = !_isUitlegExpanded;
                 });
               },
               icon: Icon(
-                _isKataUitlegExpanded ? Icons.expand_less : Icons.expand_more,
+                _isUitlegExpanded ? Icons.expand_less : Icons.expand_more,
                 size: 18.0,
               ),
               label: Text(
-                _isKataUitlegExpanded ? 'Minder zien' : 'Zie meer',
+                _isUitlegExpanded ? 'Minder zien' : 'Zie meer',
                 style: const TextStyle(fontSize: 14.0),
               ),
               style: TextButton.styleFrom(
@@ -105,11 +106,11 @@ class _FormattedTextState extends State<FormattedText> {
             ),
           ),
         ),
-        
-        // Show the entire kata uitleg section only when expanded
-        if (_isKataUitlegExpanded) ...[
+
+        // Show the entire uitleg section only when expanded
+        if (_isUitlegExpanded) ...[
           // Show all paragraphs (heading + content)
-          ...paragraphs.map((paragraph) => 
+          ...paragraphs.map((paragraph) =>
             _buildFormattedParagraph(paragraph, context, false)
           ),
         ],
@@ -127,8 +128,9 @@ class _FormattedTextState extends State<FormattedText> {
       final afterColon = paragraph.substring(colonIndex + 1).trim();
       
       // Check if the text before colon is one of our target headings
-      final isHeading = beforeColon.toLowerCase() == 'algemene informatie' || 
-                       beforeColon.toLowerCase() == 'kata uitleg';
+      final isHeading = beforeColon.toLowerCase() == 'algemene informatie' ||
+                       beforeColon.toLowerCase() == 'kata uitleg' ||
+                       beforeColon.toLowerCase() == 'ohyo uitleg';
       
       if (isHeading) {
         // For our specific headings, make the heading bold

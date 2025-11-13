@@ -26,22 +26,58 @@ This Flutter app demonstrates how to integrate Supabase into a Flutter applicati
 
 ### 3. Set up Database Tables
 
+#### Required: Run Setup Scripts First
+Before creating individual tables, run the setup scripts in the `scripts/` directory:
+
+1. Run `scripts/setup_interactions.sql` in your Supabase SQL Editor - this creates the shared interaction tables (likes, favorites) used by all features
+
+#### Kata Tables
 1. Go to the Supabase dashboard
 2. Navigate to "Table Editor"
-3. Create a table named "Katas" with the following columns:
-   - id (int8, primary key)
-   - name (text)
+3. Create a table named "katas" with the following columns:
+   - id (int8, primary key, auto-increment)
+   - name (text, not null)
    - description (text)
-   - style (text, optional)
-   - photos (text, optional)
-4. Update the table name in `lib/screens/home_screen.dart` in the `_loadData` method if needed
+   - style (text)
+   - created_at (timestamptz, default: now())
+   - photos (text[], optional)
+   - video_urls (text[], optional)
+   - order (int4, default: 0)
 
-### 4. Set up Storage Bucket
+#### Kata Comments Table
+Create a table named "kata_comments" with:
+   - id (int8, primary key, auto-increment)
+   - kata_id (int8, foreign key to katas.id)
+   - content (text, not null)
+   - author_id (text, not null)
+   - author_name (text, not null)
+   - author_avatar (text)
+   - created_at (timestamptz, default: now())
+   - updated_at (timestamptz, default: now())
 
+#### Ohyo Feature Setup
+If you want to use the ohyo feature, create the ohyo tables following the same pattern as the kata tables above.
+
+#### Row Level Security (RLS)
+Enable RLS on all tables and create appropriate policies for authenticated users to read/write data.
+
+### 4. Set up Storage Buckets
+
+Create two storage buckets in Supabase:
+
+#### kata_images bucket (for kata images):
 1. Go to the Supabase dashboard
 2. Navigate to "Storage"
 3. Click "Create Bucket"
 4. Name it `kata_images`
+5. Set it as "Public"
+6. Click "Create bucket"
+
+#### ohyo_images bucket (for ohyo images):
+1. Go to the Supabase dashboard
+2. Navigate to "Storage"
+3. Click "Create Bucket"
+4. Name it `ohyo_images`
 5. Set it as "Public"
 6. Click "Create bucket"
 

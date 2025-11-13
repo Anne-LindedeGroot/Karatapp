@@ -10,11 +10,13 @@ import '../../screens/favorites_screen.dart';
 import '../../screens/edit_kata_screen.dart';
 import '../../screens/create_kata_screen.dart';
 import '../../screens/create_ohyo_screen.dart';
+import '../../screens/edit_ohyo_screen.dart';
 import '../../screens/avatar_selection_screen.dart';
 import '../../screens/user_management_screen.dart';
 import '../../screens/accessibility_demo_screen.dart';
 import '../../screens/tts_test_screen.dart';
 import '../../providers/kata_provider.dart';
+import '../../providers/ohyo_provider.dart';
 import '../../widgets/global_error_widget.dart';
 
 /// App routes configuration
@@ -31,6 +33,7 @@ class AppRoutes {
   static const String editKata = '/kata/edit/:kataId';
   static const String createKata = '/create-kata';
   static const String createOhyo = '/create-ohyo';
+  static const String editOhyo = '/ohyo/edit/:ohyoId';
   static const String avatarSelection = '/avatar-selection';
   static const String userManagement = '/user-management';
   static const String accessibilityDemo = '/accessibility-demo';
@@ -141,6 +144,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       GoRoute(
+        path: AppRoutes.editOhyo,
+        name: 'editOhyo',
+        builder: (context, state) {
+          final ohyoId = int.parse(state.pathParameters['ohyoId']!);
+          return GlobalErrorBoundary(
+            child: EditOhyoWrapper(ohyoId: ohyoId),
+          );
+        },
+      ),
+
+      GoRoute(
         path: AppRoutes.createKata,
         name: 'createKata',
         builder: (context, state) => const GlobalErrorBoundary(
@@ -245,6 +259,9 @@ extension AppRouterExtension on GoRouter {
   /// Navigate to home screen
   void goToHome() => go(AppRoutes.home);
 
+  /// Navigate to home screen with ohyo tab selected
+  void goToHomeOhyo() => go('/home?tab=ohyo');
+
   /// Navigate to profile screen
   void goToProfile() => go(AppRoutes.profile);
 
@@ -269,6 +286,9 @@ extension AppRouterExtension on GoRouter {
   /// Navigate to create ohyo
   void goToCreateOhyo() => go(AppRoutes.createOhyo);
 
+  /// Navigate to edit ohyo
+  void goToEditOhyo(String ohyoId) => go('/ohyo/edit/$ohyoId');
+
   /// Navigate to avatar selection
   void goToAvatarSelection() => go('/profile/avatar-selection');
 
@@ -283,33 +303,39 @@ extension AppRouterExtension on GoRouter {
 extension BuildContextExtension on BuildContext {
   /// Get the router instance
   GoRouter get router => GoRouter.of(this);
-  
+
   /// Navigate to login screen
   void goToLogin() => go(AppRoutes.login);
-  
+
   /// Navigate to signup screen
   void goToSignup() => go(AppRoutes.signup);
-  
+
   /// Navigate to home screen
   void goToHome() => go(AppRoutes.home);
-  
+
+  /// Navigate to home screen with ohyo tab selected
+  void goToHomeOhyo() => go('/home?tab=ohyo');
+
   /// Navigate to profile screen
   void goToProfile() => go(AppRoutes.profile);
-  
+
   /// Navigate to forum screen
   void goToForum() => go(AppRoutes.forum);
-  
+
   /// Navigate to favorites screen
   void goToFavorites() => go(AppRoutes.favorites);
-  
+
   /// Navigate to forum post detail
   void goToForumPost(String postId) => go('/forum/post/$postId');
-  
+
   /// Navigate to create forum post
   void goToCreateForumPost() => go('/forum/create');
 
   /// Navigate to edit kata
   void goToEditKata(String kataId) => go('/kata/edit/$kataId');
+
+  /// Navigate to edit ohyo
+  void goToEditOhyo(String ohyoId) => go('/ohyo/edit/$ohyoId');
 
   /// Navigate to create kata
   void goToCreateKata() => go(AppRoutes.createKata);
@@ -393,6 +419,19 @@ class EditKataWrapper extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<EditKataWrapper> createState() => _EditKataWrapperState();
+}
+
+/// Wrapper widget to load ohyo by ID for EditOhyoScreen
+class EditOhyoWrapper extends ConsumerStatefulWidget {
+  final int ohyoId;
+
+  const EditOhyoWrapper({
+    required this.ohyoId,
+    super.key,
+  });
+
+  @override
+  ConsumerState<EditOhyoWrapper> createState() => _EditOhyoWrapperState();
 }
 
 class _EditKataWrapperState extends ConsumerState<EditKataWrapper> {
@@ -497,6 +536,124 @@ class _EditKataWrapperState extends ConsumerState<EditKataWrapper> {
               const SizedBox(height: 8),
               Text(
                 'De kata die je zoekt bestaat niet of kon niet worden geladen.',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.goToHome(),
+                child: const Text('Naar Home'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+}
+
+class _EditOhyoWrapperState extends ConsumerState<EditOhyoWrapper> {
+  bool _hasTriedLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ensure ohyos are loaded when accessing edit screen directly
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ohyoState = ref.read(ohyoNotifierProvider);
+      if (ohyoState.ohyos.isEmpty && !ohyoState.isLoading && !_hasTriedLoading) {
+        _hasTriedLoading = true;
+        ref.read(ohyoNotifierProvider.notifier).initializeOhyoLoading();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ohyoState = ref.watch(ohyoNotifierProvider);
+
+    if (ohyoState.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Laden...')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (ohyoState.error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Fout')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Fout bij laden ohyo',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                ohyoState.error ?? 'Onbekende fout',
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => context.goToHome(),
+                child: const Text('Naar Home'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    try {
+      final ohyo = ohyoState.ohyos.firstWhere(
+        (o) => o.id == widget.ohyoId,
+      );
+      return EditOhyoScreen(ohyo: ohyo);
+    } catch (e) {
+      // If ohyo not found and we're not currently loading, try loading
+      if (!ohyoState.isLoading && !_hasTriedLoading) {
+        _hasTriedLoading = true;
+        // Load ohyos immediately in the build method
+        Future.microtask(() => ref.read(ohyoNotifierProvider.notifier).initializeOhyoLoading());
+      }
+
+      // Show loading if we're loading or just started loading
+      if (ohyoState.isLoading || !_hasTriedLoading) {
+        return Scaffold(
+          appBar: AppBar(title: const Text('Laden...')),
+          body: const Center(child: CircularProgressIndicator()),
+        );
+      }
+
+      // If we tried loading and still can't find the ohyo, show error
+      return Scaffold(
+        appBar: AppBar(title: const Text('Fout')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Ohyo niet gevonden',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'De ohyo met ID ${widget.ohyoId} bestaat niet of kon niet worden geladen.',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),

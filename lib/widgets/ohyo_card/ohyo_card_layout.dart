@@ -49,19 +49,18 @@ class OhyoCardLayout {
                 ),
                 // Show full name without truncation
               ),
-              if (ohyo.style.isNotEmpty && ohyo.style != 'Andere')
-                Text(
-                  ohyo.style,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey[600],
-                    fontSize: context.responsiveValue(
-                      mobile: 12.0,
-                      tablet: 13.0,
-                      desktop: 14.0,
-                    ),
+              Text(
+                ohyo.style,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
+                  fontSize: context.responsiveValue(
+                    mobile: 12.0,
+                    tablet: 13.0,
+                    desktop: 14.0,
                   ),
-                  // Show full category without truncation
                 ),
+                // Show full category without truncation
+              ),
             ],
           ),
         ),

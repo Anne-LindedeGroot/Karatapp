@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
-import 'enhanced_accessible_text.dart';
 import 'error_boundary.dart';
 
 class VideoUrlInputWidget extends StatefulWidget {
@@ -52,13 +51,11 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
 
   bool _isSupportedMediaUrl(String url) {
     final lowerUrl = url.toLowerCase();
-    
-    // Video platforms
-    if (lowerUrl.contains('youtube.com') || 
+
+    // Video platforms - only YouTube is currently supported
+    if (lowerUrl.contains('youtube.com') ||
         lowerUrl.contains('youtu.be') ||
-        lowerUrl.contains('vimeo.com') ||
-        lowerUrl.contains('dailymotion.com') ||
-        lowerUrl.contains('twitch.tv')) {
+        lowerUrl.contains('m.youtube.com')) {
       return true;
     }
     
@@ -87,7 +84,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
     }
     
     if (!_isSupportedMediaUrl(url)) {
-      _showErrorSnackBar('URL lijkt geen ondersteund mediaformaat te zijn');
+      _showErrorSnackBar('Alleen YouTube URL\'s en directe videobestandslinks worden ondersteund');
       return;
     }
     
@@ -158,20 +155,8 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
         return 'YouTube Video';
       }
       
-      // Vimeo
-      if (uri.host.contains('vimeo.com')) {
-        return 'Vimeo Video';
-      }
-      
-      // Dailymotion
-      if (uri.host.contains('dailymotion.com')) {
-        return 'Dailymotion Video';
-      }
-      
-      // Twitch
-      if (uri.host.contains('twitch.tv')) {
-        return 'Twitch Video';
-      }
+      // Other video platforms are not currently supported
+      // Vimeo, Dailymotion, Twitch, etc. would go here when added
       
       // Direct file
       final path = uri.path.toLowerCase();
@@ -244,20 +229,18 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Flexible(
-                    child: Text(
-                      widget.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.visible,
-                      maxLines: 2,
+                  Text(
+                    widget.title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
+                    overflow: TextOverflow.visible,
+                    maxLines: 2,
                   ),
               const SizedBox(height: 16),
             
             // URL Input Field
-            EnhancedAccessibleTextField(
+            TextFormField(
               controller: _urlController,
               decoration: const InputDecoration(
                 labelText: 'Voer video URL in',
@@ -267,8 +250,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               ),
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _addUrl(),
-              customTTSLabel: 'Video URL invoerveld',
+              onFieldSubmitted: (_) => _addUrl(),
             ),
             
             const SizedBox(height: 16),
@@ -313,9 +295,9 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               ),
               const SizedBox(height: 8),
               Text(
-                '• Video platforms: YouTube, Vimeo, Dailymotion, Twitch\n'
-                '• Video bestanden: MP4, AVI, MOV, WMV, FLV, WebM, MKV\n'
-                '• Druk op Enter of Klaar op toetsenbord om URL toe te voegen',
+                '• Videoplatforms: YouTube\n'
+                '• Directe videobestanden: MP4, AVI, MOV, WMV, FLV, WebM, MKV\n'
+                '• Druk op Enter of Gereed op het toetsenbord om URL toe te voegen',
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,

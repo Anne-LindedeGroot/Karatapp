@@ -7,9 +7,6 @@ import '../providers/accessibility_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/video_url_input_widget.dart';
 import '../widgets/global_tts_overlay.dart';
-import '../widgets/tts_clickable_text.dart';
-import '../widgets/enhanced_accessible_text.dart';
-import '../widgets/overflow_safe_widgets.dart';
 
 class CreateKataScreen extends ConsumerStatefulWidget {
   const CreateKataScreen({super.key});
@@ -159,45 +156,75 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
     return contentParts.join('. ');
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight + 40), // Extra height for large text
-        child: AppBar(
-          title: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nieuwe Kata',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              // Check if user has made any changes
+              final hasChanges = _nameController.text.trim().isNotEmpty ||
+                                 _descriptionController.text.trim().isNotEmpty ||
+                                 _styleController.text.trim().isNotEmpty ||
+                                 _selectedImages.isNotEmpty ||
+                                 _videoUrls.isNotEmpty;
+
+              if (!hasChanges) {
+                if (mounted && GoRouter.of(context).canPop()) {
+                  context.pop();
+                } else if (mounted) {
+                  context.go('/home');
+                }
+                return;
+              }
+
+              // Show confirmation dialog for unsaved changes
+              final shouldDiscard = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Wijzigingen Verwerpen?'),
+                  content: const Text('Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je wilt vertrekken?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Annuleren'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      child: const Text('Verwerpen'),
+                    ),
+                  ],
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                'Maken',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              );
+
+              if (shouldDiscard == true && mounted) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    if (GoRouter.of(context).canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/home');
+                    }
+                  }
+                });
+              }
+            },
+            tooltip: 'Terug',
           ),
-          toolbarHeight: kToolbarHeight + 40,
+          title: const Text('Nieuwe Kata'),
         ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          child: OverflowSafeColumn(
-            children: [
+        body: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // Basic Information Section
               Text(
                 'Kata Informatie',
@@ -209,7 +236,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
               const SizedBox(height: 20),
 
               // Kata Name Field
-              EnhancedAccessibleTextField(
+              TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: 'Kata Naam *',
@@ -222,12 +249,11 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                   }
                   return null;
                 },
-                customTTSLabel: 'Kata naam invoerveld',
               ),
               const SizedBox(height: 20),
 
               // Style Field
-              EnhancedAccessibleTextField(
+              TextFormField(
                 controller: _styleController,
                 decoration: const InputDecoration(
                   labelText: 'Stijl *',
@@ -240,7 +266,6 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                   }
                   return null;
                 },
-                customTTSLabel: 'Stijl invoerveld',
               ),
               const SizedBox(height: 20),
 
@@ -277,7 +302,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                     child: Container(
                       constraints: const BoxConstraints(minHeight: 80),
                       width: double.infinity,
-                      child: AccessibleOverflowSafeText(
+                      child: Text(
                         _descriptionController.text.isEmpty
                             ? 'Tik om beschrijving toe te voegen...'
                             : _descriptionController.text,
@@ -411,7 +436,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              OverflowSafeRow(
+              Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
@@ -464,137 +489,35 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                 title: 'Video URL\'s Toevoegen',
               ),
 
-              // Additional spacing for better scrolling experience
-              const SizedBox(height: 120),
+              const SizedBox(height: 32),
+
+              // Create Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _createKata,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text(
+                          'Kata Aanmaken',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                ),
+              ),
+
+              // Additional spacing
+              const SizedBox(height: 80),
             ],
           ),
         ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(
-            top: BorderSide(
-              color: Theme.of(context).dividerColor,
-              width: 0.5,
-            ),
-          ),
         ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Check if buttons would fit side by side
-              final buttonWidth = (constraints.maxWidth - 16) / 2; // Account for spacing
-              const minButtonWidth = 120.0;
-
-              if (buttonWidth >= minButtonWidth) {
-                // Buttons fit side by side
-                return Row(
-                  children: [
-                    Expanded(
-                      child: OverflowSafeButton(
-                        onPressed: () {
-                          if (GoRouter.of(context).canPop()) {
-                            context.pop();
-                          } else {
-                            context.go('/home');
-                          }
-                        },
-                        child: const Text(
-                          'Annuleren',
-                          overflow: TextOverflow.visible,
-                          maxLines: 2,
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.outline,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: OverflowSafeButton(
-                        onPressed: _isLoading ? null : _createKata,
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                ),
-                              )
-                            : const Text(
-                                'Kata Opslaan',
-                                overflow: TextOverflow.visible,
-                                maxLines: 2,
-                              ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              } else {
-                // Stack buttons vertically for better accessibility
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    OverflowSafeButton(
-                      onPressed: _isLoading ? null : _createKata,
-                      fullWidth: true,
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text(
-                              'Kata Opslaan',
-                              overflow: TextOverflow.visible,
-                              maxLines: 2,
-                            ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OverflowSafeButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      fullWidth: true,
-                      child: const Text(
-                        'Annuleren',
-                        overflow: TextOverflow.visible,
-                        maxLines: 2,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
-            },
-          ),
-        ),
-      ),
-    );
+      );
   }
-
 }
 
 class DescriptionEditDialog extends ConsumerStatefulWidget {
@@ -651,7 +574,7 @@ class _DescriptionEditDialogState extends ConsumerState<DescriptionEditDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: TTSClickableText(
+                    child: Text(
                       'Kata Beschrijving',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -666,27 +589,20 @@ class _DescriptionEditDialogState extends ConsumerState<DescriptionEditDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-              Expanded(
+              SizedBox(
+                height: 300,
                 child: SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: 200,
-                      maxHeight: 400,
+                  child: TextField(
+                    controller: widget.controller,
+                    decoration: const InputDecoration(
+                      hintText: 'Voer kata beschrijving in...',
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.all(16),
                     ),
-                    child: EnhancedAccessibleTextField(
-                      controller: widget.controller,
-                      decoration: const InputDecoration(
-                        hintText: 'Voer kata beschrijving in...',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.all(16),
-                      ),
-                      maxLines: null,
-                      minLines: 6,
-                      expands: false,
-                      textAlignVertical: TextAlignVertical.top,
-                      style: const TextStyle(fontSize: 16),
-                      customTTSLabel: 'Kata beschrijving invoerveld',
-                    ),
+                    maxLines: 6,
+                    minLines: 6,
+                    textAlignVertical: TextAlignVertical.top,
+                    style: const TextStyle(fontSize: 16),
                   ),
                 ),
               ),
@@ -694,20 +610,14 @@ class _DescriptionEditDialogState extends ConsumerState<DescriptionEditDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TTSClickableWidget(
-                    ttsText: 'Annuleren knop',
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Annuleren'),
-                    ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Annuleren'),
                   ),
                   const SizedBox(width: 8),
-                  TTSClickableWidget(
-                    ttsText: 'Opslaan knop',
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, widget.controller.text),
-                      child: const Text('Opslaan'),
-                    ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, widget.controller.text),
+                    child: const Text('Opslaan'),
                   ),
                 ],
               ),
