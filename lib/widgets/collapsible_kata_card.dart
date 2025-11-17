@@ -15,6 +15,7 @@ class CollapsibleKataCard extends ConsumerStatefulWidget {
   final VoidCallback onDelete;
   final bool isDragging;
   final bool useAdaptiveWidth;
+  final bool showAllInfo;
 
   const CollapsibleKataCard({
     super.key,
@@ -22,6 +23,7 @@ class CollapsibleKataCard extends ConsumerStatefulWidget {
     required this.onDelete,
     this.isDragging = false,
     this.useAdaptiveWidth = true,
+    this.showAllInfo = false,
   });
 
   @override
@@ -68,7 +70,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
                   headingStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                   ),
-                  enableSelectiveCollapse: true, // Enable selective collapse for kata cards
+                  enableSelectiveCollapse: !widget.showAllInfo, // Disable selective collapse when showing all info
                 ),
               ),
 

@@ -745,9 +745,6 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
         // Comments list
         ...post.comments.map((comment) => _buildCommentCard(comment)),
-
-        // Add some bottom padding to ensure content is not hidden behind navigation
-        const SizedBox(height: 100),
       ],
     );
   }
@@ -1102,41 +1099,50 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         appBar: AppBar(
           title: const Text('Forum Post'),
         ),
-      body: Column(
-        children: [
-          // Main content
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildPostHeader(_post!),
-                  _buildPostContent(_post!),
-                  _buildCommentSection(_post!),
-                ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Main content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPostHeader(_post!),
+                    _buildPostContent(_post!),
+                    _buildCommentSection(_post!),
+                    // Add extra space when comment input is visible to ensure content is not hidden
+                    if (!_post!.isLocked)
+                      SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 120),
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // Fixed comment input at bottom (if not locked)
-          if (!_post!.isLocked)
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
-                boxShadow: [
-                  BoxShadow(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.shadow.withValues(alpha: 0.2),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, -2),
-                  ),
-                ],
-              ),
-              child: SafeArea(
+            // Fixed comment input at bottom (if not locked)
+            if (!_post!.isLocked)
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
+                      spreadRadius: 1,
+                      blurRadius: 5,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -1188,8 +1194,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

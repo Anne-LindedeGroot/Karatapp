@@ -932,414 +932,459 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               ),
             ],
           ),
-          body: Column(
-            children: [
-              // Connection error widget
-              const ConnectionErrorWidget(),
+          body: SingleChildScrollView(
+            child: Column(
+              children: [
+                // Connection error widget
+                const ConnectionErrorWidget(),
 
-              // Combined header with privacy warning
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                // Collapsible header with user management info
+                Container(
+                  margin: const EdgeInsets.fromLTRB(4, 2, 4, 2),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Main header
-                    Row(
+                  child: ExpansionTile(
+                    initiallyExpanded: true, // Start expanded
+                    title: Row(
                       children: [
                         Icon(
                           Icons.admin_panel_settings,
-                          color: Theme.of(context).primaryColor,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white.withValues(alpha: 0.8)
+                              : Theme.of(context).primaryColor,
+                          size: 16,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Text(
-                          'Gebruikersrollenbeheer',
+                          'Gebruikersrollen',
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context).primaryColor,
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : Theme.of(context).primaryColor,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Beheer gebruikersrollen en demp gebruikers. Hosts en moderators kunnen rollen wijzigen en gebruikers dempen. Alle gebruikers worden getoond, inclusief verwijderde accounts.',
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                      textAlign: TextAlign.left,
-                      softWrap: true,
-                      overflow: TextOverflow.visible,
-                      maxLines: null,
-                    ),
-                    
-                    // Privacy warning section
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.privacy_tip,
-                                color: Colors.orange.shade700,
-                                size: 18,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Beheer gebruikersrollen en demp gebruikers. Hosts en moderators kunnen rollen wijzigen en gebruikers dempen. Alle gebruikers worden getoond, inclusief verwijderde accounts.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.9)
+                                    : Colors.black.withValues(alpha: 0.8),
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Privacy Waarschuwing',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade700,
+                              textAlign: TextAlign.left,
+                              softWrap: true,
+                            ),
+
+                            // Privacy warning section
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: Colors.orange.withValues(alpha: 0.3),
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Deze pagina bevat gevoelige persoonlijke gegevens. Bij gebruik van spraakfunctie: '
-                            'zet volume laag of gebruik koptelefoon/oordopjes, vooral in openbare ruimtes.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange.shade700,
-                              fontWeight: FontWeight.w500,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.privacy_tip,
+                                        color: Theme.of(context).brightness == Brightness.dark
+                                            ? Colors.orange.shade300
+                                            : Colors.orange.shade700,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Privacy Waarschuwing',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(context).brightness == Brightness.dark
+                                              ? Colors.white
+                                              : Colors.black,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Deze pagina bevat gevoelige persoonlijke gegevens. Bij gebruik van spraakfunctie: '
+                                    'zet volume laag of gebruik koptelefoon/oordopjes, vooral in openbare ruimtes.',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? Colors.white.withValues(alpha: 0.8)
+                                          : Colors.black.withValues(alpha: 0.7),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    softWrap: true,
+                                  ),
+                                ],
+                              ),
                             ),
-                            softWrap: true,
-                            overflow: TextOverflow.visible,
-                            maxLines: null,
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Users list - now in scrollable container
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Fout bij Laden Gebruikers',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _error!,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadUsers,
+                            child: const Text('Opnieuw Proberen'),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  )
+                else if (_users.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.people_outline,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Geen gebruikers gevonden',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Dit kan betekenen dat er nog geen gebruikers zijn geregistreerd,\nof dat er een probleem is met het ophalen van gebruikers.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              print('UserManagementScreen: Manual refresh triggered from empty state');
+                              _loadUsers();
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Opnieuw proberen'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    itemCount: _users.length,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final user = _users[index];
+                      final userId = user['id'] as String;
+                      final userName = user['full_name'] as String? ?? user['email']?.split('@')[0] ?? 'Onbekende Gebruiker';
+                      final userEmail = user['email'] as String? ?? '';
+                      final userRole = UserRole.values.firstWhere(
+                        (role) => role.name == user['role'],
+                        orElse: () => UserRole.user,
+                      );
+                      final isDeleted = user['is_deleted'] as bool? ?? false;
+                      final deletedAt = user['deleted_at'];
+                      final lastSignIn = user['last_sign_in'];
+                      final emailConfirmed = user['email_confirmed'] as bool? ?? false;
 
-              // Users list
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _error != null
-                        ? Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        color: isDeleted
+                            ? Colors.grey.withValues(alpha: 0.1)
+                            : null,
+                        child: InkWell(
+                          onTap: () => _speakUserContent(user, index + 1),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(8),
+                            leading: Stack(
                               children: [
-                                const Icon(
-                                  Icons.error_outline,
-                                  size: 64,
-                                  color: Colors.red,
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Fout bij Laden Gebruikers',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.red,
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: isDeleted
+                                      ? Colors.grey
+                                      : _getRoleColor(userRole),
+                                  child: Icon(
+                                    isDeleted
+                                        ? Icons.person_off
+                                        : _getRoleIcon(userRole),
+                                    color: Colors.white,
+                                    size: 16,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _error!,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
+                                if (isDeleted)
+                                  Positioned(
+                                    right: 0,
+                                    bottom: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.delete,
+                                        size: 12,
+                                        color: Colors.white,
+                                      ),
+                                    ),
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: _loadUsers,
-                                  child: const Text('Opnieuw Proberen'),
-                                ),
                               ],
                             ),
-                          )
-                        : _users.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.people_outline,
-                                      size: 64,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'Geen gebruikers gevonden',
-                                      style: TextStyle(fontSize: 18, color: Colors.grey),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Dit kan betekenen dat er nog geen gebruikers zijn geregistreerd,\nof dat er een probleem is met het ophalen van gebruikers.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(fontSize: 14, color: Colors.grey),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    ElevatedButton.icon(
-                                      onPressed: () {
-                                        print('UserManagementScreen: Manual refresh triggered from empty state');
-                                        _loadUsers();
-                                      },
-                                      icon: const Icon(Icons.refresh),
-                                      label: const Text('Opnieuw proberen'),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                itemCount: _users.length,
-                                shrinkWrap: false,
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                itemBuilder: (context, index) {
-                                  final user = _users[index];
-                                  final userId = user['id'] as String;
-                                  final userName = user['full_name'] as String? ?? user['email']?.split('@')[0] ?? 'Onbekende Gebruiker';
-                                  final userEmail = user['email'] as String? ?? '';
-                                  final userRole = UserRole.values.firstWhere(
-                                    (role) => role.name == user['role'],
-                                    orElse: () => UserRole.user,
-                                  );
-                                  final isDeleted = user['is_deleted'] as bool? ?? false;
-                                  final deletedAt = user['deleted_at'];
-                                  final lastSignIn = user['last_sign_in'];
-                                  final emailConfirmed = user['email_confirmed'] as bool? ?? false;
-
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    color: isDeleted 
-                                        ? Colors.grey.withValues(alpha: 0.1)
-                                        : null,
-                                    child: InkWell(
-                                      onTap: () => _speakUserContent(user, index + 1),
-                                      child: ListTile(
-                                        contentPadding: const EdgeInsets.all(16),
-                                        leading: Stack(
-                                          children: [
-                                            CircleAvatar(
-                                              backgroundColor: isDeleted 
-                                                  ? Colors.grey
-                                                  : _getRoleColor(userRole),
-                                              child: Icon(
-                                                isDeleted 
-                                                    ? Icons.person_off
-                                                    : _getRoleIcon(userRole),
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                            if (isDeleted)
-                                              Positioned(
-                                                right: 0,
-                                                bottom: 0,
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(2),
-                                                  decoration: const BoxDecoration(
-                                                    color: Colors.red,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.delete,
-                                                    size: 12,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        title: Row(
-                                          children: [
-                                            Expanded(
-                                              child: isDeleted 
+                            title: Row(
+                              children: [
+                                Expanded(
+                                              child: isDeleted
                                                   ? Text(
                                                       userName,
                                                       style: TextStyle(
                                                         fontWeight: FontWeight.w600,
-                                                        fontSize: 15,
+                                                        fontSize: 14,
                                                         color: Colors.grey[600],
                                                         decoration: TextDecoration.lineThrough,
                                                       ),
-                                                      overflow: TextOverflow.visible,
-                                                      maxLines: null,
                                                       softWrap: true,
                                                     )
                                                   : Text(
                                                       userName,
                                                       style: const TextStyle(
                                                         fontWeight: FontWeight.w600,
-                                                        fontSize: 15,
+                                                        fontSize: 14,
                                                       ),
-                                                      overflow: TextOverflow.visible,
-                                                      maxLines: null,
                                                       softWrap: true,
                                                     ),
-                                            ),
-                                            if (isDeleted)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 4,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red.withValues(alpha: 0.1),
-                                                  borderRadius: BorderRadius.circular(12),
-                                                  border: Border.all(
-                                                    color: Colors.red.withValues(alpha: 0.3),
-                                                  ),
-                                                ),
-                                                child: const Text(
-                                                  'VERWIJDERD',
-                                                  style: TextStyle(
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.red,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            if (userEmail.isNotEmpty) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                _wrapEmailForDisplay(userEmail),
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: isDeleted 
-                                                      ? Colors.grey[500]
-                                                      : Colors.grey,
-                                                ),
-                                                overflow: TextOverflow.visible,
-                                                maxLines: null,
-                                                softWrap: true,
-                                              ),
-                                            ],
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                _buildRoleChip(userRole),
-                                                const SizedBox(width: 8),
-                                                if (!emailConfirmed)
-                                                  Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 2,
-                                                    ),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.orange.withValues(alpha: 0.1),
-                                                      borderRadius: BorderRadius.circular(8),
-                                                      border: Border.all(
-                                                        color: Colors.orange.withValues(alpha: 0.3),
-                                                      ),
-                                                    ),
-                                                    child: const Text(
-                                                      'Niet Bevestigd',
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        fontWeight: FontWeight.bold,
-                                                        color: Colors.orange,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                const Spacer(),
-                                                if (!isDeleted)
-                                                  Consumer(
-                                                    builder: (context, ref, child) {
-                                                      final currentUserRoleAsync = ref.watch(currentUserRoleProvider);
-                                                      return currentUserRoleAsync.when(
-                                                        data: (currentUserRole) => FittedBox(
-                                                          fit: BoxFit.scaleDown,
-                                                          child: Row(
-                                                            mainAxisSize: MainAxisSize.min,
-                                                            children: [
-                                                              // Only hosts can change roles
-                                                              if (currentUserRole == UserRole.host)
-                                                                _buildRoleSelector(
-                                                                  userId,
-                                                                  userName,
-                                                                  userRole,
-                                                                ),
-                                                              if (currentUserRole == UserRole.host)
-                                                                const SizedBox(width: 8),
-                                                              // Hosts and mediators can mute users
-                                                              if (currentUserRole == UserRole.host || currentUserRole == UserRole.mediator)
-                                                                _buildMuteButton(userId, userName),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                        loading: () => const SizedBox(
-                                                          width: 20,
-                                                          height: 20,
-                                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                                        ),
-                                                        error: (_, __) => const Icon(
-                                                          Icons.error,
-                                                          color: Colors.red,
-                                                          size: 20,
-                                                        ),
-                                                      );
-                                                    },
-                                                  ),
-                                              ],
-                                            ),
-                                            // actions are inline with the role chip; removed extra top-right block
-                                            if (isDeleted && deletedAt != null) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Verwijderd op: ${_formatDate(deletedAt)}',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.red,
-                                                  fontStyle: FontStyle.italic,
-                                                ),
-                                              ),
-                                            ],
-                                            if (lastSignIn != null && !isDeleted) ...[
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Laatste login: ${_formatDate(lastSignIn)}',
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                        trailing: isDeleted 
-                                            ? const Icon(
-                                                Icons.block,
-                                                color: Colors.grey,
-                                                size: 20,
-                                              )
-                                            : const SizedBox.shrink(),
+                                ),
+                                if (isDeleted)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.red.withValues(alpha: 0.3),
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-              ),
-            ],
+                                    child: const Text(
+                                      'VERWIJDERD',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (userEmail.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  if (userEmail.contains('@')) ...[
+                                    // Email before @
+                                    Text(
+                                      '${userEmail.split('@')[0]}@',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDeleted
+                                            ? Colors.grey[500]
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                    // Email after @
+                                    Text(
+                                      userEmail.split('@')[1],
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDeleted
+                                            ? Colors.grey[500]
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  ] else ...[
+                                    // Fallback for emails without @
+                                    Text(
+                                      userEmail,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: isDeleted
+                                            ? Colors.grey[500]
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    _buildRoleChip(userRole),
+                                    const SizedBox(width: 8),
+                                    if (!emailConfirmed)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: Colors.orange.withValues(alpha: 0.3),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'Niet Bevestigd',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.orange,
+                                          ),
+                                        ),
+                                      ),
+                                    const Spacer(),
+                                    if (!isDeleted)
+                                      Consumer(
+                                        builder: (context, ref, child) {
+                                          final currentUserRoleAsync = ref.watch(currentUserRoleProvider);
+                                          return currentUserRoleAsync.when(
+                                            data: (currentUserRole) => FittedBox(
+                                              fit: BoxFit.scaleDown,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  // Only hosts can change roles
+                                                  if (currentUserRole == UserRole.host)
+                                                    _buildRoleSelector(
+                                                      userId,
+                                                      userName,
+                                                      userRole,
+                                                    ),
+                                                  if (currentUserRole == UserRole.host)
+                                                    const SizedBox(width: 8),
+                                                  // Hosts and mediators can mute users
+                                                  if (currentUserRole == UserRole.host || currentUserRole == UserRole.mediator)
+                                                    _buildMuteButton(userId, userName),
+                                                ],
+                                              ),
+                                            ),
+                                            loading: () => const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                            error: (_, __) => const Icon(
+                                              Icons.error,
+                                              color: Colors.red,
+                                              size: 20,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                  ],
+                                ),
+                                // actions are inline with the role chip; removed extra top-right block
+                                if (isDeleted && deletedAt != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Verwijderd op: ${_formatDate(deletedAt)}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.red,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ],
+                                if (lastSignIn != null && !isDeleted) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Laatste login: ${_formatDate(lastSignIn)}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            trailing: isDeleted
+                                ? const Icon(
+                                    Icons.block,
+                                    color: Colors.grey,
+                                    size: 20,
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -1402,6 +1447,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
   }
 
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Onbekend';
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
   Future<void> _speakUserContent(Map<String, dynamic> user, int index) async {
     try {
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
@@ -1438,15 +1489,5 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         );
       }
     }
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Onbekend';
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
-  }
-
-  String _wrapEmailForDisplay(String email) {
-    if (email.length <= 25) return email;
-    return '${email.substring(0, 22)}...';
   }
 }

@@ -33,6 +33,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _searchScrollController = ScrollController();
   late TabController _tabController;
 
   @override
@@ -59,6 +60,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     _tabController.removeListener(_onTabChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _searchScrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -278,6 +280,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     return HomeScreenSearchSection(
       searchController: _searchController,
       searchFocusNode: _searchFocusNode,
+      scrollController: _searchScrollController,
       onSearchChanged: _tabController.index == 0 ? _filterKatas : _filterOhyos,
       isConnected: isConnected,
       currentTabIndex: _tabController.index,

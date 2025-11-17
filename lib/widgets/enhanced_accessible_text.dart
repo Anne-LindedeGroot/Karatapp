@@ -65,7 +65,7 @@ class EnhancedAccessibleText extends ConsumerWidget {
       textDirection: textDirection,
       locale: locale,
       softWrap: softWrap ?? true, // Default to softWrap to prevent overflow
-      overflow: overflow ?? TextOverflow.ellipsis, // Default to ellipsis to prevent overflow
+      overflow: overflow ?? TextOverflow.visible, // Default to visible to show full text
       textScaler: textScaleFactor != null ? TextScaler.linear(textScaleFactor!) : TextScaler.noScaling,
       maxLines: maxLines, // Allow null for unlimited lines, or specific number
       semanticsLabel: semanticsLabel,

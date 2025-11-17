@@ -194,6 +194,9 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
     try {
       final ohyoNotifier = ref.read(ohyoNotifierProvider.notifier);
 
+      // Capture router before async operation to avoid context issues
+      final router = GoRouter.of(context);
+
       // Identify deleted images
       final deletedImages = _originalImageUrls.where((url) => !_currentImageUrls.contains(url)).toList();
 
@@ -223,9 +226,8 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
         );
       }
 
-      // Navigate immediately - use the router directly to avoid context issues
+      // Navigate immediately - use the captured router to avoid context issues
       debugPrint('Navigation: Executing immediate navigation to home ohyo');
-      final router = GoRouter.of(context);
       router.go('/home?tab=ohyo');
       debugPrint('Navigation: GoRouter.go() executed successfully');
 
@@ -376,7 +378,7 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
+                        color: Colors.black.withValues(alpha: 0.2),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),

@@ -703,15 +703,15 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   TextStyle getDyslexiaFriendlyTextStyle(TextStyle baseStyle) {
     if (!state.isDyslexiaFriendly) return baseStyle;
 
-    // Apply dyslexic-friendly formatting with proper spacing for better line breaking
+    // Apply dyslexic-friendly formatting with optimized spacing for smooth readability
     return baseStyle.copyWith(
       fontFamily: 'OpenDyslexic',
-      // Increase letter spacing for better readability
-      letterSpacing: (baseStyle.letterSpacing ?? 0.0) + 0.5,
-      // Increase word spacing to prevent awkward line breaks
-      wordSpacing: 2.0,
-      // Increase line height for better vertical spacing
-      height: (baseStyle.height ?? 1.2) + 0.3,
+      // Reduced letter spacing for better word flow
+      letterSpacing: (baseStyle.letterSpacing ?? 0.0) + 0.2,
+      // Minimal word spacing to prevent awkward line breaks
+      wordSpacing: 1.0,
+      // Balanced line height for comfortable reading
+      height: (baseStyle.height ?? 1.2) + 0.15,
     );
   }
 

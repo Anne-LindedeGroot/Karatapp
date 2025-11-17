@@ -18,11 +18,13 @@ class HomeSearchSection extends ConsumerStatefulWidget {
 class _HomeSearchSectionState extends ConsumerState<HomeSearchSection> {
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
+  final _scrollController = ScrollController();
 
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -54,6 +56,8 @@ class _HomeSearchSectionState extends ConsumerState<HomeSearchSection> {
         controller: _searchController,
         focusNode: _searchFocusNode,
         maxLines: 1, // Ensure single line for search
+        scrollController: _scrollController,
+        scrollPhysics: const BouncingScrollPhysics(),
         decoration: InputDecoration(
           hintText: 'Zoek kata\'s...',
           prefixIcon: const Icon(Icons.search),

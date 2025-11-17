@@ -15,6 +15,7 @@ class CollapsibleOhyoCard extends ConsumerStatefulWidget {
   final VoidCallback onDelete;
   final bool isDragging;
   final bool useAdaptiveWidth;
+  final bool showAllInfo;
 
   const CollapsibleOhyoCard({
     super.key,
@@ -22,6 +23,7 @@ class CollapsibleOhyoCard extends ConsumerStatefulWidget {
     required this.onDelete,
     this.isDragging = false,
     this.useAdaptiveWidth = true,
+    this.showAllInfo = false,
   });
 
   @override
@@ -68,7 +70,7 @@ class _CollapsibleOhyoCardState extends ConsumerState<CollapsibleOhyoCard> {
                   headingStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                   ),
-                  enableSelectiveCollapse: true, // Enable selective collapse for ohyo cards
+                  enableSelectiveCollapse: !widget.showAllInfo, // Disable selective collapse when showing all info
                 ),
               ),
 

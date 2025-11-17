@@ -333,11 +333,11 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         height: 100,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.withOpacity(0.5), width: 1),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.5), width: 1),
           borderRadius: BorderRadius.circular(8),
-          color: Colors.grey.withOpacity(0.2),
+          color: Colors.grey.withValues(alpha: 0.2),
         ),
-        child: Icon(Icons.image, color: Colors.grey.withOpacity(0.5)),
+        child: Icon(Icons.image, color: Colors.grey.withValues(alpha: 0.5)),
       ),
       child: DragTarget<int>(
         onWillAcceptWithDetails: (details) => true,
@@ -361,13 +361,13 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: isHovered ? borderColor.withOpacity(0.8) : borderColor,
+                          color: isHovered ? borderColor.withValues(alpha: 0.8) : borderColor,
                           width: isHovered ? 3 : 2,
                         ),
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: isHovered ? [
                           BoxShadow(
-                            color: borderColor.withOpacity(0.3),
+                            color: borderColor.withValues(alpha: 0.3),
                             blurRadius: 8,
                             spreadRadius: 2,
                           ),
@@ -412,7 +412,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.2),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -441,7 +441,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
+                                color: Colors.black.withValues(alpha: 0.2),
                                 blurRadius: 4,
                                 offset: const Offset(0, 2),
                               ),
@@ -662,7 +662,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                       side: BorderSide(
-                        color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),

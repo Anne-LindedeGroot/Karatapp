@@ -169,6 +169,8 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         ),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           tabs: [
             Tab(
               icon: const Icon(Icons.self_improvement),
@@ -509,10 +511,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                   ],
                 ),
               ),
-              // Kata card content
+              // Kata card content - show all information for favorites
               CollapsibleKataCard(
                 kata: kata,
                 onDelete: () {}, // Empty callback instead of null
+                showAllInfo: true, // Show all information in favorites
               ),
             ],
           ),
@@ -732,10 +735,11 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                   ],
                 ),
               ),
-              // Ohyo card content
+              // Ohyo card content - show all information for favorites
               CollapsibleOhyoCard(
                 ohyo: ohyo,
                 onDelete: () {}, // Empty callback instead of null
+                showAllInfo: true, // Show all information in favorites
               ),
             ],
           ),

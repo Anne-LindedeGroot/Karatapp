@@ -461,15 +461,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AccessibleText(
-                  'Gebruikersprofiel',
-                  style: TextStyle(
-                    fontSize: context.responsiveValue(mobile: 24.0, tablet: 28.0, desktop: 32.0),
-                    fontWeight: FontWeight.bold,
-                  ),
-                  enableTextToSpeech: true,
-                ),
-                SizedBox(height: context.responsiveValue(mobile: 30.0, tablet: 40.0, desktop: 50.0)),
+                SizedBox(height: context.responsiveValue(mobile: 20.0, tablet: 30.0, desktop: 40.0)),
+
                 // Avatar Section
                 Center(
                   child: AvatarWidget(
@@ -524,11 +517,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   enableTextToSpeech: true,
                 ),
-                AccessibleText(
-                  currentUser?.email ?? 'Onbekend',
-                  style: const TextStyle(fontSize: 16),
-                  enableTextToSpeech: true,
-                ),
+                if (currentUser?.email != null) ...[
+                  // Split email into two lines for better readability
+                  Builder(
+                    builder: (context) {
+                      final email = currentUser!.email!;
+                      final atIndex = email.indexOf('@');
+                      if (atIndex != -1) {
+                        final username = email.substring(0, atIndex + 1); // includes @
+                        final domain = email.substring(atIndex + 1);
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AccessibleText(
+                              username,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                              enableTextToSpeech: true,
+                            ),
+                            AccessibleText(
+                              domain,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                              enableTextToSpeech: true,
+                            ),
+                          ],
+                        );
+                      } else {
+                        return AccessibleText(
+                          email,
+                          style: const TextStyle(fontSize: 16),
+                          enableTextToSpeech: true,
+                        );
+                      }
+                    },
+                  ),
+                ] else ...[
+                  const AccessibleText(
+                    'Onbekend',
+                    style: TextStyle(fontSize: 16),
+                    enableTextToSpeech: true,
+                  ),
+                ],
                 SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
                 // Role Section
                 const AccessibleText(
@@ -724,7 +752,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // TTS Button Visibility Toggle
                 const AccessibleText(
                   'Toegankelijkheid',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   enableTextToSpeech: true,
                 ),
                 SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
@@ -734,28 +762,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   builder: (context, ref, child) {
                     final accessibilityState = ref.watch(accessibilityNotifierProvider);
                     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-                    
+
                     return Card(
-                      child: SwitchListTile(
-                        title: const AccessibleText(
-                          'Spraakknop weergeven',
-                          enableTextToSpeech: true,
-                        ),
-                        subtitle: const AccessibleText(
-                          'Toon of verberg de spraakknop op alle schermen',
-                          enableTextToSpeech: true,
-                        ),
-                        value: accessibilityState.showTTSButton,
-                        onChanged: (value) {
-                          accessibilityNotifier.setShowTTSButton(value);
-                        },
-                        secondary: Icon(
-                          accessibilityState.showTTSButton 
-                            ? Icons.headphones 
-                            : Icons.headphones_outlined,
-                          color: accessibilityState.showTTSButton 
-                            ? Theme.of(context).colorScheme.primary 
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  accessibilityState.showTTSButton
+                                    ? Icons.headphones
+                                    : Icons.headphones_outlined,
+                                  color: accessibilityState.showTTSButton
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: AccessibleText(
+                                    'Spraakknop weergeven',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    enableTextToSpeech: true,
+                                  ),
+                                ),
+                                Switch(
+                                  value: accessibilityState.showTTSButton,
+                                  onChanged: (value) {
+                                    accessibilityNotifier.setShowTTSButton(value);
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            AccessibleText(
+                              'Toon of verberg de spraakknop op alle schermen',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                height: 1.4,
+                              ),
+                              enableTextToSpeech: true,
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -767,7 +821,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // Data Usage Settings Section
                 const AccessibleText(
                   'Dataverbruik & Offline',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   enableTextToSpeech: true,
                 ),
                 SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
@@ -801,57 +855,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             const SizedBox(height: 12),
                             
                             // Connection Status
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Flexible(
-                                  child: AccessibleText(
-                                    'Status:',
-                                    enableTextToSpeech: true,
-                                  ),
+                                const AccessibleText(
+                                  'Status:',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                  enableTextToSpeech: true,
                                 ),
-                                Flexible(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), // Reduced horizontal padding
-                                    decoration: BoxDecoration(
-                                      color: networkState.isConnected 
-                                          ? Colors.green.withValues(alpha: 0.1) 
-                                          : Colors.red.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: AccessibleText(
-                                      networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
-                                      style: TextStyle(
-                                        color: networkState.isConnected ? Colors.green : Colors.red,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                      enableTextToSpeech: true,
-                                      overflow: TextOverflow.visible,
+                                const SizedBox(height: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: networkState.isConnected
+                                        ? Colors.green.withValues(alpha: 0.1)
+                                        : Colors.red.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: networkState.isConnected ? Colors.green : Colors.red,
+                                      width: 1.5,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            
-                            const SizedBox(height: 8),
-                            
-                            // Data Usage Mode
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Flexible(
                                   child: AccessibleText(
-                                    'Dataverbruik modus:',
-                                    enableTextToSpeech: true,
-                                  ),
-                                ),
-                                Flexible(
-                                  child: AccessibleText(
-                                    _getDataUsageModeText(dataUsageState.mode),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
+                                    networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
+                                    style: TextStyle(
+                                      color: networkState.isConnected ? Colors.green : Colors.red,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
                                     ),
                                     enableTextToSpeech: true,
                                     overflow: TextOverflow.visible,
@@ -862,22 +892,62 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             
                             const SizedBox(height: 8),
                             
-                            // Monthly Usage
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            const SizedBox(height: 16),
+
+                            // Data Usage Mode
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Flexible(
+                                const AccessibleText(
+                                  'Dataverbruik modus:',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                  enableTextToSpeech: true,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   child: AccessibleText(
-                                    'Maandelijks verbruik:',
+                                    _getDataUsageModeText(dataUsageState.mode),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
                                     enableTextToSpeech: true,
+                                    overflow: TextOverflow.visible,
                                   ),
                                 ),
-                                Flexible(
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            const SizedBox(height: 16),
+
+                            // Monthly Usage
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const AccessibleText(
+                                  'Maandelijks verbruik:',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                  enableTextToSpeech: true,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   child: AccessibleText(
                                     '${dataUsageState.stats.formattedTotalUsage} / ${dataUsageState.monthlyDataLimit} MB',
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
                                     ),
                                     enableTextToSpeech: true,
                                     overflow: TextOverflow.visible,
@@ -888,36 +958,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             
                             // Usage Progress Bar
                             if (dataUsageState.monthlyDataLimit > 0) ...[
-                              const SizedBox(height: 8),
-                              LinearProgressIndicator(
-                                value: (dataUsageState.stats.totalBytesUsed / (1024 * 1024)) / dataUsageState.monthlyDataLimit,
-                                backgroundColor: Colors.grey.withValues(alpha: 0.3),
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  dataUsageState.shouldShowDataWarning ? Colors.red : Colors.green,
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    AccessibleText(
+                                      'Voortgang dit maand:',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey,
+                                      ),
+                                      enableTextToSpeech: true,
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: LinearProgressIndicator(
+                                        value: (dataUsageState.stats.totalBytesUsed / (1024 * 1024)) / dataUsageState.monthlyDataLimit,
+                                        backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          dataUsageState.shouldShowDataWarning ? Colors.orange : Colors.green,
+                                        ),
+                                        minHeight: 8,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                             
                             // Data Warning
                             if (dataUsageState.shouldShowDataWarning) ...[
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 16),
                               Container(
-                                padding: const EdgeInsets.all(8),
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Colors.orange.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.orange.withValues(alpha: 0.3),
+                                    width: 1.5,
+                                  ),
                                 ),
-                                child: const Row(
+                                child: Row(
                                   children: [
-                                    Icon(Icons.warning, color: Colors.orange, size: 16),
-                                    SizedBox(width: 6), // Reduced from 8 to 6
+                                    Icon(
+                                      Icons.warning_amber_rounded,
+                                      color: Colors.orange[700],
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 10),
                                     Expanded(
                                       child: AccessibleText(
-                                        'Nadert maandelijks dataverbruik limiet',
+                                        'Let op: Nadert maandelijks dataverbruik limiet',
                                         style: TextStyle(
-                                          color: Colors.orange,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
+                                          color: Colors.orange[800],
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.3,
                                         ),
                                         enableTextToSpeech: true,
                                         overflow: TextOverflow.visible,
@@ -942,16 +1046,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     ),
                                   );
                                 },
-                                icon: const Icon(Icons.settings, size: 18),
+                                icon: const Icon(Icons.settings, size: 20),
                                 label: const AccessibleText(
                                   'Dataverbruik instellingen',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                   enableTextToSpeech: true,
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Theme.of(context).colorScheme.primary,
                                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                  minimumSize: const Size(double.infinity, 48),
+                                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+                                  minimumSize: const Size(double.infinity, 52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
                               ),
                             ),

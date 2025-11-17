@@ -23,7 +23,6 @@ class ErrorBoundary extends ConsumerStatefulWidget {
 
 class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
   Error? _error;
-  StackTrace? _stackTrace;
 
   @override
   void initState() {
@@ -108,7 +107,6 @@ class _ErrorBoundaryState extends ConsumerState<ErrorBoundary> {
     } catch (error, stackTrace) {
       // Catch any synchronous errors during build
       _error = error as Error?;
-      _stackTrace = stackTrace;
 
       // Report to global error boundary
       WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/accessible_text.dart';
+import '../widgets/enhanced_accessible_text.dart';
 import '../utils/responsive_utils.dart';
 
 class AccessibilitySettingsScreen extends ConsumerWidget {
@@ -58,7 +59,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
             
             const SizedBox(height: 24),
             
-            // Font Size Section
+            // Combined Font Settings Section (same as forum/home)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -75,7 +76,7 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                         const SizedBox(width: 12),
                         Expanded(
                           child: AccessibleText(
-                            'Lettergrootte',
+                            'Tekst instellingen',
                             style: TextStyle(
                         fontSize: context.responsiveValue(mobile: 16.0, tablet: 17.0, desktop: 18.0),
                         fontWeight: FontWeight.w600,
@@ -85,111 +86,174 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    
-                    // Font size options
-                    Column(
-                      children: AccessibilityFontSize.values.map((fontSize) {
-                        final isSelected = accessibilityState.fontSize == fontSize;
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                          leading: Icon(
-                            isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                            color: isSelected ? Theme.of(context).colorScheme.primary : null,
-                          ),
-                          title: AccessibleText(
-                            fontSize.fontSizeDescription,
-                            style: TextStyle(
-                              fontSize: _getFontSizeForDemo(fontSize),
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            ),
-                            enableTextToSpeech: true,
-                          ),
-                          subtitle: AccessibleText(
-                            'Voorbeeld tekst in ${fontSize.fontSizeDescription.toLowerCase()} lettertype',
-                            style: TextStyle(
-                              fontSize: _getFontSizeForDemo(fontSize) * 0.8,
-                            ),
-                          ),
-                          onTap: () => accessibilityNotifier.setFontSize(fontSize),
-                        );
-                      }).toList(),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Quick toggle button
-                    SizedBox(
-                      width: double.infinity,
-                      child: AccessibleButton(
-                        text: 'Wissel tussen Normaal en Groot',
-                        icon: const Icon(Icons.swap_horiz),
-                        enableTextToSpeech: true,
-                        onPressed: () => accessibilityNotifier.toggleFontSize(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Dyslexia-friendly Section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.settings_accessibility,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 24,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: AccessibleText(
-                            'dyslexie vriendelijke tekst',
-                            style: TextStyle(
-                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
-                        fontWeight: FontWeight.w600,
-                      ),
-                            enableTextToSpeech: true,
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 8),
                     AccessibleText(
-                      'Verbetert de leesbaarheid voor mensen met dyslexie door extra ruimte tussen letters en regels.',
+                      'Pas de lettergrootte en dyslexie vriendelijke instellingen aan.',
                       style: TextStyle(
-                        fontSize: context.responsiveValue(mobile: 12.0, tablet: 13.0, desktop: 14.0),
+                        fontSize: context.responsiveValue(mobile: 14.0, tablet: 15.0, desktop: 16.0),
                       ),
                       enableTextToSpeech: true,
                     ),
                     const SizedBox(height: 16),
-                    
-                    SwitchListTile(
-                      title: const AccessibleText(
-                        'dyslexie vriendelijke modus',
-                        enableTextToSpeech: true,
+
+                    // Combined accessibility settings popup (same as forum/home)
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      subtitle: AccessibleText(
-                        accessibilityState.isDyslexiaFriendly 
-                            ? 'Ingeschakeld - Extra ruimte tussen tekst'
-                            : 'Uitgeschakeld - Normale tekstopmaak',
-                        enableTextToSpeech: true,
+                      child: PopupMenuButton<String>(
+                        position: PopupMenuPosition.under,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.text_fields,
+                                color: (accessibilityState.fontSize != AccessibilityFontSize.normal ||
+                                       accessibilityState.isDyslexiaFriendly)
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                                size: 24,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    AccessibleText(
+                                      'Lettergrootte: ${accessibilityState.fontSizeDescription}',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    AccessibleText(
+                                      accessibilityState.isDyslexiaFriendly
+                                          ? 'Dyslexie vriendelijk: Aan'
+                                          : 'Dyslexie vriendelijk: Uit',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                            ],
+                          ),
+                        ),
+                        itemBuilder: (context) => [
+                          // Font size section
+                          PopupMenuItem<String>(
+                            enabled: false,
+                            child: Text(
+                              'Lettergrootte',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                          ...AccessibilityFontSize.values.map((fontSize) {
+                            final isSelected = accessibilityState.fontSize == fontSize;
+                            return PopupMenuItem<String>(
+                              value: 'font_${fontSize.name}',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _getFontSizeIcon(fontSize),
+                                    size: 20,
+                                    color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    fontSize == AccessibilityFontSize.small ? 'Klein' :
+                                    fontSize == AccessibilityFontSize.normal ? 'Normaal' :
+                                    fontSize == AccessibilityFontSize.large ? 'Groot' : 'Extra Groot',
+                                    style: TextStyle(
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      color: isSelected ? Theme.of(context).colorScheme.primary : null,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  if (isSelected)
+                                    Icon(
+                                      Icons.check,
+                                      size: 16,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                ],
+                              ),
+                            );
+                          }),
+                          const PopupMenuDivider(),
+                          // Dyslexia toggle
+                          PopupMenuItem<String>(
+                            value: 'toggle_dyslexia',
+                            child: SizedBox(
+                              width: 280, // Fixed width to prevent overflow
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    accessibilityState.isDyslexiaFriendly
+                                        ? Icons.format_line_spacing
+                                        : Icons.format_line_spacing_outlined,
+                                    size: 18, // Slightly smaller icon
+                                    color: accessibilityState.isDyslexiaFriendly
+                                        ? Theme.of(context).colorScheme.primary
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8), // Reduced spacing
+                                  Expanded(
+                                    child: Text(
+                                      'dyslexie vriendelijk', // No hyphen for better dyslexie friendly display
+                                      style: const TextStyle(
+                                        fontSize: 14, // Smaller font size
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      // Show full text without truncation
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Transform.scale(
+                                    scale: 0.7, // Smaller switch
+                                    child: Switch(
+                                      value: accessibilityState.isDyslexiaFriendly,
+                                      onChanged: (value) {
+                                        accessibilityNotifier.toggleDyslexiaFriendly();
+                                        Navigator.pop(context);
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        onSelected: (String value) {
+                          if (value.startsWith('font_')) {
+                            final fontSizeName = value.substring(5);
+                            final fontSize = AccessibilityFontSize.values.firstWhere(
+                              (size) => size.name == fontSizeName,
+                            );
+                            accessibilityNotifier.setFontSize(fontSize);
+                          } else if (value == 'toggle_dyslexia') {
+                            accessibilityNotifier.toggleDyslexiaFriendly();
+                          }
+                        },
                       ),
-                      value: accessibilityState.isDyslexiaFriendly,
-                      onChanged: (value) => accessibilityNotifier.setDyslexiaFriendly(value),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
-                    // Example text
+
+                    // Example text section
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -201,13 +265,13 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const AccessibleText(
-                            'Voorbeeld:',
+                            'Voorbeeld tekst:',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          AccessibleText(
-                            'Dit is een voorbeeld van hoe tekst eruitziet met de dyslexie vriendelijke instellingen. De letters hebben meer ruimte en zijn makkelijker te lezen.',
-                            enableTextToSpeech: true,
+                          EnhancedAccessibleText(
+                            'Dit is een voorbeeld van hoe tekst eruitziet met de huidige instellingen. De lettergrootte en dyslexie vriendelijke instellingen zijn hier zichtbaar.',
+                            enableTTS: true,
                           ),
                         ],
                       ),
@@ -477,16 +541,18 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
     );
   }
 
-  double _getFontSizeForDemo(AccessibilityFontSize fontSize) {
+  /// Get appropriate icon for font size
+  IconData _getFontSizeIcon(AccessibilityFontSize fontSize) {
     switch (fontSize) {
       case AccessibilityFontSize.small:
-        return 12.0;
+        return Icons.text_decrease;
       case AccessibilityFontSize.normal:
-        return 14.0;
+        return Icons.text_fields;
       case AccessibilityFontSize.large:
-        return 17.0;
+        return Icons.text_increase;
       case AccessibilityFontSize.extraLarge:
-        return 21.0;
+        return Icons.format_size;
     }
   }
+
 }

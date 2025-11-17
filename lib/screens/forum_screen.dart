@@ -222,39 +222,16 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          // Check if we have enough space for all buttons
-          final buttonWidth = 120.0; // Estimated width per button
-          final totalButtons = ForumCategory.values.length + 1; // +1 for "Alle Berichten"
-          final totalWidth = buttonWidth * totalButtons + (8.0 * (totalButtons - 1)); // Include spacing
-
-          if (totalWidth <= constraints.maxWidth) {
-            // Enough space, show all buttons in a row
-            return Row(
-              children: [
-                _buildCategoryButton(
-                  category: null,
-                  label: 'Alle Berichten',
-                  isSelected: selectedCategory == null,
-                  onTap: () => _filterByCategory(null),
-                ),
-                const SizedBox(width: 8),
-                ...ForumCategory.values.map((category) =>
-                  _buildCategoryButton(
-                    category: category,
-                    label: category.displayName,
-                    isSelected: selectedCategory == category,
-                    onTap: () => _filterByCategory(category),
-                  ),
-                ),
-              ],
-            );
-          } else {
-            // Not enough space, use horizontal scroll
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Always use horizontal scroll to ensure all categories are visible
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: IntrinsicHeight(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildCategoryButton(
                     category: null,
@@ -273,9 +250,11 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                   ),
                 ],
               ),
-            );
-          }
-        },
+            ),
+          ),
+          // Add some padding at the bottom for better spacing
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }
@@ -298,11 +277,14 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              constraints: const BoxConstraints(
-                minWidth: 80,
-                maxWidth: 140, // Prevent buttons from getting too wide
+              constraints: BoxConstraints(
+                minWidth: context.responsiveValue(mobile: 90, tablet: 100, desktop: 110),
+                minHeight: context.responsiveValue(mobile: 44, tablet: 48, desktop: 52),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.responsiveValue(mobile: 12, tablet: 16, desktop: 20),
+                vertical: context.responsiveValue(mobile: 10, tablet: 12, desktop: 14),
+              ),
               decoration: BoxDecoration(
                 gradient: isSelected
                     ? const LinearGradient(
@@ -339,10 +321,12 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (isSelected) ...[
-                    Container(
+                  // Always reserve space for check icon to maintain consistent sizing
+                  SizedBox(
+                    width: 20, // Fixed width for icon space
+                    child: isSelected ? Container(
                       padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
                       ),
@@ -351,9 +335,9 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                         size: 14,
                         color: const Color(0xFF4CAF50),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
+                    ) : null,
+                  ),
+                  if (isSelected) const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       label,
@@ -362,7 +346,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                             ? Colors.white
                             : Colors.grey[300],
                         fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        fontSize: 14, // Slightly smaller to prevent overflow
+                        fontSize: context.responsiveValue(mobile: 12, tablet: 13, desktop: 14),
                         shadows: isSelected ? [
                           Shadow(
                             color: Colors.black.withValues(alpha: 0.3),
@@ -372,7 +356,9 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                         ] : null,
                       ),
                       overflow: TextOverflow.visible,
-                      maxLines: 1,
+                      maxLines: 2, // Allow up to 2 lines for longer category names
+                      softWrap: true,
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ],
@@ -925,18 +911,33 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         // Search bar
         Padding(
           padding: EdgeInsets.all(context.responsiveValue(mobile: 16.0, tablet: 12.0, desktop: 8.0)),
-          child: EnhancedAccessibleTextField(
-            controller: _searchController,
-            focusNode: _searchFocusNode,
-            decoration: const InputDecoration(
-              hintText: 'Zoek berichten...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(25.0)),
+          child: SizedBox(
+            width: double.infinity,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: 56, // Minimum height for single line
+                maxHeight: 120, // Maximum height for 3 lines
+              ),
+              child: EnhancedAccessibleTextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode,
+                maxLines: 3, // Allow multiple lines to show full text
+                minLines: 1, // Start with single line
+                decoration: InputDecoration(
+                  hintText: 'Zoek berichten...',
+                  prefixIcon: Icon(
+                    Icons.search,
+                    size: context.responsiveValue(mobile: 20.0, tablet: 22.0, desktop: 24.0),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(context.responsiveValue(mobile: 25.0, tablet: 28.0, desktop: 30.0))),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                onChanged: _filterPosts,
+                customTTSLabel: 'Zoek berichten invoerveld',
               ),
             ),
-            onChanged: _filterPosts,
-            customTTSLabel: 'Zoek berichten invoerveld',
           ),
         ),
         
@@ -1073,21 +1074,29 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
             builder: (context, ref, child) {
               final accessibilityState = ref.watch(accessibilityNotifierProvider);
               final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-              
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  
-                  // Combined accessibility settings popup
-                  PopupMenuButton<String>(
-                    icon: Icon(
-                      Icons.text_fields,
-                      color: (accessibilityState.fontSize != AccessibilityFontSize.normal || 
-                             accessibilityState.isDyslexiaFriendly)
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    tooltip: 'Tekst instellingen',
+
+              return ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+
+                    // Combined accessibility settings popup
+                    PopupMenuButton<String>(
+                      icon: Icon(
+                        Icons.text_fields,
+                        color: (accessibilityState.fontSize != AccessibilityFontSize.normal ||
+                               accessibilityState.isDyslexiaFriendly)
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                      tooltip: 'Tekst instellingen',
+                      constraints: BoxConstraints(
+                        minWidth: accessibilityState.fontSize == AccessibilityFontSize.extraLarge ||
+                                 accessibilityState.isDyslexiaFriendly
+                            ? 320
+                            : 280,
+                      ),
                     itemBuilder: (context) => [
                       // Font size section
                       PopupMenuItem<String>(
@@ -1136,43 +1145,40 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       // Dyslexia toggle
                       PopupMenuItem<String>(
                         value: 'toggle_dyslexia',
-                        child: SizedBox(
-                          width: 280, // Fixed width to prevent overflow
-                          child: Row(
-                            children: [
-                              Icon(
-                                accessibilityState.isDyslexiaFriendly
-                                    ? Icons.format_line_spacing
-                                    : Icons.format_line_spacing_outlined,
-                                size: 18, // Slightly smaller icon
-                                color: accessibilityState.isDyslexiaFriendly
-                                    ? Theme.of(context).colorScheme.primary
-                                    : null,
-                              ),
-                              const SizedBox(width: 8), // Reduced spacing
-                              Expanded(
-                                child: Text(
-                                  'dyslexie vriendelijk', // No hyphen for better dyslexie friendly display
-                                  style: const TextStyle(
-                                    fontSize: 14, // Smaller font size
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                  // Show full text without truncation
+                        child: Row(
+                          children: [
+                            Icon(
+                              accessibilityState.isDyslexiaFriendly
+                                  ? Icons.format_line_spacing
+                                  : Icons.format_line_spacing_outlined,
+                              size: 18,
+                              color: accessibilityState.isDyslexiaFriendly
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'dyslexie\nvriendelijk',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
                                 ),
+                                overflow: TextOverflow.visible,
                               ),
-                              const SizedBox(width: 8),
-                              Transform.scale(
-                                scale: 0.7, // Smaller switch
-                                child: Switch(
-                                  value: accessibilityState.isDyslexiaFriendly,
-                                  onChanged: (value) {
-                                    accessibilityNotifier.toggleDyslexiaFriendly();
-                                    Navigator.pop(context);
-                                  },
-                                ),
+                            ),
+                            const SizedBox(width: 8),
+                            Transform.scale(
+                              scale: 0.7,
+                              child: Switch(
+                                value: accessibilityState.isDyslexiaFriendly,
+                                onChanged: (value) {
+                                  accessibilityNotifier.toggleDyslexiaFriendly();
+                                  Navigator.pop(context);
+                                },
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -1188,14 +1194,15 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       }
                     },
                   ),
-                  
+
                   // Refresh button
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: _refreshPosts,
                     tooltip: 'Berichten verversen',
                   ),
-                ],
+                  ],
+                ),
               );
             },
           ),
