@@ -557,7 +557,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 label: 'Bericht inhoud: ${post.content}',
                 child: Text(
                   post.content,
-                  maxLines: 2,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 15,
@@ -595,7 +594,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
                                 ),
-                                maxLines: 1,
                               ),
                             ),
                             const SizedBox(height: 2),

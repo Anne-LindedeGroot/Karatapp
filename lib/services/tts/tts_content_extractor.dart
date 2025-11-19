@@ -9,6 +9,8 @@ import 'tts_form_interactive_extractor.dart';
 
 /// TTS Content Extractor - Handles content extraction for different screen types
 class TTSContentExtractor {
+  // RegExp constants for content extraction
+  static final RegExp _digitRegex = RegExp(r'\d+');
   /// Extract screen content based on detected screen type
   static String extractScreenContentByType(BuildContext context, ScreenType screenType) {
     switch (screenType) {
@@ -1653,7 +1655,7 @@ class TTSContentExtractor {
         // Check for image count displays
         if (widget is Text && widget.data != null) {
           final text = widget.data!;
-          if (text.contains('afbeelding') && text.contains(RegExp(r'\d+'))) {
+          if (text.contains('afbeelding') && text.contains(_digitRegex)) {
             galleryInfo.add('Afbeeldingen: $text');
           }
         }
@@ -1705,7 +1707,7 @@ class TTSContentExtractor {
         // Check for video count displays
         if (widget is Text && widget.data != null) {
           final text = widget.data!;
-          if (text.contains('video') && text.contains(RegExp(r'\d+'))) {
+          if (text.contains('video') && text.contains(_digitRegex)) {
             galleryInfo.add('Video\'s: $text');
           }
         }

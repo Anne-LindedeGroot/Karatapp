@@ -4,13 +4,21 @@ import '../models/forum_models.dart';
 import '../providers/forum_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/accessibility_provider.dart';
-import '../widgets/global_tts_overlay.dart';
-import '../widgets/tts_clickable_text.dart';
 import '../widgets/enhanced_accessible_text.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../services/unified_tts_service.dart';
+
+class EditPostResult {
+  final bool shouldSave;
+  final ForumCategory selectedCategory;
+
+  const EditPostResult({
+    required this.shouldSave,
+    required this.selectedCategory,
+  });
+}
 
 class ForumPostDetailScreen extends ConsumerStatefulWidget {
   final int postId;
@@ -981,19 +989,20 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     final contentController = TextEditingController(text: post.content);
     ForumCategory selectedCategory = post.category;
 
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => DialogTTSOverlay(
-        child: EditPostDialog(
+    final result = await Navigator.push<EditPostResult>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditPostScreen(
           post: post,
           titleController: titleController,
           contentController: contentController,
           selectedCategory: selectedCategory,
         ),
+        fullscreenDialog: true,
       ),
     );
 
-    if (result == true) {
+    if (result?.shouldSave == true) {
       try {
         await ref
             .read(forumNotifierProvider.notifier)
@@ -1001,7 +1010,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               postId: post.id,
               title: titleController.text.trim(),
               content: contentController.text.trim(),
-              category: selectedCategory,
+              category: result!.selectedCategory,
             );
 
         // Reload the post to get updated data
@@ -1031,13 +1040,14 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   Future<void> _showEditCommentDialog(ForumComment comment) async {
     final contentController = TextEditingController(text: comment.content);
 
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => DialogTTSOverlay(
-        child: EditCommentDialog(
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditCommentScreen(
           comment: comment,
           contentController: contentController,
         ),
+        fullscreenDialog: true,
       ),
     );
 
@@ -1261,7 +1271,7 @@ class _EditCommentDialogState extends ConsumerState<EditCommentDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const TTSClickableText('Reactie Bewerken'),
+      title: const Text('Reactie Bewerken'),
       content: SizedBox(
         width: double.maxFinite,
         child: EnhancedAccessibleTextField(
@@ -1278,32 +1288,161 @@ class _EditCommentDialogState extends ConsumerState<EditCommentDialog> {
         ),
       ),
       actions: [
-        TTSClickableWidget(
-          ttsText: 'Annuleren knop',
-          child: TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuleren'),
-          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Annuleren'),
         ),
-        TTSClickableWidget(
-          ttsText: 'Opslaan knop',
-          child: ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Opslaan'),
-          ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Opslaan'),
         ),
       ],
     );
   }
 }
 
-class EditPostDialog extends ConsumerStatefulWidget {
+class EditCommentScreen extends ConsumerStatefulWidget {
+  final ForumComment comment;
+  final TextEditingController contentController;
+
+  const EditCommentScreen({
+    super.key,
+    required this.comment,
+    required this.contentController,
+  });
+
+  @override
+  ConsumerState<EditCommentScreen> createState() => _EditCommentScreenState();
+}
+
+class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Automatically speak the screen content when it opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakScreenContent();
+    });
+  }
+
+  Future<void> _speakScreenContent() async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+    // Only speak if TTS is enabled
+    if (accessibilityState.isTextToSpeechEnabled && mounted) {
+      final content = _buildScreenContentText();
+      await accessibilityNotifier.speak(content);
+    }
+  }
+
+  String _buildScreenContentText() {
+    final List<String> contentParts = [];
+
+    contentParts.add('Forum reactie bewerken');
+    contentParts.add('Scherm geopend voor het bewerken van een forum reactie');
+
+    contentParts.add('Reactie bewerken invoerveld: Bewerk de inhoud van je reactie');
+    if (widget.contentController.text.isNotEmpty) {
+      contentParts.add('Huidige reactie: ${widget.contentController.text.substring(0, min(100, widget.contentController.text.length))}');
+      if (widget.contentController.text.length > 100) {
+        contentParts.add('en nog ${widget.contentController.text.length - 100} karakters');
+      }
+    }
+
+    contentParts.add('Gebruik de Annuleren knop om te annuleren');
+    contentParts.add('Gebruik de Opslaan knop om de wijzigingen op te slaan');
+
+    return contentParts.join('. ');
+  }
+
+  int min(int a, int b) => a < b ? a : b;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reactie Bewerken'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context, false),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    EnhancedAccessibleTextField(
+                      controller: widget.contentController,
+                      decoration: const InputDecoration(
+                        labelText: 'Reactie',
+                        border: OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 8,
+                      maxLength: 1000,
+                      autofocus: true,
+                      customTTSLabel: 'Reactie bewerken invoerveld',
+                    ),
+                    const SizedBox(height: 24), // Extra space before buttons
+                  ],
+                ),
+              ),
+            ),
+            // Fixed buttons at bottom
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, -1),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 100),
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Annuleren', overflow: TextOverflow.visible),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 100),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Opslaan', overflow: TextOverflow.visible),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class EditPostScreen extends ConsumerStatefulWidget {
   final ForumPost post;
   final TextEditingController titleController;
   final TextEditingController contentController;
   final ForumCategory selectedCategory;
 
-  const EditPostDialog({
+  const EditPostScreen({
     super.key,
     required this.post,
     required this.titleController,
@@ -1312,38 +1451,38 @@ class EditPostDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<EditPostDialog> createState() => _EditPostDialogState();
+  ConsumerState<EditPostScreen> createState() => _EditPostScreenState();
 }
 
-class _EditPostDialogState extends ConsumerState<EditPostDialog> {
+class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   late ForumCategory _selectedCategory;
 
   @override
   void initState() {
     super.initState();
     _selectedCategory = widget.selectedCategory;
-    // Automatically speak the dialog content when it opens
+    // Automatically speak the screen content when it opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _speakDialogContent();
+      _speakScreenContent();
     });
   }
 
-  Future<void> _speakDialogContent() async {
+  Future<void> _speakScreenContent() async {
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
 
     // Only speak if TTS is enabled
     if (accessibilityState.isTextToSpeechEnabled && mounted) {
-      final content = _buildDialogContentText();
+      final content = _buildScreenContentText();
       await accessibilityNotifier.speak(content);
     }
   }
 
-  String _buildDialogContentText() {
+  String _buildScreenContentText() {
     final List<String> contentParts = [];
 
     contentParts.add('Forum bericht bewerken');
-    contentParts.add('Dialoog geopend voor het bewerken van een forum bericht');
+    contentParts.add('Scherm geopend voor het bewerken van een forum bericht');
 
     contentParts.add('Huidige titel: ${widget.titleController.text}');
     contentParts.add('Titel invoerveld: Bewerk de titel van je bericht');
@@ -1370,133 +1509,122 @@ class _EditPostDialogState extends ConsumerState<EditPostDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return StatefulBuilder(
-      builder: (context, setState) => Dialog(
-        insetPadding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width * 0.05,
-          vertical: 40,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Bericht Bewerken'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context, const EditPostResult(shouldSave: false, selectedCategory: ForumCategory.general)),
         ),
-        child: Container(
-          width: double.infinity,
-          height: MediaQuery.of(context).size.height - 120,
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width - 40,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: TTSClickableText(
-                        'Bericht Bewerken',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    EnhancedAccessibleTextField(
+                      controller: widget.titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Titel',
+                        border: OutlineInputBorder(),
                       ),
+                      maxLength: 200,
+                      customTTSLabel: 'Titel invoerveld',
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      icon: const Icon(Icons.close),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                    const SizedBox(height: 16),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+                        final baseStyle = const TextStyle(fontSize: 14, height: 1.2);
+                        final accessibleStyle = accessibilityNotifier.getAccessibleTextStyle(baseStyle);
+
+                        return DropdownButtonFormField<ForumCategory>(
+                          initialValue: _selectedCategory,
+                          decoration: const InputDecoration(
+                            labelText: 'Categorie',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                          ),
+                          isExpanded: true,
+                          style: accessibleStyle,
+                          items: ForumCategory.values.map((category) {
+                            return DropdownMenuItem(
+                              value: category,
+                              child: Container(
+                                constraints: const BoxConstraints(minHeight: 48),
+                                child: Text(
+                                  category.displayName,
+                                  style: accessibleStyle,
+                                  softWrap: true,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCategory = value!;
+                            });
+                          },
+                        );
+                      },
                     ),
+                    const SizedBox(height: 16),
+                    EnhancedAccessibleTextField(
+                      controller: widget.contentController,
+                      decoration: const InputDecoration(
+                        labelText: 'Inhoud',
+                        border: OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 8,
+                      maxLength: 5000,
+                      customTTSLabel: 'Inhoud invoerveld',
+                    ),
+                    const SizedBox(height: 24), // Extra space before buttons
                   ],
                 ),
               ),
-              const Divider(height: 1),
-
-              // Content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      EnhancedAccessibleTextField(
-                        controller: widget.titleController,
-                        decoration: const InputDecoration(
-                          labelText: 'Titel',
-                          border: OutlineInputBorder(),
-                        ),
-                        maxLength: 200,
-                        customTTSLabel: 'Titel invoerveld',
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<ForumCategory>(
-                        initialValue: _selectedCategory,
-                        decoration: const InputDecoration(
-                          labelText: 'Categorie',
-                          border: OutlineInputBorder(),
-                        ),
-                        isExpanded: true,
-                        items: ForumCategory.values.map((category) {
-                          return DropdownMenuItem(
-                            value: category,
-                            child: Text(
-                              category.displayName,
-                              overflow: TextOverflow.visible,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedCategory = value!;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      EnhancedAccessibleTextField(
-                        controller: widget.contentController,
-                        decoration: const InputDecoration(
-                          labelText: 'Inhoud',
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                        maxLines: 8,
-                        maxLength: 5000,
-                        customTTSLabel: 'Inhoud invoerveld',
-                      ),
-                    ],
+            ),
+            // Fixed buttons at bottom
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, -1),
                   ),
-                ),
+                ],
               ),
-
-              const Divider(height: 1),
-
-              // Actions
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Flexible(
-                      child: TTSClickableWidget(
-                        ttsText: 'Annuleren knop',
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text('Annuleren'),
-                        ),
-                      ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 100),
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context, const EditPostResult(shouldSave: false, selectedCategory: ForumCategory.general)),
+                      child: const Text('Annuleren', overflow: TextOverflow.visible),
                     ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: TTSClickableWidget(
-                        ttsText: 'Opslaan knop',
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text('Opslaan'),
-                        ),
-                      ),
+                  ),
+                  const SizedBox(width: 16),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 100),
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, EditPostResult(shouldSave: true, selectedCategory: _selectedCategory)),
+                      child: const Text('Opslaan', overflow: TextOverflow.visible),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -21,6 +21,11 @@ class VideoUrlInputWidget extends StatefulWidget {
 }
 
 class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
+  static final RegExp _urlRegex = RegExp(
+    r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
+    caseSensitive: false,
+  );
+
   late TextEditingController _urlController;
   late List<String> _currentUrls;
 
@@ -39,14 +44,9 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
 
   bool _isValidUrl(String url) {
     if (url.trim().isEmpty) return false;
-    
+
     // Basic URL validation
-    final urlPattern = RegExp(
-      r'^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)',
-      caseSensitive: false,
-    );
-    
-    return urlPattern.hasMatch(url.trim());
+    return _urlRegex.hasMatch(url.trim());
   }
 
   bool _isSupportedMediaUrl(String url) {

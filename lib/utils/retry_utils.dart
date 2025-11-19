@@ -11,6 +11,9 @@ class RetryUtils {
   static const double defaultBackoffMultiplier = 2.0;
   static const Duration defaultMaxDelay = Duration(seconds: 30);
 
+  // RegExp constant for status code extraction
+  static final RegExp _statusCodeRegex = RegExp(r'(\d{3})');
+
   /// Executes a function with retry logic and exponential backoff
   static Future<T> executeWithRetry<T>(
     Future<T> Function() operation, {
@@ -149,8 +152,7 @@ class RetryUtils {
 
   /// Extracts HTTP status code from error message
   static int _extractStatusCode(String message) {
-    final regex = RegExp(r'(\d{3})');
-    final match = regex.firstMatch(message);
+    final match = _statusCodeRegex.firstMatch(message);
     if (match != null) {
       return int.tryParse(match.group(1)!) ?? 0;
     }

@@ -3,7 +3,7 @@ enum ForumCategory {
   general('Algemene Discussie'),
   kataRequests('Kata Verzoeken'),
   techniques('Technieken & Tips'),
-  events('Evenementen & Aankondigingen'),
+  events('Evenementen &\nAankondigingen'),
   feedback('App Feedback');
 
   const ForumCategory(this.displayName);

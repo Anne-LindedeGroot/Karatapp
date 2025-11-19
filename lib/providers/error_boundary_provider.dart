@@ -352,12 +352,18 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
   }
 
   String _cleanErrorMessage(String error) {
+    // Define patterns for cleaning error messages
+    const Pattern exceptionPattern = r'^Exception:\s*';
+    const Pattern errorPattern = r'^Error:\s*';
+    const Pattern failedPattern = r'^Failed to\s*';
+    const Pattern nullPattern = r':\s*null$';
+
     // Remove common technical prefixes
     String cleaned = error
-        .replaceAll(RegExp(r'^Exception:\s*'), '')
-        .replaceAll(RegExp(r'^Error:\s*'), '')
-        .replaceAll(RegExp(r'^Failed to\s*'), '')
-        .replaceAll(RegExp(r':\s*null$'), '');
+        .replaceAll(exceptionPattern, '')
+        .replaceAll(errorPattern, '')
+        .replaceAll(failedPattern, '')
+        .replaceAll(nullPattern, '');
     
     // Capitalize first letter
     if (cleaned.isNotEmpty) {

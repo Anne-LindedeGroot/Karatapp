@@ -9,6 +9,12 @@ import '../utils/retry_utils.dart';
 class AuthSecurityService {
   final SupabaseClient _supabase = SupabaseClientManager().client;
 
+  // RegExp constants for password validation
+  static final RegExp _uppercaseRegex = RegExp(r'[A-Z]');
+  static final RegExp _lowercaseRegex = RegExp(r'[a-z]');
+  static final RegExp _numberRegex = RegExp(r'[0-9]');
+  static final RegExp _specialCharRegex = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
+
   /// Check if user has MFA enabled using custom database function
   Future<bool> isMFAEnabled() async {
     try {
@@ -301,19 +307,19 @@ class AuthSecurityService {
       throw Exception('Password must be at least 8 characters long');
     }
     
-    if (!password.contains(RegExp(r'[A-Z]'))) {
+    if (!password.contains(_uppercaseRegex)) {
       throw Exception('Password must contain at least one uppercase letter');
     }
-    
-    if (!password.contains(RegExp(r'[a-z]'))) {
+
+    if (!password.contains(_lowercaseRegex)) {
       throw Exception('Password must contain at least one lowercase letter');
     }
-    
-    if (!password.contains(RegExp(r'[0-9]'))) {
+
+    if (!password.contains(_numberRegex)) {
       throw Exception('Password must contain at least one number');
     }
-    
-    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+
+    if (!password.contains(_specialCharRegex)) {
       throw Exception('Password must contain at least one special character');
     }
     

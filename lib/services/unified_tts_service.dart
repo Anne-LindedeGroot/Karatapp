@@ -16,6 +16,21 @@ class UnifiedTTSService {
   factory UnifiedTTSService() => _instance;
   UnifiedTTSService._internal();
 
+  // RegExp constants for text validation and processing
+  static final RegExp _whitespaceRegex = RegExp(r'\s');
+  static final RegExp _alphanumericRegex = RegExp(r'[a-zA-Z0-9\u00C0-\u017F\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF]');
+  static final RegExp _ttsRegex = RegExp(r'\bTTS\b', caseSensitive: false);
+  static final RegExp _apiRegex = RegExp(r'\bAPI\b', caseSensitive: false);
+  static final RegExp _urlRegex = RegExp(r'\bURL\b', caseSensitive: false);
+  static final RegExp _htmlRegex = RegExp(r'\bHTML\b', caseSensitive: false);
+  static final RegExp _cssRegex = RegExp(r'\bCSS\b', caseSensitive: false);
+  static final RegExp _jsRegex = RegExp(r'\bJS\b', caseSensitive: false);
+  static final RegExp _appLowerRegex = RegExp(r'\bapp\b', caseSensitive: false);
+  static final RegExp _appUpperRegex = RegExp(r'\bApp\b');
+  static final RegExp _numberRegex = RegExp(r'\b(\d+)\b');
+  static final RegExp _emailRegex = RegExp(r'\b[\w\.-]+@[\w\.-]+\.\w+\b');
+  static final RegExp _urlLinkRegex = RegExp(r'https?://[^\s]+');
+
   // Content caching moved to TTSCacheManager
 
   /// Read the current screen content out loud in Dutch
@@ -794,13 +809,13 @@ class UnifiedTTSService {
     }
     
     // Check if text contains only whitespace or special characters
-    if (trimmed.replaceAll(RegExp(r'\s'), '').isEmpty) return false;
-    
+    if (trimmed.replaceAll(_whitespaceRegex, '').isEmpty) return false;
+
     // Check if text is too short (less than 2 characters)
     if (trimmed.length < 2) return false;
-    
+
     // Check if text contains only special characters or symbols
-    if (trimmed.replaceAll(RegExp(r'[a-zA-Z0-9\u00C0-\u017F\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF]'), '').length == trimmed.length) {
+    if (trimmed.replaceAll(_alphanumericRegex, '').length == trimmed.length) {
       return false;
     }
     
@@ -1033,30 +1048,30 @@ class UnifiedTTSService {
     String processed = text;
     
     // Handle common Dutch abbreviations and acronyms
-    processed = processed.replaceAll(RegExp(r'\bTTS\b', caseSensitive: false), 'T T S');
-    processed = processed.replaceAll(RegExp(r'\bAPI\b', caseSensitive: false), 'A P I');
-    processed = processed.replaceAll(RegExp(r'\bURL\b', caseSensitive: false), 'U R L');
-    processed = processed.replaceAll(RegExp(r'\bHTML\b', caseSensitive: false), 'H T M L');
-    processed = processed.replaceAll(RegExp(r'\bCSS\b', caseSensitive: false), 'C S S');
-    processed = processed.replaceAll(RegExp(r'\bJS\b', caseSensitive: false), 'Javascript');
-    
+    processed = processed.replaceAll(_ttsRegex, 'T T S');
+    processed = processed.replaceAll(_apiRegex, 'A P I');
+    processed = processed.replaceAll(_urlRegex, 'U R L');
+    processed = processed.replaceAll(_htmlRegex, 'H T M L');
+    processed = processed.replaceAll(_cssRegex, 'C S S');
+    processed = processed.replaceAll(_jsRegex, 'Javascript');
+
     // Handle common Dutch words that might be mispronounced
-    processed = processed.replaceAll(RegExp(r'\bapp\b', caseSensitive: false), 'applicatie');
-    processed = processed.replaceAll(RegExp(r'\bApp\b'), 'Applicatie');
+    processed = processed.replaceAll(_appLowerRegex, 'applicatie');
+    processed = processed.replaceAll(_appUpperRegex, 'Applicatie');
     
     // Handle numbers for better pronunciation
-    processed = processed.replaceAllMapped(RegExp(r'\b(\d+)\b'), (match) {
+    processed = processed.replaceAllMapped(_numberRegex, (match) {
       final number = match.group(1)!;
       return _pronounceNumber(number);
     });
     
     // Handle email addresses
-    processed = processed.replaceAllMapped(RegExp(r'\b[\w\.-]+@[\w\.-]+\.\w+\b'), (match) {
+    processed = processed.replaceAllMapped(_emailRegex, (match) {
       return _pronounceEmail(match.group(0)!);
     });
-    
+
     // Handle URLs
-    processed = processed.replaceAllMapped(RegExp(r'https?://[^\s]+'), (match) {
+    processed = processed.replaceAllMapped(_urlLinkRegex, (match) {
       return 'Website link';
     });
     
