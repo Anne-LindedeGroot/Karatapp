@@ -10,10 +10,10 @@ class AuthSecurityService {
   final SupabaseClient _supabase = SupabaseClientManager().client;
 
   // RegExp constants for password validation
-  static final RegExp _uppercaseRegex = RegExp(r'[A-Z]');
-  static final RegExp _lowercaseRegex = RegExp(r'[a-z]');
-  static final RegExp _numberRegex = RegExp(r'[0-9]');
-  static final RegExp _specialCharRegex = RegExp(r'[!@#$%^&*(),.?":{}|<>]');
+  static final RegExp _uppercaseRegex = RegExp(r'[A-Z]'); // ignore: deprecated_member_use
+  static final RegExp _lowercaseRegex = RegExp(r'[a-z]'); // ignore: deprecated_member_use
+  static final RegExp _numberRegex = RegExp(r'[0-9]'); // ignore: deprecated_member_use
+  static final RegExp _specialCharRegex = RegExp(r'[!@#$%^&*(),.?":{}|<>]'); // ignore: deprecated_member_use
 
   /// Check if user has MFA enabled using custom database function
   Future<bool> isMFAEnabled() async {

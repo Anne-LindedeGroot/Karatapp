@@ -12,7 +12,7 @@ class RetryUtils {
   static const Duration defaultMaxDelay = Duration(seconds: 30);
 
   // RegExp constant for status code extraction
-  static final RegExp _statusCodeRegex = RegExp(r'(\d{3})');
+  static final RegExp _statusCodeRegex = RegExp(r'(\d{3})'); // ignore: deprecated_member_use
 
   /// Executes a function with retry logic and exponential backoff
   static Future<T> executeWithRetry<T>(

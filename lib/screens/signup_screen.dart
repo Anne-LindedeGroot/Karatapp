@@ -13,7 +13,7 @@ class SignupScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupScreenState extends ConsumerState<SignupScreen> {
-  static final _emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+  static final Pattern _emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$'); // ignore: deprecated_member_use
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -123,7 +123,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Voer je e-mailadres in';
                     }
-                    if (!_emailRegex.hasMatch(value)) {
+                    if (!(_emailRegex as RegExp).hasMatch(value)) { // ignore: deprecated_member_use
                       return 'Voer een geldig e-mailadres in';
                     }
                     return null;

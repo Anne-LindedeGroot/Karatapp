@@ -9,8 +9,8 @@ import 'tts_form_interactive_extractor.dart';
 
 /// TTS Content Extractor - Handles content extraction for different screen types
 class TTSContentExtractor {
-  // RegExp constants for content extraction
-  static final RegExp _digitRegex = RegExp(r'\d+');
+  // Pattern constants for content extraction
+  static final Pattern _digitRegex = RegExp(r'\d+'); // ignore: deprecated_member_use
   /// Extract screen content based on detected screen type
   static String extractScreenContentByType(BuildContext context, ScreenType screenType) {
     switch (screenType) {

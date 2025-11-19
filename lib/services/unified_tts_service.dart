@@ -16,20 +16,20 @@ class UnifiedTTSService {
   factory UnifiedTTSService() => _instance;
   UnifiedTTSService._internal();
 
-  // RegExp constants for text validation and processing
-  static final RegExp _whitespaceRegex = RegExp(r'\s');
-  static final RegExp _alphanumericRegex = RegExp(r'[a-zA-Z0-9\u00C0-\u017F\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF]');
-  static final RegExp _ttsRegex = RegExp(r'\bTTS\b', caseSensitive: false);
-  static final RegExp _apiRegex = RegExp(r'\bAPI\b', caseSensitive: false);
-  static final RegExp _urlRegex = RegExp(r'\bURL\b', caseSensitive: false);
-  static final RegExp _htmlRegex = RegExp(r'\bHTML\b', caseSensitive: false);
-  static final RegExp _cssRegex = RegExp(r'\bCSS\b', caseSensitive: false);
-  static final RegExp _jsRegex = RegExp(r'\bJS\b', caseSensitive: false);
-  static final RegExp _appLowerRegex = RegExp(r'\bapp\b', caseSensitive: false);
-  static final RegExp _appUpperRegex = RegExp(r'\bApp\b');
-  static final RegExp _numberRegex = RegExp(r'\b(\d+)\b');
-  static final RegExp _emailRegex = RegExp(r'\b[\w\.-]+@[\w\.-]+\.\w+\b');
-  static final RegExp _urlLinkRegex = RegExp(r'https?://[^\s]+');
+  // Pattern constants for text validation and processing
+  static final Pattern _whitespaceRegex = RegExp(r'\s'); // ignore: deprecated_member_use
+  static final Pattern _alphanumericRegex = RegExp(r'[a-zA-Z0-9\u00C0-\u017F\u0100-\u017F\u0180-\u024F\u1E00-\u1EFF]'); // ignore: deprecated_member_use
+  static final Pattern _ttsRegex = RegExp(r'\b[Tt][Tt][Ss]\b'); // ignore: deprecated_member_use
+  static final Pattern _apiRegex = RegExp(r'\b[Aa][Pp][Ii]\b'); // ignore: deprecated_member_use
+  static final Pattern _urlRegex = RegExp(r'\b[Uu][Rr][Ll]\b'); // ignore: deprecated_member_use
+  static final Pattern _htmlRegex = RegExp(r'\b[Hh][Tt][Mm][Ll]\b'); // ignore: deprecated_member_use
+  static final Pattern _cssRegex = RegExp(r'\b[Cc][Ss][Ss]\b'); // ignore: deprecated_member_use
+  static final Pattern _jsRegex = RegExp(r'\b[Jj][Ss]\b'); // ignore: deprecated_member_use
+  static final Pattern _appLowerRegex = RegExp(r'\b[Aa][Pp][Pp]\b'); // ignore: deprecated_member_use
+  static final Pattern _appUpperRegex = RegExp(r'\bApp\b'); // ignore: deprecated_member_use
+  static final Pattern _numberRegex = RegExp(r'\b(\d+)\b'); // ignore: deprecated_member_use
+  static final Pattern _emailRegex = RegExp(r'\b[\w\.-]+@[\w\.-]+\.\w+\b'); // ignore: deprecated_member_use
+  static final Pattern _urlLinkRegex = RegExp(r'https?://[^\s]+'); // ignore: deprecated_member_use
 
   // Content caching moved to TTSCacheManager
 

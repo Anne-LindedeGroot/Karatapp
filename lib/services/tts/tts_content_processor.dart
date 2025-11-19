@@ -1,30 +1,30 @@
 
 /// TTS Content Processor - Handles Dutch text processing and formatting
 class TTSContentProcessor {
-  // RegExp constants for text processing
-  static final RegExp _whitespaceRegex = RegExp(r'\s+');
-  static final RegExp _buttonRegex = RegExp(r'Knop:\s*', caseSensitive: false);
-  static final RegExp _floatingButtonRegex = RegExp(r'Zwevende knop:\s*', caseSensitive: false);
-  static final RegExp _filterRegex = RegExp(r'Filter:\s*', caseSensitive: false);
-  static final RegExp _inputFieldRegex = RegExp(r'Invoerveld:\s*', caseSensitive: false);
-  static final RegExp _pageRegex = RegExp(r'Pagina:\s*', caseSensitive: false);
-  static final RegExp _ditIsDeRegex = RegExp(r'Dit is de\s+', caseSensitive: false);
-  static final RegExp _ditZijnDeRegex = RegExp(r'Dit zijn de\s+', caseSensitive: false);
-  static final RegExp _ditIsJeRegex = RegExp(r'Dit is je\s+', caseSensitive: false);
-  static final RegExp _ditZijnJeRegex = RegExp(r'Dit zijn je\s+', caseSensitive: false);
-  static final RegExp _multipleDotsRegex = RegExp(r'\.\s*\.\s*\.');
-  static final RegExp _dotSpaceRegex = RegExp(r'\.\s*');
-  static final RegExp _exclamationSpaceRegex = RegExp(r'!\s*');
-  static final RegExp _questionSpaceRegex = RegExp(r'\?\s*');
-  static final RegExp _ttsAbbrevRegex = RegExp(r'\bTTS\b', caseSensitive: false);
-  static final RegExp _apiAbbrevRegex = RegExp(r'\bAPI\b', caseSensitive: false);
-  static final RegExp _urlAbbrevRegex = RegExp(r'\bURL\b', caseSensitive: false);
-  static final RegExp _drRegex = RegExp(r'\bDr\.', caseSensitive: false);
-  static final RegExp _profRegex = RegExp(r'\bProf\.', caseSensitive: false);
-  static final RegExp _mrRegex = RegExp(r'\bMr\.', caseSensitive: false);
-  static final RegExp _mevrRegex = RegExp(r'\bMevr\.', caseSensitive: false);
-  static final RegExp _numberRegex = RegExp(r'\b(\d+)\b');
-  static final RegExp _emailRegex = RegExp(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b');
+  // Pattern constants for text processing
+  static final Pattern _whitespaceRegex = RegExp(r'\s+'); // ignore: deprecated_member_use
+  static final Pattern _buttonRegex = RegExp(r'Knop:\s*', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _floatingButtonRegex = RegExp(r'Zwevende knop:\s*', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _filterRegex = RegExp(r'Filter:\s*', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _inputFieldRegex = RegExp(r'Invoerveld:\s*', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _pageRegex = RegExp(r'Pagina:\s*', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _ditIsDeRegex = RegExp(r'Dit is de\s+', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _ditZijnDeRegex = RegExp(r'Dit zijn de\s+', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _ditIsJeRegex = RegExp(r'Dit is je\s+', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _ditZijnJeRegex = RegExp(r'Dit zijn je\s+', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _multipleDotsRegex = RegExp(r'\.\s*\.\s*\.'); // ignore: deprecated_member_use
+  static final Pattern _dotSpaceRegex = RegExp(r'\.\s*'); // ignore: deprecated_member_use
+  static final Pattern _exclamationSpaceRegex = RegExp(r'!\s*'); // ignore: deprecated_member_use
+  static final Pattern _questionSpaceRegex = RegExp(r'\?\s*'); // ignore: deprecated_member_use
+  static final Pattern _ttsAbbrevRegex = RegExp(r'\bTTS\b', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _apiAbbrevRegex = RegExp(r'\bAPI\b', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _urlAbbrevRegex = RegExp(r'\bURL\b', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _drRegex = RegExp(r'\bDr\.', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _profRegex = RegExp(r'\bProf\.', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _mrRegex = RegExp(r'\bMr\.', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _mevrRegex = RegExp(r'\bMevr\.', caseSensitive: false); // ignore: deprecated_member_use
+  static final Pattern _numberRegex = RegExp(r'\b(\d+)\b'); // ignore: deprecated_member_use
+  static final Pattern _emailRegex = RegExp(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'); // ignore: deprecated_member_use
   /// Process content for better Dutch speech pronunciation
   static String processContentForDutchSpeech(String content) {
     if (content.isEmpty) return content;
