@@ -380,46 +380,51 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     );
     final canModerate = canModerateRole || (currentUser != null && post.authorId == currentUser.id);
     final isSelected = context.isDesktop && _selectedPostId == post.id;
+    final accessibilityState = ref.watch(accessibilityNotifierProvider);
 
     return Semantics(
       label: 'Forum bericht: ${post.title}, categorie: ${post.category.displayName}, door ${post.authorName}',
       button: true,
-      child: Card(
-        margin: EdgeInsets.symmetric(
-          horizontal: context.responsiveValue(mobile: 16.0, tablet: 12.0, desktop: 8.0),
-          vertical: context.responsiveValue(mobile: 6.0, tablet: 4.0, desktop: 3.0),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width - 20, // Prevent overflow on any screen
         ),
-        elevation: isSelected ? 8 : 2,
-        color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: isSelected 
-            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
-            : BorderSide.none,
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            _speakForumPostContent(post);
-            if (context.isDesktop) {
-              // Master-detail mode: select post for detail view
-              setState(() {
-                _selectedPostId = post.id;
-              });
-            } else {
-              // Mobile mode: navigate to detail screen
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ForumPostDetailScreen(postId: post.id),
-                ),
-              );
-            }
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: Card(
+          margin: EdgeInsets.symmetric(
+            horizontal: context.responsiveValue(mobile: 10.0, tablet: 8.0, desktop: 6.0),
+            vertical: context.responsiveValue(mobile: 6.0, tablet: 4.0, desktop: 3.0),
+          ),
+          elevation: isSelected ? 8 : 2,
+          color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: isSelected
+              ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2)
+              : BorderSide.none,
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              _speakForumPostContent(post);
+              if (context.isDesktop) {
+                // Master-detail mode: select post for detail view
+                setState(() {
+                  _selectedPostId = post.id;
+                });
+              } else {
+                // Mobile mode: navigate to detail screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ForumPostDetailScreen(postId: post.id),
+                  ),
+                );
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header with category and actions
                 Row(
@@ -427,18 +432,36 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                     // Category badge
                     Semantics(
                       label: 'Categorie: ${post.category.displayName}',
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _getCategoryColor(post.category),
-                          borderRadius: BorderRadius.circular(12),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: post.category == ForumCategory.events
+                              ? (accessibilityState.fontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly ? 240 : 200)
+                              : (post.category.displayName.length > 15 ? 140 : 120),
                         ),
-                        child: Text(
-                          post.category.displayName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                              vertical: post.category == ForumCategory.events
+                                ? (accessibilityState.fontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly ? 9 : 7)
+                                : (post.category.displayName.length > 20 ? 6 : 5),
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getCategoryColor(post.category),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            post.category == ForumCategory.events
+                                ? 'Evenementen\n&\nAankondigingen'
+                                : post.category.displayName,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: post.category == ForumCategory.events && (accessibilityState.fontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly)
+                                  ? 14
+                                  : 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: post.category == ForumCategory.events ? 3 : (post.category.displayName.length > 15 ? 2 : 1),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
@@ -501,9 +524,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Verwijderen', 
+                                  'Verwijderen',
                                   style: TextStyle(color: Colors.red),
-                                  overflow: TextOverflow.visible,
                                 ),
                               ),
                             ],
@@ -526,7 +548,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                     height: 1.3,
                   ),
                   maxLines: 3,
-                  overflow: TextOverflow.visible,
                 ),
               ),
               const SizedBox(height: 10),
@@ -537,7 +558,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 child: Text(
                   post.content,
                   maxLines: 2,
-                  overflow: TextOverflow.visible,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 15,
@@ -575,7 +595,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   fontWeight: FontWeight.w600,
                                   fontSize: 15,
                                 ),
-                                overflow: TextOverflow.visible,
+                                maxLines: 1,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -587,7 +607,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   fontSize: 13,
                                 ),
-                                overflow: TextOverflow.visible,
                                 maxLines: 1,
                               ),
                             ),
@@ -603,11 +622,11 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                     builder: (context, constraints) {
                       final availableWidth = constraints.maxWidth;
                       const buttonSpacing = 8.0;
-                      const estimatedButtonWidth = 80.0; // Estimated width per button
-                      const viewTextWidth = 100.0; // Estimated width for "Bekijk bericht"
+                      const estimatedButtonWidth = 85.0; // Estimated width per button (increased for safety)
+                      const viewTextWidth = 105.0; // Estimated width for "Bekijk bericht" (increased for safety)
 
-                      // Calculate how many buttons we can fit
-                      final maxButtons = ((availableWidth - viewTextWidth - buttonSpacing * 2) / (estimatedButtonWidth + buttonSpacing)).floor();
+                      // Calculate how many buttons we can fit with a small buffer
+                      final maxButtons = ((availableWidth - viewTextWidth - buttonSpacing * 2 - 10) / (estimatedButtonWidth + buttonSpacing)).floor();
                       final showAllButtons = maxButtons >= 3;
 
                       if (showAllButtons) {
@@ -871,7 +890,8 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         ),
         ),
       ),
-    );
+        ),
+      );
   }
 
   Color _getCategoryColor(ForumCategory category) {
@@ -992,6 +1012,11 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                           ),
                         )
                       : ListView.builder(
+                          padding: EdgeInsets.only(
+                            left: context.responsiveValue(mobile: 8.0, tablet: 6.0, desktop: 4.0),
+                            right: context.responsiveValue(mobile: 8.0, tablet: 6.0, desktop: 4.0),
+                            bottom: 16.0,
+                          ),
                           itemCount: posts.length,
                           itemBuilder: (context, index) {
                             return _buildPostCard(posts[index]);
@@ -1208,35 +1233,37 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
           ),
         ],
       ),
-        body: ResponsiveLayout(
-          mobile: _buildForumList(posts, isLoading, error),
-          tablet: _buildForumList(posts, isLoading, error),
-          desktop: Row(
-            children: [
-              // Forum posts list (left side)
-              Expanded(
-                flex: 2,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      right: BorderSide(
-                        color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
-                        width: 1,
+        body: SafeArea(
+          child: ResponsiveLayout(
+            mobile: _buildForumList(posts, isLoading, error),
+            tablet: _buildForumList(posts, isLoading, error),
+            desktop: Row(
+              children: [
+                // Forum posts list (left side)
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        right: BorderSide(
+                          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                          width: 1,
+                        ),
                       ),
                     ),
+                    child: _buildForumList(posts, isLoading, error),
                   ),
-                  child: _buildForumList(posts, isLoading, error),
                 ),
-              ),
-              // Post detail view (right side)
-              Expanded(
-                flex: 3,
-                child: Container(
-                  color: Theme.of(context).colorScheme.surface,
-                  child: _buildDetailView(),
+                // Post detail view (right side)
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: _buildDetailView(),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         floatingActionButton: FloatingActionButton(
