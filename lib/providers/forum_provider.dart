@@ -1,20 +1,32 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/forum_models.dart';
 import '../services/forum_service.dart';
+import '../services/offline_forum_service.dart';
 import 'error_boundary_provider.dart';
+import 'offline_services_provider.dart';
 
 // Provider for the ForumService instance
 final forumServiceProvider = Provider<ForumService>((ref) {
   return ForumService();
 });
 
+// Provider for offline forum service
+final offlineForumServiceProvider = Provider<OfflineForumService>((ref) {
+  throw UnimplementedError('OfflineForumService must be provided by a parent provider');
+});
+
 // StateNotifier for forum management
 class ForumNotifier extends StateNotifier<ForumState> {
   final ForumService _forumService;
   final ErrorBoundaryNotifier _errorBoundary;
+  OfflineForumService? _offlineForumService;
 
   ForumNotifier(this._forumService, this._errorBoundary) : super(const ForumState()) {
     loadPosts();
+  }
+
+  void initializeOfflineService(OfflineForumService offlineForumService) {
+    _offlineForumService = offlineForumService;
   }
 
   Future<void> loadPosts({
@@ -23,29 +35,74 @@ class ForumNotifier extends StateNotifier<ForumState> {
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
+    List<ForumPost>? cachedPosts;
+
+    // First, try to load from cache if available
+    if (_offlineForumService != null) {
+      try {
+        cachedPosts = await _offlineForumService!.getValidCachedForumPosts();
+        if (cachedPosts != null && cachedPosts.isNotEmpty) {
+          // Load cached posts first for immediate UI feedback
+          final filteredPosts = _filterPosts(cachedPosts, searchQuery ?? state.searchQuery, category ?? state.selectedCategory);
+
+          state = state.copyWith(
+            posts: cachedPosts,
+            filteredPosts: filteredPosts,
+            isLoading: true, // Keep loading true while we try to refresh from online
+            error: null,
+            isOfflineMode: true,
+          );
+        }
+      } catch (e) {
+        // Ignore cache errors, continue with online loading
+      }
+    }
+
+    // Then try to load from online
     try {
       final posts = await _forumService.getPosts(
         category: category,
         searchQuery: searchQuery,
       );
 
-      final filteredPosts = _filterPosts(posts, state.searchQuery, state.selectedCategory);
+      // Cache the online data
+      if (_offlineForumService != null) {
+        await _offlineForumService!.cacheForumPosts(posts);
+      }
 
+      final filteredPosts = _filterPosts(posts, searchQuery ?? state.searchQuery, category ?? state.selectedCategory);
+
+      // Update state with online data
       state = state.copyWith(
         posts: posts,
         filteredPosts: filteredPosts,
         isLoading: false,
         error: null,
+        isOfflineMode: false,
       );
     } catch (e) {
-      final errorMessage = 'Failed to load forum posts: ${e.toString()}';
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      // Online loading failed
+      if (cachedPosts != null && cachedPosts.isNotEmpty) {
+        // We have cached data, show it with offline indicator
+        final filteredPosts = _filterPosts(cachedPosts, searchQuery ?? state.searchQuery, category ?? state.selectedCategory);
+        state = state.copyWith(
+          filteredPosts: filteredPosts,
+          isLoading: false,
+          error: null,
+          isOfflineMode: true,
+        );
+      } else {
+        // No cached data available, show error
+        final errorMessage = 'Failed to load forum posts: ${e.toString()}';
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+          isOfflineMode: false,
+        );
 
-      // Report to global error boundary
-      _errorBoundary.reportNetworkError(errorMessage);
+        // Report to global error boundary
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
     }
   }
 
@@ -121,6 +178,148 @@ class ForumNotifier extends StateNotifier<ForumState> {
       // Report to global error boundary
       _errorBoundary.reportNetworkError(errorMessage);
       rethrow;
+    }
+  }
+
+  Future<ForumPost> getPost(int postId) async {
+    // First, try to load from cache if available
+    if (_offlineForumService != null) {
+      try {
+        final cachedPost = await _offlineForumService!.getCachedIndividualPost(postId);
+        if (cachedPost != null) {
+          state = state.copyWith(selectedPost: cachedPost);
+          // Try to refresh from online in the background
+          _refreshPostFromOnline(postId);
+          return cachedPost;
+        }
+      } catch (e) {
+        // Ignore cache errors, continue with online loading
+      }
+    }
+
+    // Load from online
+    try {
+      final post = await _forumService.getPost(postId);
+
+      // Cache the post for offline use
+      if (_offlineForumService != null) {
+        await _offlineForumService!.cacheIndividualPost(post);
+      }
+
+      state = state.copyWith(selectedPost: post);
+      return post;
+    } catch (e) {
+      final errorMessage = 'Failed to load post: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
+
+      // Report to global error boundary
+      _errorBoundary.reportNetworkError(errorMessage);
+
+      rethrow;
+    }
+  }
+
+  /// Refresh post from online in the background (used when serving cached post)
+  Future<void> _refreshPostFromOnline(int postId) async {
+    try {
+      final post = await _forumService.getPost(postId);
+
+      // Cache the updated post
+      if (_offlineForumService != null) {
+        await _offlineForumService!.cacheIndividualPost(post);
+      }
+
+      // Update state if we're still showing the same post
+      if (state.selectedPost?.id == postId) {
+        state = state.copyWith(selectedPost: post);
+      }
+    } catch (e) {
+      // Silently fail background refresh - user already has cached data
+    }
+  }
+
+  Future<List<ForumComment>> getCommentsPaginated({
+    required int postId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    // First, try to load from cache if available
+    if (_offlineForumService != null) {
+      try {
+        final cachedComments = await _offlineForumService!.getCachedPostComments(
+          postId,
+          limit: limit,
+          offset: offset,
+        );
+        if (cachedComments != null && cachedComments.isNotEmpty) {
+          // Try to refresh from online in the background
+          _refreshCommentsFromOnline(postId, limit, offset);
+          return cachedComments;
+        }
+      } catch (e) {
+        // Ignore cache errors, continue with online loading
+      }
+    }
+
+    // Load from online
+    try {
+      final comments = await _forumService.getCommentsPaginated(
+        postId: postId,
+        limit: limit,
+        offset: offset,
+      );
+
+      // Cache the comments for offline use (cache all comments, not just the paginated ones)
+      if (_offlineForumService != null && offset == 0) {
+        try {
+          final allComments = await _forumService.getCommentsPaginated(
+            postId: postId,
+            limit: 1000, // Get a large batch to cache
+            offset: 0,
+          );
+          await _offlineForumService!.cachePostComments(postId, allComments);
+        } catch (e) {
+          // If we can't get all comments, at least cache what we have
+          await _offlineForumService!.cachePostComments(postId, comments);
+        }
+      }
+
+      return comments;
+    } catch (e) {
+      final errorMessage = 'Failed to load comments: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
+
+      // Report to global error boundary
+      _errorBoundary.reportNetworkError(errorMessage);
+
+      rethrow;
+    }
+  }
+
+  /// Refresh comments from online in the background (used when serving cached comments)
+  Future<void> _refreshCommentsFromOnline(int postId, int limit, int offset) async {
+    try {
+      final comments = await _forumService.getCommentsPaginated(
+        postId: postId,
+        limit: limit,
+        offset: offset,
+      );
+
+      // Cache the updated comments
+      if (_offlineForumService != null) {
+        try {
+          final allComments = await _forumService.getCommentsPaginated(
+            postId: postId,
+            limit: 1000,
+            offset: 0,
+          );
+          await _offlineForumService!.cachePostComments(postId, allComments);
+        } catch (e) {
+          await _offlineForumService!.cachePostComments(postId, comments);
+        }
+      }
+    } catch (e) {
+      // Silently fail background refresh - user already has cached data
     }
   }
 
@@ -443,7 +642,13 @@ class ForumNotifier extends StateNotifier<ForumState> {
 final forumNotifierProvider = StateNotifierProvider<ForumNotifier, ForumState>((ref) {
   final forumService = ref.watch(forumServiceProvider);
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  return ForumNotifier(forumService, errorBoundary);
+  final notifier = ForumNotifier(forumService, errorBoundary);
+
+  // Initialize offline service if available
+  final offlineForumService = ref.watch(offlineForumServiceProviderOverride);
+  notifier.initializeOfflineService(offlineForumService);
+
+  return notifier;
 });
 
 // Convenience providers for specific forum state properties
@@ -453,6 +658,10 @@ final forumPostsProvider = Provider<List<ForumPost>>((ref) {
 
 final forumLoadingProvider = Provider<bool>((ref) {
   return ref.watch(forumNotifierProvider).isLoading;
+});
+
+final forumOfflineModeProvider = Provider<bool>((ref) {
+  return ref.watch(forumNotifierProvider).isOfflineMode;
 });
 
 final forumErrorProvider = Provider<String?>((ref) {

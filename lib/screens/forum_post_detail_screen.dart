@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/forum_models.dart';
+import '../models/interaction_models.dart';
 import '../providers/forum_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/accessibility_provider.dart';
@@ -9,6 +10,8 @@ import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../services/unified_tts_service.dart';
+import '../widgets/threaded_comment_widget.dart';
+import '../utils/comment_threading_utils.dart';
 
 class EditPostResult {
   final bool shouldSave;
@@ -33,13 +36,24 @@ class ForumPostDetailScreen extends ConsumerStatefulWidget {
 class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   bool _isSubmittingComment = false;
   ForumPost? _post;
   bool _isLoading = true;
+  ForumComment? _replyingToComment;
+  bool _isOfflineMode = false;
+
+  // Pagination state
+  List<ForumComment> _comments = [];
+  bool _isLoadingMore = false;
+  bool _hasMoreComments = true;
+  int _currentOffset = 0;
+  static const int _commentsPerPage = 20;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _loadPost();
   }
 
@@ -47,26 +61,48 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   void dispose() {
     _commentController.dispose();
     _commentFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoadingMore &&
+        _hasMoreComments) {
+      _loadMoreComments();
+    }
   }
 
   Future<void> _loadPost() async {
     try {
+      // Load post without comments first
       final post = await ref
           .read(forumNotifierProvider.notifier)
-          .getPostWithComments(widget.postId);
+          .getPost(widget.postId);
+
+      // Check if we're in offline mode (forum posts list is offline)
+      final isForumOffline = ref.read(forumOfflineModeProvider);
+
       setState(() {
         _post = post;
         _isLoading = false;
+        _comments = [];
+        _currentOffset = 0;
+        _hasMoreComments = true;
+        _isOfflineMode = isForumOffline;
       });
-      
+
       // Automatically read the forum post content when loaded
       if (mounted) {
         await _readForumPostContent(post);
       }
+
+      // Load first page of comments
+      await _loadMoreComments();
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _isOfflineMode = true; // Assume offline if loading fails
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -79,8 +115,72 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     }
   }
 
+  Future<void> _reloadComments() async {
+    setState(() {
+      _comments = [];
+      _currentOffset = 0;
+      _hasMoreComments = true;
+    });
+    await _loadMoreComments();
+  }
+
+  Future<void> _loadMoreComments() async {
+    if (_isLoadingMore || !_hasMoreComments) return;
+
+    setState(() {
+      _isLoadingMore = true;
+    });
+
+    try {
+      final newComments = await ref
+          .read(forumNotifierProvider.notifier)
+          .getCommentsPaginated(
+            postId: widget.postId,
+            limit: _commentsPerPage,
+            offset: _currentOffset,
+          );
+
+      setState(() {
+        _comments.addAll(newComments);
+        _currentOffset += newComments.length;
+        _hasMoreComments = newComments.length == _commentsPerPage;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingMore = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout bij laden van meer reacties: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _handleReply(ForumComment comment) {
+    _startReplyToComment(comment);
+  }
+
+
   Future<void> _submitComment() async {
     if (_commentController.text.trim().isEmpty) {
+      return;
+    }
+
+    // Check if we're in offline mode
+    if (_isOfflineMode) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Je kunt geen reacties plaatsen in offline modus'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
       return;
     }
 
@@ -142,6 +242,16 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     }
   }
 
+  void _startReplyToComment(ForumComment comment) {
+    setState(() {
+      _replyingToComment = comment;
+    });
+    // Focus on the comment input
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _commentFocusNode.requestFocus();
+    });
+  }
+
   Color _getCategoryColor(ForumCategory category) {
     switch (category) {
       case ForumCategory.general:
@@ -191,6 +301,23 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         );
       }
     }
+  }
+
+  /// Handle comment tap - either resolve conflicts or read comment
+  Future<void> _handleCommentTap(ForumComment comment, CommentInteractionState commentState, WidgetRef ref) async {
+    // If there's a conflict, show conflict resolution dialog
+    if (commentState.conflict != null && !commentState.conflict!.resolved) {
+      // For now, just show a message - we can add conflict resolution later
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Er is een conflict met deze reactie')),
+        );
+      }
+      return;
+    }
+
+    // Otherwise, read the comment using TTS
+    await _readForumComment(comment);
   }
 
   /// Read the entire forum post content using TTS
@@ -740,7 +867,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                '${post.comments.length} Reactie${post.comments.length != 1 ? 's' : ''}',
+                '${_comments.length} Reactie${_comments.length != 1 ? 's' : ''}',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -752,138 +879,66 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         ),
 
         // Comments list
-        ...post.comments.map((comment) => _buildCommentCard(comment)),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, child) {
+              // Organize comments into threaded structure
+              final threadedComments = CommentThreadingUtils.organizeForumComments(_comments);
+
+              return ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                itemCount: threadedComments.length + (_isLoadingMore ? 1 : 0),
+                itemBuilder: (context, index) {
+                  // Show loading indicator at the end
+                  if (index == threadedComments.length) {
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      alignment: Alignment.center,
+                      child: const CircularProgressIndicator(),
+                    );
+                  }
+
+                  final threadedComment = threadedComments[index];
+                  return ThreadedCommentWidget<ForumComment>(
+                    threadedComment: threadedComment,
+                    isCommentAuthor: (comment) => comment.authorId == ref.watch(authUserProvider)?.id,
+                    canDeleteComment: () {
+                        final currentUser = ref.watch(authUserProvider);
+                        final canModerateAsync = ref.watch(canModerateProvider);
+                        final isCommentAuthor = threadedComment.comment.authorId == currentUser?.id;
+                        final isPostAuthor = _post!.authorId == currentUser?.id;
+                        final canModerate = canModerateAsync.when(
+                          data: (value) => value,
+                          loading: () => false,
+                          error: (_, __) => false,
+                        );
+                        return isCommentAuthor || isPostAuthor || canModerate;
+                      },
+                      getCommentState: (commentId) => ref.watch(forumCommentInteractionProvider(commentId)),
+                      onCommentTap: _handleCommentTap,
+                      onEditComment: (comment, ref) => _showEditCommentDialog(comment),
+                      onDeleteComment: (comment, ref) => _showDeleteCommentConfirmation(comment),
+                      onReply: (comment) => _handleReply(comment),
+                      onToggleLike: (commentId) => ref.read(forumCommentInteractionProvider(commentId).notifier).toggleLike(),
+                      onToggleDislike: (commentId) => ref.read(forumCommentInteractionProvider(commentId).notifier).toggleDislike(),
+                      getCommentId: (comment) => comment.id,
+                      getAuthorName: (comment) => comment.authorName,
+                      getAuthorAvatar: (comment) => comment.authorAvatar,
+                      getContent: (comment) => comment.content,
+                      getCreatedAt: (comment) => comment.createdAt,
+                      showReplyButton: true,
+                      maxDepth: 5,
+                  );
+                },
+              );
+            },
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildCommentCard(ForumComment comment) {
-    final currentUser = ref.watch(authUserProvider);
-    final canModerateAsync = ref.watch(canModerateProvider);
-    final canModerateRole = canModerateAsync.when(
-      data: (value) => value,
-      loading: () => false,
-      error: (_, __) => false,
-    );
-
-    // User can edit/delete if they are:
-    // 1. The comment author
-    // 2. The post author (forum creator)
-    // 3. A moderator (host or mediator)
-    final canEditComment =
-        currentUser != null &&
-        (comment.authorId == currentUser.id || // Comment author
-            _post!.authorId == currentUser.id || // Post author (forum creator)
-            canModerateRole // Moderator (host or mediator)
-            );
-
-    return GestureDetector(
-      onTap: () => _readForumComment(comment),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(
-            bottom: BorderSide(
-              color: Theme.of(context).colorScheme.outlineVariant,
-            ),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Comment header
-            Row(
-              children: [
-                AvatarWidget(
-                  customAvatarUrl: comment.authorAvatar,
-                  userName: comment.authorName,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        comment.authorName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                        overflow: TextOverflow.visible,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _formatDate(comment.createdAt),
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
-                        overflow: TextOverflow.visible,
-                        maxLines: 1,
-                      ),
-                    ],
-                  ),
-                ),
-                // Edit/Delete menu for comments
-                if (canEditComment)
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      switch (value) {
-                        case 'edit':
-                          _showEditCommentDialog(comment);
-                          break;
-                        case 'delete':
-                          _showDeleteCommentConfirmation(comment);
-                          break;
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      // Only show edit for comment author
-                      if (comment.authorId == currentUser.id)
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit, color: Colors.blue, size: 16),
-                              SizedBox(width: 8),
-                              Text('Bewerk'),
-                            ],
-                          ),
-                        ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete, color: Colors.red, size: 16),
-                            SizedBox(width: 8),
-                            Text('Verwijder', style: TextStyle(color: Colors.red)),
-                          ],
-                        ),
-                      ),
-                    ],
-                    icon: Icon(
-                      Icons.more_vert,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            // Comment content
-            Text(
-              comment.content,
-              style: TextStyle(
-                fontSize: 15, 
-                height: 1.5,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<void> _showDeleteConfirmation(ForumPost post) async {
     final confirmed = await showDialog<bool>(
@@ -960,8 +1015,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
             .read(forumNotifierProvider.notifier)
             .deleteComment(comment.id);
 
-        // Reload the post to get updated comments
-        await _loadPost();
+        // Reload comments to get updated list
+        await _reloadComments();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1060,8 +1115,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               content: contentController.text.trim(),
             );
 
-        // Reload the post to get updated comments
-        await _loadPost();
+        // Reload comments to get updated list
+        await _reloadComments();
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1108,22 +1163,71 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     return Scaffold(
         appBar: AppBar(
           title: const Text('Forum Post'),
+          actions: [
+            if (_isOfflineMode)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange, width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.cloud_off, size: 16, color: Colors.orange),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Offline',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _isLoading ? null : () async {
+                setState(() {
+                  _isLoading = true;
+                  _isOfflineMode = false;
+                });
+                await _loadPost();
+              },
+              tooltip: 'Vernieuwen',
+            ),
+          ],
         ),
       body: SafeArea(
         child: Column(
           children: [
             // Main content
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.only(
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: NestedScrollView(
+                headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+                  return [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPostHeader(_post!),
+                          _buildPostContent(_post!),
+                          // Add some padding before comments section
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
+                body: Column(
                   children: [
-                    _buildPostHeader(_post!),
-                    _buildPostContent(_post!),
-                    _buildCommentSection(_post!),
+                    Expanded(
+                      child: _buildCommentSection(_post!),
+                    ),
                     // Add extra space when comment input is visible to ensure content is not hidden
                     if (!_post!.isLocked)
                       SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 120),
@@ -1153,52 +1257,93 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     top: 16,
                     bottom: MediaQuery.of(context).viewInsets.bottom + 16,
                   ),
-                  child: Row(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: EnhancedAccessibleTextField(
-                          controller: _commentController,
-                          focusNode: _commentFocusNode,
-                          decoration: InputDecoration(
-                            hintText: 'Schrijf een reactie...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
+                      if (_isOfflineMode)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Offline: reacties kunnen niet worden geplaatst',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: EnhancedAccessibleTextField(
+                              controller: _commentController,
+                              focusNode: _commentFocusNode,
+                              decoration: InputDecoration(
+                                hintText: _isOfflineMode
+                                    ? 'Offline - reacties kunnen niet worden geplaatst'
+                                    : _replyingToComment != null
+                                        ? 'Reageer op ${_replyingToComment!.authorName}...'
+                                        : 'Schrijf een reactie...',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(25)),
+                                ),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
+                                filled: _isOfflineMode,
+                                fillColor: _isOfflineMode
+                                    ? Colors.grey.withValues(alpha: 0.1)
+                                    : null,
+                              ),
+                              maxLines: null,
+                              maxLength: 1000,
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: _isOfflineMode ? null : (_) => _submitComment(),
+                              customTTSLabel: 'Reactie invoerveld',
+                              enabled: !_isOfflineMode,
                             ),
                           ),
-                          maxLines: null,
-                          maxLength: 1000,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => _submitComment(),
-                          customTTSLabel: 'Reactie invoerveld',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          onPressed: _isSubmittingComment
-                              ? null
-                              : _submitComment,
-                          icon: _isSubmittingComment
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : const Icon(Icons.send, color: Colors.white),
-                        ),
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: _isOfflineMode
+                                  ? Colors.grey
+                                  : Theme.of(context).primaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              onPressed: (_isSubmittingComment || _isOfflineMode)
+                                  ? null
+                                  : _submitComment,
+                              icon: _isSubmittingComment
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                      ),
+                                    )
+                                  : const Icon(Icons.send, color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1620,6 +1765,197 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                       onPressed: () => Navigator.pop(context, EditPostResult(shouldSave: true, selectedCategory: _selectedCategory)),
                       child: const Text('Opslaan', overflow: TextOverflow.visible),
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class ReplyForumCommentScreen extends ConsumerStatefulWidget {
+  final int forumPostId;
+  final ForumComment originalComment;
+
+  const ReplyForumCommentScreen({
+    super.key,
+    required this.forumPostId,
+    required this.originalComment,
+  });
+
+  @override
+  ConsumerState<ReplyForumCommentScreen> createState() => _ReplyForumCommentScreenState();
+}
+
+class _ReplyForumCommentScreenState extends ConsumerState<ReplyForumCommentScreen> {
+  final TextEditingController _replyController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Automatically speak the screen content when it opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakScreenContent();
+    });
+  }
+
+  Future<void> _speakScreenContent() async {
+    // TTS implementation for reply screen
+    // This is a placeholder for future accessibility enhancement
+  }
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reageren op reactie'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.pop(context, false),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Original comment preview
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? theme.colorScheme.outline : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Original author name and reply icon
+                          Row(
+                            children: [
+                              const Icon(Icons.reply, size: 16, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Text(
+                                widget.originalComment.authorName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: isDark ? theme.colorScheme.onSurface : Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          // Original comment content
+                          Text(
+                            widget.originalComment.content,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Reply input
+                    EnhancedAccessibleTextField(
+                      controller: _replyController,
+                      decoration: InputDecoration(
+                        labelText: 'Jouw reactie',
+                        hintText: 'Schrijf hier je reactie...',
+                        border: const OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                      ),
+                      maxLines: 6,
+                      maxLength: 500,
+                      autofocus: true,
+                      customTTSLabel: 'Reactie invoerveld',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Fixed buttons at bottom
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+                    spreadRadius: 1,
+                    blurRadius: 3,
+                    offset: const Offset(0, -1),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Annuleren'),
+                  ),
+                  const SizedBox(width: 12),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final isSubmitting = ref.watch(forumNotifierProvider).isLoading;
+
+                      return ElevatedButton(
+                        onPressed: isSubmitting ? null : () async {
+                          if (_replyController.text.trim().isNotEmpty) {
+                            try {
+                              await ref.read(forumNotifierProvider.notifier)
+                                  .addComment(
+                                    postId: widget.forumPostId,
+                                    content: _replyController.text.trim(),
+                                    parentCommentId: widget.originalComment.id,
+                                  );
+                              if (context.mounted) {
+                                Navigator.pop(context, true);
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Fout bij toevoegen reactie: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        child: isSubmitting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Reageren'),
+                      );
+                    },
                   ),
                 ],
               ),

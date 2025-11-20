@@ -3,18 +3,28 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/kata_model.dart';
+import '../services/offline_kata_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/retry_utils.dart';
 import 'error_boundary_provider.dart';
-import 'network_provider.dart';
+import 'offline_services_provider.dart';
+
+// Provider for offline kata service
+final offlineKataServiceProvider = Provider<OfflineKataService>((ref) {
+  throw UnimplementedError('OfflineKataService must be provided by a parent provider');
+});
 
 // StateNotifier for kata management
 class KataNotifier extends StateNotifier<KataState> {
   final ErrorBoundaryNotifier _errorBoundary;
-  final Ref _ref;
+  OfflineKataService? _offlineKataService;
 
-  KataNotifier(this._errorBoundary, this._ref) : super(KataState.initial()) {
+  KataNotifier(this._errorBoundary) : super(KataState.initial()) {
     // Don't auto-load katas on initialization - wait for explicit call
+  }
+
+  void initializeOfflineService(OfflineKataService offlineKataService) {
+    _offlineKataService = offlineKataService;
   }
 
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -28,18 +38,35 @@ class KataNotifier extends StateNotifier<KataState> {
   }
 
   Future<void> loadKatas() async {
-    // Check network status first
-    final networkState = _ref.read(networkProvider);
-    if (networkState.isDisconnected) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'No internet connection',
-      );
-      return;
-    }
-
     state = state.copyWith(isLoading: true, error: null);
 
+    List<Kata>? cachedKatas;
+
+    // First, try to load from cache if available
+    if (_offlineKataService != null) {
+      try {
+        cachedKatas = await _offlineKataService!.getValidCachedKatas();
+        if (cachedKatas != null && cachedKatas.isNotEmpty) {
+          // Load cached katas first for immediate UI feedback
+          state = state.copyWith(
+            katas: cachedKatas,
+            filteredKatas: cachedKatas,
+            isLoading: true, // Keep loading true while we try to refresh from online
+            error: null,
+            isOfflineMode: true,
+          );
+
+          // Preload images for cached katas
+          if (cachedKatas.isNotEmpty) {
+            _preloadInitialKataImages(cachedKatas.take(3).toList());
+          }
+        }
+      } catch (e) {
+        // Ignore cache errors, continue with online loading
+      }
+    }
+
+    // Then try to load from online
     try {
       await RetryUtils.executeWithRetry(
         () async {
@@ -48,22 +75,27 @@ class KataNotifier extends StateNotifier<KataState> {
               .select()
               .order('order', ascending: true);
 
-          final katas = (response as List)
+          final onlineKatas = (response as List)
               .map((data) => Kata.fromMap(data as Map<String, dynamic>))
               .toList();
 
-          // Load katas without images for faster startup
-          // Images will be loaded lazily when needed
+          // Cache the online data
+          if (_offlineKataService != null) {
+            await _offlineKataService!.cacheKatas(onlineKatas);
+          }
+
+          // Update state with online data
           state = state.copyWith(
-            katas: katas,
-            filteredKatas: katas,
+            katas: onlineKatas,
+            filteredKatas: onlineKatas,
             isLoading: false,
             error: null,
+            isOfflineMode: false,
           );
 
-          // Preload images for first 3 katas to improve perceived performance
-          if (katas.isNotEmpty) {
-            _preloadInitialKataImages(katas.take(3).toList());
+          // Preload images for online katas
+          if (onlineKatas.isNotEmpty) {
+            _preloadInitialKataImages(onlineKatas.take(3).toList());
           }
         },
         maxRetries: 3,
@@ -74,16 +106,27 @@ class KataNotifier extends StateNotifier<KataState> {
         },
       );
     } catch (e) {
-      final errorMessage = 'Failed to load katas: ${e.toString()}';
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      // Online loading failed
+      if (cachedKatas != null && cachedKatas.isNotEmpty) {
+        // We have cached data, show it with offline indicator
+        state = state.copyWith(
+          isLoading: false,
+          error: null,
+          isOfflineMode: true,
+        );
+      } else {
+        // No cached data available, show error
+        final errorMessage = 'Failed to load katas: ${e.toString()}';
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+          isOfflineMode: false,
+        );
 
-      // Only report to error boundary if it's not a network error
-      // Network errors are handled by the network provider
-      if (!_isNetworkError(e)) {
-        _errorBoundary.reportNetworkError(errorMessage);
+        // Only report to error boundary if it's not a network error
+        if (!_isNetworkError(e)) {
+          _errorBoundary.reportNetworkError(errorMessage);
+        }
       }
     }
   }
@@ -534,7 +577,13 @@ class KataNotifier extends StateNotifier<KataState> {
 // Provider for the KataNotifier
 final kataNotifierProvider = StateNotifierProvider<KataNotifier, KataState>((ref) {
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  return KataNotifier(errorBoundary, ref);
+  final notifier = KataNotifier(errorBoundary);
+
+  // Initialize offline service if available
+  final offlineKataService = ref.watch(offlineKataServiceProviderOverride);
+  notifier.initializeOfflineService(offlineKataService);
+
+  return notifier;
 });
 
 // Convenience providers for specific kata state properties
@@ -544,6 +593,10 @@ final katasProvider = Provider<List<Kata>>((ref) {
 
 final kataLoadingProvider = Provider<bool>((ref) {
   return ref.watch(kataNotifierProvider).isLoading;
+});
+
+final kataOfflineModeProvider = Provider<bool>((ref) {
+  return ref.watch(kataNotifierProvider).isOfflineMode;
 });
 
 final kataErrorProvider = Provider<String?>((ref) {
@@ -570,5 +623,5 @@ final kataByIdProvider = Provider.family<Kata?, int>((ref, kataId) {
 
 // Family provider for kata images
 final kataImagesProvider = FutureProvider.family<List<String>, int>((ref, kataId) async {
-  return await ImageUtils.fetchKataImagesFromBucket(kataId);
+  return await ImageUtils.fetchKataImagesFromBucket(kataId, ref: ref);
 });

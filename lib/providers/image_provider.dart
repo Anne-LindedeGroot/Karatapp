@@ -1,5 +1,7 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/image_utils.dart';
 import 'error_boundary_provider.dart';
 
@@ -70,7 +72,7 @@ class ImageState {
 // StateNotifier for image management
 class ImageNotifier extends StateNotifier<ImageState> {
   final ErrorBoundaryNotifier _errorBoundary;
-  
+
   ImageNotifier(this._errorBoundary) : super(ImageState.initial());
 
   Future<List<String>> loadKataImages(int kataId) async {
@@ -308,17 +310,140 @@ class ImageNotifier extends StateNotifier<ImageState> {
   }
 
   Future<void> reorderImages(int kataId, List<String> reorderedImageUrls) async {
-    // Update cached images with new order
-    final updatedKataImages = Map<int, List<String>>.from(state.kataImages);
-    updatedKataImages[kataId] = reorderedImageUrls;
+    state = state.copyWith(isLoading: true, error: null);
 
-    state = state.copyWith(
-      kataImages: updatedKataImages,
-      error: null,
-    );
+    try {
+      // Get current images to compare with new order
+      final currentImages = state.kataImages[kataId] ?? [];
 
-    // Note: You might want to implement server-side reordering logic here
-    // For now, we just update the local cache
+      if (currentImages.isEmpty || reorderedImageUrls.isEmpty) {
+        // No images to reorder
+        return;
+      }
+
+      // If the order hasn't actually changed, don't do anything
+      if (_areListsEqual(currentImages, reorderedImageUrls)) {
+        state = state.copyWith(isLoading: false);
+        return;
+      }
+
+      debugPrint('🔄 Starting image reordering for kata $kataId');
+      debugPrint('📋 Current URLs: $currentImages');
+      debugPrint('📋 New URLs: $reorderedImageUrls');
+      debugPrint('📋 Current filenames: ${currentImages.map(ImageUtils.extractFileNameFromUrl).toList()}');
+      debugPrint('📋 New filenames: ${reorderedImageUrls.map(ImageUtils.extractFileNameFromUrl).toList()}');
+
+      // Create mapping of current URLs to their filenames
+      final currentFileNames = <String>[];
+      for (final url in currentImages) {
+        final fileName = ImageUtils.extractFileNameFromUrl(url);
+        if (fileName != null) {
+          currentFileNames.add(fileName);
+        }
+      }
+
+      // Create mapping of new URLs to their positions
+      final newUrlToPosition = <String, int>{};
+      for (int i = 0; i < reorderedImageUrls.length; i++) {
+        newUrlToPosition[reorderedImageUrls[i]] = i;
+      }
+
+      // Rename files to reflect new order
+      final renamedFiles = <String>[];
+      for (final currentUrl in currentImages) {
+        final newPosition = newUrlToPosition[currentUrl];
+        if (newPosition != null) {
+          final currentFileName = ImageUtils.extractFileNameFromUrl(currentUrl);
+          if (currentFileName != null) {
+            // Check if this file already has the correct order prefix
+            final expectedFileName = ImageUtils.createOrderedImageFileName(kataId, newPosition + 1, currentFileName);
+
+            if (currentFileName != expectedFileName) {
+              debugPrint('🔄 Renaming: $currentFileName -> $expectedFileName');
+
+              final success = await ImageUtils.renameImageFile(kataId, currentFileName, expectedFileName);
+              if (success) {
+                renamedFiles.add(expectedFileName);
+              } else {
+                debugPrint('❌ Failed to rename $currentFileName');
+              }
+            }
+          }
+        }
+      }
+
+      debugPrint('✅ Image reordering completed for kata $kataId');
+      debugPrint('📁 Renamed ${renamedFiles.length} files');
+
+      // Refresh the image URLs from the bucket to get new signed URLs for renamed files
+      try {
+        final refreshedUrls = await ImageUtils.fetchKataImagesFromBucket(kataId);
+        debugPrint('🔄 Refreshed image URLs after reordering: ${refreshedUrls.length} URLs');
+
+        // Update cached images with the refreshed URLs
+        final updatedKataImages = Map<int, List<String>>.from(state.kataImages);
+        updatedKataImages[kataId] = refreshedUrls;
+
+        state = state.copyWith(
+          kataImages: updatedKataImages,
+          isLoading: false,
+          error: null,
+        );
+
+        debugPrint('✅ Cache updated with fresh image URLs');
+      } catch (refreshError) {
+        debugPrint('⚠️ Failed to refresh image URLs after reordering: $refreshError');
+        // Still update with the reordered URLs as fallback
+        final updatedKataImages = Map<int, List<String>>.from(state.kataImages);
+        updatedKataImages[kataId] = reorderedImageUrls;
+
+        state = state.copyWith(
+          kataImages: updatedKataImages,
+          isLoading: false,
+          error: null,
+        );
+      }
+
+      // Also update the kata record in the database to store the image order
+      // This provides a backup in case file renaming fails
+      try {
+        // Import the Supabase client
+        final supabase = Supabase.instance.client;
+
+        await supabase
+            .from('katas')
+            .update({'image_urls': reorderedImageUrls})
+            .eq('id', kataId);
+
+        debugPrint('✅ Updated kata record with new image order');
+      } catch (e) {
+        debugPrint('⚠️ Failed to update kata record with image order: $e');
+        // Don't fail the whole operation if database update fails
+      }
+
+    } catch (e) {
+      final errorMessage = 'Failed to reorder images for kata $kataId: ${e.toString()}';
+      state = state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+      );
+
+      // Only report non-network errors to global error boundary
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportNetworkError(errorMessage);
+      }
+
+      rethrow;
+    }
+  }
+
+  /// Helper method to check if two lists are equal
+  bool _areListsEqual(List<String> list1, List<String> list2) {
+    if (list1.length != list2.length) return false;
+    for (int i = 0; i < list1.length; i++) {
+      if (list1[i] != list2[i]) return false;
+    }
+    return true;
   }
 
   void clearError() {

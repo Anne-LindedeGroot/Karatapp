@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../utils/video_utils.dart';
+import '../services/offline_media_cache_service.dart';
+import '../providers/network_provider.dart';
 
-class UniversalVideoPlayer extends StatefulWidget {
+class UniversalVideoPlayer extends ConsumerWidget {
   final String videoUrl;
   final bool autoPlay;
   final bool looping;
@@ -22,10 +25,40 @@ class UniversalVideoPlayer extends StatefulWidget {
   });
 
   @override
-  State<UniversalVideoPlayer> createState() => _UniversalVideoPlayerState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _UniversalVideoPlayerWidget(
+      videoUrl: videoUrl,
+      autoPlay: autoPlay,
+      looping: looping,
+      showControls: showControls,
+      aspectRatio: aspectRatio,
+      ref: ref,
+    );
+  }
 }
 
-class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
+class _UniversalVideoPlayerWidget extends StatefulWidget {
+  final String videoUrl;
+  final bool autoPlay;
+  final bool looping;
+  final bool showControls;
+  final double? aspectRatio;
+  final WidgetRef ref;
+
+  const _UniversalVideoPlayerWidget({
+    required this.videoUrl,
+    required this.autoPlay,
+    required this.looping,
+    required this.showControls,
+    required this.aspectRatio,
+    required this.ref,
+  });
+
+  @override
+  State<_UniversalVideoPlayerWidget> createState() => _UniversalVideoPlayerState();
+}
+
+class _UniversalVideoPlayerState extends State<_UniversalVideoPlayerWidget> {
   VideoPlayerController? _videoPlayerController;
   ChewieController? _chewieController;
   YoutubePlayerController? _youtubeController;
@@ -35,6 +68,8 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
   bool _isYouTubeVideo = false;
   bool _showError = false; // New flag to control error visibility
   Timer? _errorDelayTimer; // Timer for delayed error showing
+  bool _isOfflineMode = false;
+  bool _isCachedLocally = false;
 
   @override
   void initState() {
@@ -50,13 +85,27 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
         await _initializeYouTubePlayer();
       } else {
         _isYouTubeVideo = false;
+
+        // Check if we're offline and if video is cached
+        await _checkOfflineAvailability();
+
+        if (_isOfflineMode && !_isCachedLocally) {
+          // Show offline message for non-cached videos
+          _hasError = true;
+          _errorMessage = 'Video is not available offline. Connect to internet to watch this video.';
+          setState(() {
+            _showError = true;
+          });
+          return;
+        }
+
         await _initializeRegularVideoPlayer();
       }
     } catch (e) {
       if (mounted) {
         _hasError = true;
         _errorMessage = _getReadableErrorMessage(e.toString());
-        
+
         // Only show error after a delay to prevent flashing errors
         _errorDelayTimer?.cancel();
         _errorDelayTimer = Timer(const Duration(seconds: 2), () {
@@ -67,6 +116,24 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
           }
         });
       }
+    }
+  }
+
+  Future<void> _checkOfflineAvailability() async {
+    try {
+      // Check network state
+      final networkState = widget.ref.read(networkProvider);
+      _isOfflineMode = !networkState.isConnected;
+
+      // Check if video is cached locally
+      _isCachedLocally = OfflineMediaCacheService.getCachedFilePath(widget.videoUrl, true) != null;
+
+      debugPrint('Video offline check: offline=$_isOfflineMode, cached=$_isCachedLocally, url=${widget.videoUrl}');
+    } catch (e) {
+      // If network provider not available, assume online
+      _isOfflineMode = false;
+      _isCachedLocally = false;
+      debugPrint('Failed to check offline availability: $e');
     }
   }
 
@@ -118,8 +185,15 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       // Debug video information
       VideoUtils.debugVideoInfo(widget.videoUrl, additionalInfo: 'Initializing regular video player');
 
+      // Use cached URL if available, otherwise use original URL
+      final videoUrl = _isCachedLocally
+          ? OfflineMediaCacheService.getCachedFilePath(widget.videoUrl, true) ?? widget.videoUrl
+          : widget.videoUrl;
+
+      debugPrint('Using video URL: $videoUrl (cached: $_isCachedLocally)');
+
       _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(widget.videoUrl),
+        Uri.parse(videoUrl),
       );
 
       // Set up error listener with delayed error showing
@@ -127,8 +201,14 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
         if (_videoPlayerController!.value.hasError && mounted) {
           final error = _videoPlayerController!.value.errorDescription;
           _hasError = true;
-          _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
-          
+
+          // Provide more specific error messages for offline scenarios
+          if (_isOfflineMode && !_isCachedLocally) {
+            _errorMessage = 'Video is not available offline. Connect to internet to watch this video.';
+          } else {
+            _errorMessage = _getReadableErrorMessage(error ?? 'Unknown video error');
+          }
+
           // Only show error after a longer delay to prevent startup errors from showing
           // and only if the error persists for a significant time
           _errorDelayTimer?.cancel();
@@ -136,12 +216,12 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
             if (mounted && _hasError && !_isInitialized) {
               // Check if this is a temporary network error that might resolve itself
               final errorStr = error?.toLowerCase() ?? '';
-              final isTemporaryError = errorStr.contains('network') || 
+              final isTemporaryError = errorStr.contains('network') ||
                                      errorStr.contains('connection') ||
                                      errorStr.contains('timeout') ||
                                      errorStr.contains('exoplaybackexception') ||
                                      errorStr.contains('sourceerror');
-              
+
               // For temporary errors, wait even longer before showing
               if (isTemporaryError) {
                 _errorDelayTimer = Timer(const Duration(seconds: 3), () {
@@ -357,6 +437,45 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    // Show immediate offline message for non-cached videos when offline
+    if (_isOfflineMode && !_isCachedLocally) {
+      return Container(
+        height: 200,
+        color: Colors.black,
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.wifi_off,
+                color: Colors.white,
+                size: 48,
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Video alleen beschikbaar online',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Ga online om video\'s te bekijken',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Only show error if the flag is set (after delay)
     if (_hasError && _showError) {
       return SizedBox(
@@ -369,21 +488,45 @@ class _UniversalVideoPlayerState extends State<UniversalVideoPlayer> {
       return Container(
         height: 200,
         color: Colors.black,
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               CircularProgressIndicator(
                 color: Colors.white,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
-                'Laden video...',
-                style: TextStyle(
+                _isOfflineMode && !_isCachedLocally
+                    ? 'Video niet beschikbaar offline'
+                    : 'Laden video...',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                 ),
               ),
+              if (_isOfflineMode && _isCachedLocally)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Offline versie beschikbaar',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              if (_isOfflineMode && !_isCachedLocally)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text(
+                    'Maak verbinding met internet',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

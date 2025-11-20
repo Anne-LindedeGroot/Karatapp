@@ -55,7 +55,9 @@ class Kata {
           : (map['Time'] != null 
               ? DateTime.parse(map['Time'] as String)
               : DateTime.now()),
-      imageUrls: map['imageUrls'] as List<String>?,
+      imageUrls: map['image_urls'] != null
+          ? List<String>.from(map['image_urls'] as List)
+          : null,
       videoUrls: map['video_urls'] != null 
           ? List<String>.from(map['video_urls'] as List)
           : null,
@@ -70,6 +72,7 @@ class Kata {
       'description': description,
       'style': style,
       'created_at': createdAt.toIso8601String(),
+      'image_urls': imageUrls,
       'video_urls': videoUrls,
       'order': order,
     };
@@ -130,6 +133,7 @@ class KataState {
   final String? error;
   final String searchQuery;
   final KataCategory? selectedCategory;
+  final bool isOfflineMode;
 
   const KataState({
     this.katas = const [],
@@ -138,6 +142,7 @@ class KataState {
     this.error,
     this.searchQuery = '',
     this.selectedCategory,
+    this.isOfflineMode = false,
   });
 
   KataState.initial()
@@ -146,7 +151,8 @@ class KataState {
         isLoading = false,
         error = null,
         searchQuery = '',
-        selectedCategory = null;
+        selectedCategory = null,
+        isOfflineMode = false;
 
   KataState copyWith({
     List<Kata>? katas,
@@ -155,6 +161,7 @@ class KataState {
     String? error,
     String? searchQuery,
     KataCategory? selectedCategory,
+    bool? isOfflineMode,
   }) {
     return KataState(
       katas: katas ?? this.katas,
@@ -163,12 +170,13 @@ class KataState {
       error: error,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedCategory: selectedCategory ?? this.selectedCategory,
+      isOfflineMode: isOfflineMode ?? this.isOfflineMode,
     );
   }
 
   @override
   String toString() {
-    return 'KataState(katas: ${katas.length}, filteredKatas: ${filteredKatas.length}, isLoading: $isLoading, error: $error, searchQuery: $searchQuery, selectedCategory: $selectedCategory)';
+    return 'KataState(katas: ${katas.length}, filteredKatas: ${filteredKatas.length}, isLoading: $isLoading, error: $error, searchQuery: $searchQuery, selectedCategory: $selectedCategory, isOfflineMode: $isOfflineMode)';
   }
 
   @override
@@ -180,7 +188,8 @@ class KataState {
         other.isLoading == isLoading &&
         other.error == error &&
         other.searchQuery == searchQuery &&
-        other.selectedCategory == selectedCategory;
+        other.selectedCategory == selectedCategory &&
+        other.isOfflineMode == isOfflineMode;
   }
 
   @override
@@ -190,6 +199,7 @@ class KataState {
         isLoading.hashCode ^
         error.hashCode ^
         searchQuery.hashCode ^
-        selectedCategory.hashCode;
+        selectedCategory.hashCode ^
+        isOfflineMode.hashCode;
   }
 }

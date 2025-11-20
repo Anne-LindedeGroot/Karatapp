@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -10,6 +11,8 @@ import '../image_gallery.dart';
 import '../video_gallery.dart';
 import '../video_player_widget.dart';
 import '../overflow_safe_widgets.dart';
+import '../../services/offline_media_cache_service.dart';
+import '../../providers/network_provider.dart';
 
 class OhyoCardMedia extends StatelessWidget {
   final Ohyo ohyo;
@@ -114,19 +117,26 @@ class OhyoCardMedia extends StatelessWidget {
           children: [
             // Images button
             if (hasImages)
-                  OverflowSafeButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ImageGallery(
-                          imageUrls: ohyoImages,
-                            title: '${ohyo.name} - Images',
-                            kataId: ohyo.id,
+              Consumer(
+                builder: (context, ref, child) {
+                  // Check offline availability for images
+                  final offlineAvailable = ohyoImages.any((url) =>
+                    OfflineMediaCacheService.getCachedFilePath(url, false) != null
+                  );
+
+                  return OverflowSafeButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ImageGallery(
+                            imageUrls: ohyoImages,
+                              title: '${ohyo.name} - Images',
+                              kataId: ohyo.id,
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
                     isElevated: true,
                     fullWidth: true,
                     child: Row(
@@ -147,68 +157,112 @@ class OhyoCardMedia extends StatelessWidget {
                             ),
                           ),
                         ),
+                        // Offline indicator
+                        if (offlineAvailable)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Icon(
+                              Icons.offline_pin,
+                              size: 12,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
                       ],
                     ),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(
-                        horizontal: context.responsiveSpacing(SpacingSize.sm),
-                      vertical: context.responsiveSpacing(SpacingSize.sm),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                          horizontal: context.responsiveSpacing(SpacingSize.sm),
+                        vertical: context.responsiveSpacing(SpacingSize.sm),
+                        ),
+                        minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
                       ),
-                      minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
-                    ),
-                  ),
+                  );
+                },
+              ),
 
                 // Spacing between buttons
                 if (hasImages && hasVideos) SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
 
             // Videos button
                 if (hasVideos)
-                  OverflowSafeButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => VideoGallery(
-                          videoUrls: videoUrls,
-                          title: '${ohyo.name} - Videos',
-                          kataId: ohyo.id,
-                        ),
-                      ),
-                    );
-                    },
-                    isElevated: true,
-                    fullWidth: true,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.videocam,
-                          size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
-                        ),
-                        SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
-                        OverflowSafeText(
-                          'Video\'s (${videoUrls.length})',
-                          style: TextStyle(
-                            fontSize: context.responsiveValue(
-                              mobile: 12.0,
-                              tablet: 13.0,
-                              desktop: 14.0,
+                  Consumer(
+                    builder: (context, ref, child) {
+                      // Check offline availability for videos
+                      final offlineAvailable = videoUrls.any((url) =>
+                        OfflineMediaCacheService.getCachedFilePath(url, true) != null
+                      );
+
+                      return OverflowSafeButton(
+                        onPressed: () {
+                          final networkState = ref.read(networkProvider);
+                          if (!networkState.isConnected) {
+                            // Show offline message for videos
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Video\'s zijn alleen beschikbaar wanneer je online bent'),
+                                backgroundColor: Colors.orange,
+                                duration: Duration(seconds: 3),
+                              ),
+                            );
+                            return;
+                          }
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => VideoGallery(
+                                videoUrls: videoUrls,
+                                title: '${ohyo.name} - Videos',
+                                kataId: ohyo.id,
+                              ),
                             ),
-                          ),
+                          );
+                          },
+                        isElevated: true,
+                        fullWidth: true,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.videocam,
+                              size: AppTheme.getResponsiveIconSize(context, baseSize: 14.0),
+                            ),
+                            SizedBox(width: context.responsiveSpacing(SpacingSize.xs)),
+                            OverflowSafeText(
+                              'Video\'s (${videoUrls.length})',
+                              style: TextStyle(
+                                fontSize: context.responsiveValue(
+                                  mobile: 12.0,
+                                  tablet: 13.0,
+                                  desktop: 14.0,
+                                ),
+                              ),
+                            ),
+                            // Offline indicator
+                            if (offlineAvailable)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 4),
+                                child: Icon(
+                                  Icons.offline_pin,
+                                  size: 12,
+                                  color: Colors.white.withValues(alpha: 0.8),
+                                ),
+                              ),
+                          ],
                         ),
-                      ],
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.responsiveSpacing(SpacingSize.sm),
-                        vertical: context.responsiveSpacing(SpacingSize.sm),
-                      ),
-                      minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
-                    ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.responsiveSpacing(SpacingSize.sm),
+                            vertical: context.responsiveSpacing(SpacingSize.sm),
+                          ),
+                          minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
+                        ),
+                      );
+                    },
                   ),
               ],
             ),
@@ -232,62 +286,100 @@ class OhyoCardMedia extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Main media display
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8.0),
-              child: CachedNetworkImage(
-                imageUrl: imageUrls.first,
-                fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
-                memCacheWidth: 800,
-                memCacheHeight: 600,
-                progressIndicatorBuilder: (context, url, downloadProgress) {
-                  print('🖼️ Loading image: $url - ${(downloadProgress.progress ?? 0) * 100}%');
-                  if (downloadProgress.progress == null) {
-                    return Shimmer.fromColors(
-                      baseColor: Colors.grey[300]!,
-                      highlightColor: Colors.grey[100]!,
-                      child: Container(
-                        width: double.infinity,
-                        height: double.infinity,
-                        color: Colors.white,
-                      ),
-                    );
-                  }
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: downloadProgress.progress,
-                      color: Colors.blue,
-                    ),
-                  );
-                },
-                errorWidget: (context, url, error) {
-                  print('❌ Image failed to load: $url');
-                  print('❌ Error details: $error');
-                  return Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    color: Colors.grey[200],
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Afbeelding laden mislukt',
-                          style: TextStyle(color: Colors.grey, fontSize: 12),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          error.toString().length > 50
-                              ? '${error.toString().substring(0, 50)}...'
-                              : error.toString(),
-                          style: const TextStyle(color: Colors.red, fontSize: 10),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+            // Main media display - use offline cache service to resolve URL
+            Consumer(
+              builder: (context, ref, child) => FutureBuilder<String>(
+                future: OfflineMediaCacheService.getMediaUrl(imageUrls.first, false, ref),
+                builder: (context, snapshot) {
+                  final resolvedUrl = snapshot.data ?? imageUrls.first;
+
+                  final isLocalFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
+
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8.0),
+                    child: isLocalFile
+                        ? Image.file(
+                            File(resolvedUrl.replaceFirst('file://', '')),
+                            fit: BoxFit.contain,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (context, error, stackTrace) {
+                              print('❌ Image failed to load: $resolvedUrl');
+                              print('❌ Error details: $error');
+                              return Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: Colors.grey[200],
+                                child: const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Afbeelding laden mislukt',
+                                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: resolvedUrl,
+                            fit: BoxFit.contain,
+                            width: double.infinity,
+                            height: double.infinity,
+                            memCacheWidth: 800,
+                            memCacheHeight: 600,
+                            progressIndicatorBuilder: (context, url, downloadProgress) {
+                              print('🖼️ Loading image: $url - ${(downloadProgress.progress ?? 0) * 100}%');
+                              if (downloadProgress.progress == null) {
+                                return Shimmer.fromColors(
+                                  baseColor: Colors.grey[300]!,
+                                  highlightColor: Colors.grey[100]!,
+                                  child: Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    color: Colors.white,
+                                  ),
+                                );
+                              }
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: downloadProgress.progress,
+                                  color: Colors.blue,
+                                ),
+                              );
+                            },
+                            errorWidget: (context, url, error) {
+                              print('❌ Image failed to load: $url');
+                              print('❌ Error details: $error');
+                              return Container(
+                                width: double.infinity,
+                                height: double.infinity,
+                                color: Colors.grey[200],
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Afbeelding laden mislukt',
+                                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      error.toString().length > 50
+                                          ? '${error.toString().substring(0, 50)}...'
+                                          : error.toString(),
+                                      style: const TextStyle(color: Colors.red, fontSize: 10),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                   );
                 },
               ),
@@ -373,12 +465,22 @@ class OhyoCardMedia extends StatelessWidget {
             borderRadius: BorderRadius.circular(8.0),
             border: Border.all(color: Colors.grey.shade300),
           ),
-          child: ClipRRect(
-            borderRadius: context.responsiveBorderRadius,
-            child: VideoPlayerWidget(
-              videoUrl: videoUrls.first,
-              autoPlay: false,
-              showControls: true,
+          child: Consumer(
+            builder: (context, ref, child) => FutureBuilder<String>(
+              future: OfflineMediaCacheService.getMediaUrl(videoUrls.first, true, ref),
+              builder: (context, snapshot) {
+                final resolvedUrl = snapshot.data ?? videoUrls.first;
+
+                return ClipRRect(
+                  borderRadius: context.responsiveBorderRadius,
+                  child: VideoPlayerWidget(
+                    videoUrl: resolvedUrl,
+                    autoPlay: false,
+                    showControls: true,
+                    ref: ref,
+                  ),
+                );
+              },
             ),
           ),
         );
@@ -426,13 +528,23 @@ class OhyoCardMedia extends StatelessWidget {
             ),
           child: Stack(
             children: [
-              // Video player
-              ClipRRect(
-                borderRadius: context.responsiveBorderRadius,
-                child: VideoPlayerWidget(
-                  videoUrl: videoUrls[currentVideoIndex],
-                  autoPlay: false,
-                  showControls: true,
+              // Video player - use offline cache service
+              Consumer(
+                builder: (context, ref, child) => FutureBuilder<String>(
+                  future: OfflineMediaCacheService.getMediaUrl(videoUrls[currentVideoIndex], true, ref),
+                  builder: (context, snapshot) {
+                    final resolvedUrl = snapshot.data ?? videoUrls[currentVideoIndex];
+
+                    return ClipRRect(
+                      borderRadius: context.responsiveBorderRadius,
+                      child: VideoPlayerWidget(
+                        videoUrl: resolvedUrl,
+                        autoPlay: false,
+                        showControls: true,
+                        ref: ref,
+                      ),
+                    );
+                  },
                 ),
               ),
 

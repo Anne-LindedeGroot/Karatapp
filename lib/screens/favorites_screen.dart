@@ -14,6 +14,7 @@ import '../widgets/connection_error_widget.dart';
 import '../widgets/skeleton_kata_card.dart';
 import '../widgets/skeleton_forum_post.dart';
 import '../core/navigation/app_router.dart';
+import '../providers/network_provider.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -572,6 +573,19 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
             // Forum post card content
             InkWell(
               onTap: () {
+                final networkState = ref.read(networkProvider);
+                if (!networkState.isConnected) {
+                  // Show offline message for forum posts
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Forumberichten zijn alleen beschikbaar wanneer je online bent'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                  return;
+                }
+
                 _speakForumPostContent(post, index);
                 Navigator.pushNamed(
                   context,

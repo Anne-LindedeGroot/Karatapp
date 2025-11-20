@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import '../utils/video_utils.dart';
+import '../services/offline_media_cache_service.dart';
 
 class VideoPlayerWidget extends StatefulWidget {
   final String videoUrl;
@@ -10,6 +12,7 @@ class VideoPlayerWidget extends StatefulWidget {
   final bool looping;
   final bool showControls;
   final double? aspectRatio;
+  final dynamic ref; // Add ref parameter for offline cache access
 
   const VideoPlayerWidget({
     super.key,
@@ -18,7 +21,23 @@ class VideoPlayerWidget extends StatefulWidget {
     this.looping = false,
     this.showControls = true,
     this.aspectRatio,
+    this.ref, // Optional ref for offline functionality
   });
+
+  // Static method to resolve video URL based on network state
+  static Future<String> _resolveVideoUrl(String originalUrl, dynamic ref) async {
+    // Check if this is a local file path (already cached)
+    if (originalUrl.startsWith('/') || originalUrl.startsWith('file://')) {
+      return originalUrl;
+    }
+
+    // For online/offline handling, use the offline cache service
+    if (ref != null) {
+      return await OfflineMediaCacheService.getMediaUrl(originalUrl, true, ref);
+    }
+
+    return originalUrl;
+  }
 
   @override
   State<VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
@@ -32,6 +51,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   String? _errorMessage;
   bool _showError = false; // New flag to control error visibility
   Timer? _errorDelayTimer; // Timer for delayed error showing
+  bool _isOfflineVideoError = false; // Flag for offline video informational message
 
   @override
   void initState() {
@@ -41,22 +61,51 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
   Future<void> _initializePlayer() async {
     try {
-      // Check if this is a YouTube URL or other unsupported external URL
-      if (_isYouTubeUrl(widget.videoUrl) || _isUnsupportedExternalUrl(widget.videoUrl)) {
-        throw Exception('YouTube and external video URLs are not supported. Please use direct video file URLs (MP4, MOV, etc.)');
-      }
+      // Get the resolved URL (cached file when offline, original URL when online)
+      final resolvedUrl = await VideoPlayerWidget._resolveVideoUrl(widget.videoUrl, widget.ref);
 
-      // Validate URL before attempting to load
-      if (!VideoUtils.isValidVideoUrl(widget.videoUrl)) {
-        throw Exception('Invalid video URL format');
+      // Check if we're dealing with a cached file vs original URL
+      final isCachedFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
+      final isYouTubeUrl = _isYouTubeUrl(resolvedUrl);
+      final isUnsupportedExternalUrl = _isUnsupportedExternalUrl(resolvedUrl);
+
+      // When offline (using cached file), only allow direct video files
+      if (isCachedFile) {
+        if (!VideoUtils.isVideoFile(resolvedUrl)) {
+          _isOfflineVideoError = true;
+          throw Exception('Cached video file is not a valid video format. Only MP4, MOV, and other direct video files work offline.');
+        }
+      } else {
+        // Check if we're offline (no cached file available but should be using cache)
+        final shouldBeCached = widget.ref != null && OfflineMediaCacheService.shouldUseCache(widget.ref!);
+
+        if (shouldBeCached && (isYouTubeUrl || isUnsupportedExternalUrl)) {
+          // We're offline and this is a YouTube/social media video - show peaceful message
+          _isOfflineVideoError = true;
+          throw Exception('OFFLINE_VIDEO_INFO');
+        }
+
+        // When online, allow YouTube URLs but warn user they won't work offline
+        if (isYouTubeUrl || isUnsupportedExternalUrl) {
+          // Show a warning but don't prevent playback
+          debugPrint('⚠️ YouTube/social media videos work online but cannot be cached for offline use');
+        }
+
+        // Validate the URL format
+        if (!VideoUtils.isValidVideoUrl(resolvedUrl)) {
+          throw Exception('Invalid video URL format');
+        }
       }
 
       // Debug video information
-      VideoUtils.debugVideoInfo(widget.videoUrl, additionalInfo: 'Initializing player');
+      VideoUtils.debugVideoInfo(resolvedUrl, additionalInfo: 'Initializing player with resolved URL');
 
-      _videoPlayerController = VideoPlayerController.networkUrl(
-        Uri.parse(widget.videoUrl),
-      );
+      // Create the appropriate controller based on URL type
+      if (isCachedFile) {
+        _videoPlayerController = VideoPlayerController.file(File(resolvedUrl));
+      } else {
+        _videoPlayerController = VideoPlayerController.networkUrl(Uri.parse(resolvedUrl));
+      }
 
       // Set up error listener with delayed error showing
       _videoPlayerController.addListener(() {
@@ -196,8 +245,9 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       _hasError = false;
       _isInitialized = false;
       _showError = false;
+      _isOfflineVideoError = false;
     });
-    
+
     await _disposeControllers();
     await _initializePlayer();
   }
@@ -225,6 +275,11 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   }
 
   String _getReadableErrorMessage(String error) {
+    // Handle special offline video informational message
+    if (error.contains('OFFLINE_VIDEO_INFO')) {
+      return 'OFFLINE_VIDEO_INFO'; // Special marker for peaceful offline message
+    }
+
     // Convert technical ExoPlayer errors to user-friendly messages
     if (error.contains('YouTube and external video URLs are not supported')) {
       return 'YouTube and social media videos are not supported. Please use direct video file URLs (MP4, MOV, etc.) or upload videos to your storage.';
@@ -241,7 +296,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     } else if (error.contains('Invalid video URL format')) {
       return 'Invalid video URL. Please check the video link.';
     }
-    
+
     // Return a generic message for unknown errors
     return 'Unable to play video. Please try again later.';
   }
@@ -266,7 +321,82 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
-    // Only show error if the flag is set (after delay)
+    // Show peaceful offline info message instead of error for offline videos
+    if (_hasError && _showError && _isOfflineVideoError && _errorMessage == 'OFFLINE_VIDEO_INFO') {
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: isDark ? theme.colorScheme.surface : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? theme.colorScheme.outline : Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.wifi_off_outlined,
+                color: isDark ? theme.colorScheme.primary : Colors.blue[600],
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Video niet beschikbaar offline',
+                style: TextStyle(
+                  color: isDark ? theme.colorScheme.onSurface : Colors.black87,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Deze video is alleen beschikbaar met internetverbinding. Maak verbinding met internet om deze video te bekijken.',
+                  style: TextStyle(
+                    color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.black54,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isDark ? theme.colorScheme.primaryContainer : Colors.blue[50],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: isDark ? theme.colorScheme.primary : Colors.blue[600],
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Online beschikbaar',
+                      style: TextStyle(
+                        color: isDark ? theme.colorScheme.primary : Colors.blue[600],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Only show error if the flag is set (after delay) and it's not an offline info message
     if (_hasError && _showError) {
       return Container(
         height: 200,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'universal_video_player.dart';
+import '../services/offline_media_cache_service.dart';
+import '../providers/network_provider.dart';
 
 class VideoGallery extends ConsumerStatefulWidget {
   final List<String> videoUrls;
@@ -23,12 +25,33 @@ class VideoGallery extends ConsumerStatefulWidget {
 class _VideoGalleryState extends ConsumerState<VideoGallery> {
   late PageController _pageController;
   int _currentIndex = 0;
+  final Map<int, String> _resolvedUrls = {};
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: widget.initialIndex);
     _currentIndex = widget.initialIndex;
+    _resolveVideoUrls();
+  }
+
+  /// Resolve video URLs - use cached files when offline
+  Future<void> _resolveVideoUrls() async {
+    // First, proactively cache all videos if online
+    final networkState = ref.read(networkProvider);
+    if (networkState.isConnected) {
+      debugPrint('🎥 Gallery opened online - pre-caching ${widget.videoUrls.length} videos');
+      await OfflineMediaCacheService.preCacheMediaFiles(widget.videoUrls, true, ref);
+    }
+
+    // Then resolve URLs (will use cached files if available)
+    for (int i = 0; i < widget.videoUrls.length; i++) {
+      final originalUrl = widget.videoUrls[i];
+      final resolvedUrl = await OfflineMediaCacheService.getMediaUrl(originalUrl, true, ref);
+      setState(() {
+        _resolvedUrls[i] = resolvedUrl;
+      });
+    }
   }
 
   @override
@@ -135,10 +158,11 @@ class _VideoGalleryState extends ConsumerState<VideoGallery> {
                 });
               },
               itemBuilder: (context, index) {
+                final videoUrl = _resolvedUrls[index] ?? widget.videoUrls[index];
                 return Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: UniversalVideoPlayer(
-                    videoUrl: widget.videoUrls[index],
+                    videoUrl: videoUrl,
                     showControls: true,
                     autoPlay: index == _currentIndex,
                   ),

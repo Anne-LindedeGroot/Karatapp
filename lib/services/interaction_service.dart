@@ -1,14 +1,55 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../models/interaction_models.dart';
 import 'role_service.dart';
+import 'offline_queue_service.dart';
+import 'comment_cache_service.dart';
 
 class InteractionService {
-  final SupabaseClient _client = Supabase.instance.client;
+  late final SupabaseClient _client = Supabase.instance.client;
   final RoleService _roleService = RoleService();
+  final Uuid _uuid = const Uuid();
+
+  // Offline services - will be injected
+  OfflineQueueService? _offlineQueueService;
+  CommentCacheService? _commentCacheService;
+
+  void initializeOfflineServices(
+    OfflineQueueService queueService,
+    CommentCacheService cacheService,
+  ) {
+    _offlineQueueService = queueService;
+    _commentCacheService = cacheService;
+  }
 
   // KATA COMMENTS
   
-  // Get comments for a specific kata
+  // Get comments for a specific kata with pagination
+  Future<List<KataComment>> getKataCommentsPaginated({
+    required int kataId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _client
+          .from('kata_comments')
+          .select('*')
+          .eq('kata_id', kataId)
+          .order('created_at', ascending: true)
+          .range(offset, offset + limit - 1)
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+
+      return List<Map<String, dynamic>>.from(response)
+          .map((comment) => KataComment.fromJson(comment))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load kata comments: $e');
+    }
+  }
+
+  // Get comments for a specific kata (legacy method - loads all)
   Future<List<KataComment>> getKataComments(int kataId) async {
     try {
       final response = await _client
@@ -29,6 +70,7 @@ class InteractionService {
   Future<KataComment> addKataComment({
     required int kataId,
     required String content,
+    int? parentCommentId,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -47,6 +89,7 @@ class InteractionService {
         'author_avatar': userAvatar,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
+        if (parentCommentId != null) 'parent_comment_id': parentCommentId,
       };
 
       final response = await _client
@@ -65,6 +108,7 @@ class InteractionService {
   Future<KataComment> updateKataComment({
     required int commentId,
     required String content,
+    int? version,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -75,9 +119,17 @@ class InteractionService {
       // Get comment details and check permissions
       final existingComment = await _client
           .from('kata_comments')
-          .select('author_id, kata_id')
+          .select('author_id, kata_id, version')
           .eq('id', commentId)
           .single();
+
+      // Check version conflict if version is provided
+      if (version != null) {
+        final currentVersion = existingComment['version'] as int? ?? 1;
+        if (currentVersion > version) {
+          throw Exception('version_conflict: Comment was modified by another user');
+        }
+      }
 
       // Check if user is the comment author
       bool canEdit = existingComment['author_id'] == user.id;
@@ -97,12 +149,19 @@ class InteractionService {
         throw Exception('You do not have permission to edit this comment');
       }
 
+      final updateData = {
+        'content': content,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      // Increment version if provided
+      if (version != null) {
+        updateData['version'] = (version + 1).toString();
+      }
+
       final response = await _client
           .from('kata_comments')
-          .update({
-            'content': content,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .update(updateData)
           .eq('id', commentId)
           .select()
           .single();
@@ -517,7 +576,30 @@ class InteractionService {
 
   // OHYO COMMENTS
 
-  // Get comments for a specific ohyo
+  // Get comments for a specific ohyo with pagination
+  Future<List<OhyoComment>> getOhyoCommentsPaginated({
+    required int ohyoId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _client
+          .from('ohyo_comments')
+          .select('*')
+          .eq('ohyo_id', ohyoId)
+          .order('created_at', ascending: true)
+          .range(offset, offset + limit - 1)
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+
+      return List<Map<String, dynamic>>.from(response)
+          .map((comment) => OhyoComment.fromJson(comment))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load ohyo comments: $e');
+    }
+  }
+
+  // Get comments for a specific ohyo (legacy method - loads all)
   Future<List<OhyoComment>> getOhyoComments(int ohyoId) async {
     try {
       final response = await _client
@@ -538,6 +620,7 @@ class InteractionService {
   Future<OhyoComment> addOhyoComment({
     required int ohyoId,
     required String content,
+    int? parentCommentId,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -556,6 +639,7 @@ class InteractionService {
         'author_avatar': userAvatar,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
+        if (parentCommentId != null) 'parent_comment_id': parentCommentId,
       };
 
       final response = await _client
@@ -574,12 +658,56 @@ class InteractionService {
   Future<OhyoComment> updateOhyoComment({
     required int commentId,
     required String content,
+    int? version,
   }) async {
     try {
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Get comment details and check permissions
+      final existingComment = await _client
+          .from('ohyo_comments')
+          .select('author_id, ohyo_id, version')
+          .eq('id', commentId)
+          .single();
+
+      // Check version conflict if version is provided
+      if (version != null) {
+        final currentVersion = existingComment['version'] as int? ?? 1;
+        if (currentVersion > version) {
+          throw Exception('version_conflict: Comment was modified by another user');
+        }
+      }
+
+      // Check if user is the comment author
+      bool canEdit = existingComment['author_id'] == user.id;
+
+      // If not the author, check if user is a mediator or host using RoleService
+      if (!canEdit) {
+        try {
+          final userRole = await _roleService.getCurrentUserRole();
+          canEdit = userRole == UserRole.mediator || userRole == UserRole.host;
+        } catch (e) {
+          // If role check fails, fall back to author-only permission
+          canEdit = false;
+        }
+      }
+
+      if (!canEdit) {
+        throw Exception('You do not have permission to edit this comment');
+      }
+
       final updateData = {
         'content': content,
         'updated_at': DateTime.now().toIso8601String(),
       };
+
+      // Increment version if provided
+      if (version != null) {
+        updateData['version'] = (version + 1).toString();
+      }
 
       final response = await _client
           .from('ohyo_comments')
@@ -791,6 +919,375 @@ class InteractionService {
           .toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  // COMMENT LIKES
+
+  // Get likes for a specific comment
+  Future<List<Like>> getCommentLikes(int commentId, String commentType) async {
+    try {
+      final response = await _client
+          .from('likes')
+          .select('*')
+          .eq('target_type', commentType)
+          .eq('target_id', commentId)
+          .eq('is_dislike', false)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response)
+          .map((like) => Like.fromJson(like))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load comment likes: $e');
+    }
+  }
+
+  Future<List<Like>> getCommentDislikes(int commentId, String commentType) async {
+    try {
+      final response = await _client
+          .from('likes')
+          .select('*')
+          .eq('target_type', commentType)
+          .eq('target_id', commentId)
+          .eq('is_dislike', true)
+          .order('created_at', ascending: false);
+
+      return List<Map<String, dynamic>>.from(response)
+          .map((dislike) => Like.fromJson(dislike))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load comment dislikes: $e');
+    }
+  }
+
+  // Check if current user liked a comment
+  Future<bool> isCommentLiked(int commentId, String commentType) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return false;
+
+      final existingLike = await _client
+          .from('likes')
+          .select('id')
+          .eq('target_type', commentType)
+          .eq('target_id', commentId)
+          .eq('user_id', user.id)
+          .eq('is_dislike', false)
+          .maybeSingle();
+
+      return existingLike != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Check if current user disliked a comment
+  Future<bool> isCommentDisliked(int commentId, String commentType) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) return false;
+
+      final existingDislike = await _client
+          .from('likes')
+          .select('id')
+          .eq('target_type', commentType)
+          .eq('target_id', commentId)
+          .eq('user_id', user.id)
+          .eq('is_dislike', true)
+          .maybeSingle();
+
+      return existingDislike != null;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Toggle like on a comment (offline-first)
+  Future<bool> toggleCommentLike(int commentId, String commentType) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    debugPrint('🔄 Toggling like for comment $commentId of type $commentType');
+
+    final operationId = _uuid.v4();
+
+    // Create offline operation
+    final operation = OfflineOperation(
+      id: operationId,
+      type: OfflineOperationType.toggleLike,
+      status: OfflineOperationStatus.pending,
+      data: {
+        'comment_id': commentId,
+        'comment_type': commentType,
+      },
+      createdAt: DateTime.now(),
+      userId: user.id,
+    );
+
+    // Add to offline queue
+    if (_offlineQueueService != null) {
+      await _offlineQueueService!.addOperation(operation);
+    }
+
+    try {
+      // Try to execute immediately
+      final result = await executeToggleCommentLike(commentId, commentType, user.id);
+      debugPrint('✅ Like toggled successfully: $result');
+
+      // Update cache if available
+      if (_commentCacheService != null) {
+        await _updateCommentLikeCache(commentId, commentType, result);
+      }
+
+      // Mark operation as completed
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.removeOperation(operationId);
+      }
+
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error toggling like: $e');
+      // If offline, operation stays in queue for later retry
+      // Update operation status
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.markOperationFailed(operationId, e.toString());
+      }
+
+      // For immediate UI feedback, try to update cache optimistically
+      if (_commentCacheService != null) {
+        await _optimisticUpdateCommentLikeCache(commentId, commentType);
+      }
+
+      rethrow;
+    }
+  }
+
+  Future<bool> toggleCommentDislike(int commentId, String commentType) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    final operationId = _uuid.v4();
+
+    // Create offline operation
+    final operation = OfflineOperation(
+      id: operationId,
+      type: OfflineOperationType.toggleDislike,
+      status: OfflineOperationStatus.pending,
+      data: {
+        'comment_id': commentId,
+        'comment_type': commentType,
+      },
+      createdAt: DateTime.now(),
+      userId: user.id,
+    );
+
+    // Add to offline queue
+    if (_offlineQueueService != null) {
+      await _offlineQueueService!.addOperation(operation);
+    }
+
+    try {
+      // Try to execute immediately
+      final result = await executeToggleCommentDislike(commentId, commentType, user.id);
+
+      // Update cache if available
+      if (_commentCacheService != null) {
+        await _updateCommentDislikeCache(commentId, commentType, result);
+      }
+
+      // Mark operation as completed
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.removeOperation(operationId);
+      }
+
+      return result;
+    } catch (e) {
+      // If offline, operation stays in queue for later retry
+      // Update operation status
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.markOperationFailed(operationId, e.toString());
+      }
+
+      // For immediate UI feedback, try to update cache optimistically
+      if (_commentCacheService != null) {
+        await _optimisticUpdateCommentDislikeCache(commentId, commentType);
+      }
+
+      rethrow;
+    }
+  }
+
+  // Helper method to execute toggle like
+  Future<bool> executeToggleCommentLike(int commentId, String commentType, String userId) async {
+    debugPrint('🔍 Checking existing like for comment $commentId of type $commentType');
+
+    // Check if already liked (not disliked)
+    final existingLike = await _client
+        .from('likes')
+        .select('id')
+        .eq('target_type', commentType)
+        .eq('target_id', commentId)
+        .eq('user_id', userId)
+        .eq('is_dislike', false)
+        .maybeSingle();
+
+    if (existingLike != null) {
+      debugPrint('👍 Unlike: removing existing like');
+      // Unlike - remove the like
+      await _client
+          .from('likes')
+          .delete()
+          .eq('id', existingLike['id']);
+      return false; // Not liked anymore
+    } else {
+      debugPrint('❤️ Like: adding new like');
+      // Remove any existing dislike first
+      await _client
+          .from('likes')
+          .delete()
+          .eq('user_id', userId)
+          .eq('target_type', commentType)
+          .eq('target_id', commentId)
+          .eq('is_dislike', true);
+
+      // Like - add the like
+      final user = _client.auth.currentUser!;
+      final userName = user.userMetadata?['full_name'] ?? user.email ?? 'Anonymous';
+      final likeData = {
+        'user_id': userId,
+        'user_name': userName,
+        'target_type': commentType,
+        'target_id': commentId,
+        'is_dislike': false,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await _client
+          .from('likes')
+          .insert(likeData);
+      return true; // Now liked
+    }
+  }
+
+  // Helper method to execute toggle dislike
+  Future<bool> executeToggleCommentDislike(int commentId, String commentType, String userId) async {
+    // Check if already disliked
+    final existingDislike = await _client
+        .from('likes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('target_type', commentType)
+        .eq('target_id', commentId)
+        .eq('is_dislike', true)
+        .maybeSingle();
+
+    if (existingDislike != null) {
+      // Remove dislike
+      await _client
+          .from('likes')
+          .delete()
+          .eq('id', existingDislike['id']);
+      return false; // Not disliked anymore
+    } else {
+      // Remove any existing like first
+      await _client
+          .from('likes')
+          .delete()
+          .eq('user_id', userId)
+          .eq('target_type', commentType)
+          .eq('target_id', commentId)
+          .eq('is_dislike', false);
+
+      // Dislike - add the dislike
+      final user = _client.auth.currentUser!;
+      final userName = user.userMetadata?['full_name'] ?? user.email ?? 'Anonymous';
+      final dislikeData = {
+        'user_id': userId,
+        'user_name': userName,
+        'target_type': commentType,
+        'target_id': commentId,
+        'is_dislike': true,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await _client
+          .from('likes')
+          .insert(dislikeData);
+      return true; // Now disliked
+    }
+  }
+
+  // Update comment like cache
+  Future<void> _updateCommentLikeCache(int commentId, String commentType, bool isLiked) async {
+    if (_commentCacheService == null) return;
+
+    final existingState = await _commentCacheService!.getCachedCommentState(commentId, commentType);
+    if (existingState != null) {
+      await _commentCacheService!.updateCachedLikeState(
+        commentId,
+        commentType,
+        isLiked: isLiked,
+        isDisliked: false, // When liking, ensure disliked is false
+        likeCount: existingState.likeCount + (isLiked ? 1 : -1),
+        dislikeCount: existingState.isDisliked ? existingState.dislikeCount - 1 : existingState.dislikeCount,
+      );
+    }
+  }
+
+  // Update comment dislike cache
+  Future<void> _updateCommentDislikeCache(int commentId, String commentType, bool isDisliked) async {
+    if (_commentCacheService == null) return;
+
+    final existingState = await _commentCacheService!.getCachedCommentState(commentId, commentType);
+    if (existingState != null) {
+      await _commentCacheService!.updateCachedLikeState(
+        commentId,
+        commentType,
+        isLiked: false, // When disliking, ensure liked is false
+        isDisliked: isDisliked,
+        likeCount: existingState.isLiked ? existingState.likeCount - 1 : existingState.likeCount,
+        dislikeCount: existingState.dislikeCount + (isDisliked ? 1 : -1),
+      );
+    }
+  }
+
+  // Optimistic cache updates for offline scenarios
+  Future<void> _optimisticUpdateCommentLikeCache(int commentId, String commentType) async {
+    if (_commentCacheService == null) return;
+
+    final existingState = await _commentCacheService!.getCachedCommentState(commentId, commentType);
+    if (existingState != null) {
+      final newIsLiked = !existingState.isLiked;
+      await _commentCacheService!.updateCachedLikeState(
+        commentId,
+        commentType,
+        isLiked: newIsLiked,
+        isDisliked: false,
+        likeCount: existingState.likeCount + (newIsLiked ? 1 : -1),
+        dislikeCount: existingState.isDisliked ? existingState.dislikeCount - 1 : existingState.dislikeCount,
+      );
+    }
+  }
+
+  Future<void> _optimisticUpdateCommentDislikeCache(int commentId, String commentType) async {
+    if (_commentCacheService == null) return;
+
+    final existingState = await _commentCacheService!.getCachedCommentState(commentId, commentType);
+    if (existingState != null) {
+      final newIsDisliked = !existingState.isDisliked;
+      await _commentCacheService!.updateCachedLikeState(
+        commentId,
+        commentType,
+        isLiked: false,
+        isDisliked: newIsDisliked,
+        likeCount: existingState.isLiked ? existingState.likeCount - 1 : existingState.likeCount,
+        dislikeCount: existingState.dislikeCount + (newIsDisliked ? 1 : -1),
+      );
     }
   }
 }

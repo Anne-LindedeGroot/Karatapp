@@ -199,6 +199,7 @@ class ForumState {
   final String? error;
   final ForumCategory? selectedCategory;
   final String searchQuery;
+  final bool isOfflineMode;
 
   const ForumState({
     this.posts = const [],
@@ -208,6 +209,7 @@ class ForumState {
     this.error,
     this.selectedCategory,
     this.searchQuery = '',
+    this.isOfflineMode = false,
   });
 
   ForumState copyWith({
@@ -218,6 +220,7 @@ class ForumState {
     String? error,
     ForumCategory? selectedCategory,
     String? searchQuery,
+    bool? isOfflineMode,
   }) {
     return ForumState(
       posts: posts ?? this.posts,
@@ -227,6 +230,7 @@ class ForumState {
       error: error,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchQuery: searchQuery ?? this.searchQuery,
+      isOfflineMode: isOfflineMode ?? this.isOfflineMode,
     );
   }
 }

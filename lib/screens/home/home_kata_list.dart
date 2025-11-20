@@ -6,6 +6,7 @@ import '../../utils/responsive_utils.dart';
 import '../../widgets/responsive_layout.dart';
 import '../../widgets/collapsible_kata_card.dart';
 import '../../widgets/modern_loading_widget.dart';
+import '../../providers/precaching_provider.dart';
 
 /// Home Kata List - Handles kata list building and display
 class HomeKataList extends ConsumerStatefulWidget {
@@ -25,6 +26,35 @@ class HomeKataList extends ConsumerStatefulWidget {
 }
 
 class _HomeKataListState extends ConsumerState<HomeKataList> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Trigger pre-caching when kata list is loaded and has data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndTriggerPreCaching();
+    });
+  }
+
+  void _checkAndTriggerPreCaching() {
+    final kataState = ref.read(kataNotifierProvider);
+    if (kataState.katas.isNotEmpty) {
+      final preCachingNotifier = ref.read(preCachingProvider.notifier);
+      if (preCachingNotifier.shouldTriggerPreCaching(ref)) {
+        debugPrint('🏠 Kata list loaded with ${kataState.katas.length} katas, triggering pre-caching');
+        preCachingNotifier.triggerPreCaching(ref);
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Also check when dependencies change (in case data loads after init)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndTriggerPreCaching();
+    });
+  }
 
   Widget _buildKataList(List<Kata> katas) {
     return ResponsiveLayout(

@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/responsive_utils.dart';
+import '../services/offline_media_cache_service.dart';
+import '../providers/network_provider.dart';
 
 /// A responsive image widget that adapts to screen density and size
-class ResponsiveImage extends StatelessWidget {
+class ResponsiveImage extends ConsumerWidget {
   final String? imageUrl;
   final String? assetPath;
   final File? imageFile;
@@ -38,7 +41,7 @@ class ResponsiveImage extends StatelessWidget {
        );
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final responsiveSize = _getResponsiveSize(context);
     final effectiveWidth = width ?? responsiveSize.width;
     final effectiveHeight = height ?? responsiveSize.height;
@@ -46,7 +49,7 @@ class ResponsiveImage extends StatelessWidget {
     Widget imageWidget;
 
     if (imageUrl != null) {
-      imageWidget = _buildNetworkImage(context, effectiveWidth, effectiveHeight);
+      imageWidget = _buildNetworkImage(context, ref, effectiveWidth, effectiveHeight);
     } else if (assetPath != null) {
       imageWidget = _buildAssetImage(context, effectiveWidth, effectiveHeight);
     } else if (imageFile != null) {
@@ -129,33 +132,57 @@ class ResponsiveImage extends StatelessWidget {
     return Size(baseWidth, baseHeight);
   }
 
-  Widget _buildNetworkImage(BuildContext context, double width, double height) {
-    if (!enableCaching) {
-      return Image.network(
-        imageUrl!,
-        width: width,
-        height: height,
-        fit: fit,
-        loadingBuilder: enableLazyLoading ? _buildLoadingBuilder : null,
-        errorBuilder: (context, error, stackTrace) => _buildErrorWidget(context),
-      );
-    }
+  Widget _buildNetworkImage(BuildContext context, WidgetRef ref, double width, double height) {
+    return FutureBuilder<String>(
+      future: OfflineMediaCacheService.getMediaUrl(imageUrl!, false, ref),
+      builder: (context, snapshot) {
+        final resolvedUrl = snapshot.data ?? imageUrl!;
+        final isLocalFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
 
-    return CachedNetworkImage(
-      imageUrl: imageUrl!,
-      width: width,
-      height: height,
-      fit: fit,
-      placeholder: placeholder != null
-          ? (context, url) => placeholder!
-          : enableLazyLoading
-              ? (context, url) => _buildLoadingWidget(context)
-              : null,
-      errorWidget: errorWidget != null
-          ? (context, url, error) => errorWidget!
-          : (context, url, error) => _buildErrorWidget(context),
-      memCacheWidth: width.toInt(),
-      memCacheHeight: height.toInt(),
+        if (isLocalFile) {
+          return Image.file(
+            File(resolvedUrl.replaceFirst('file://', '')),
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) => _buildErrorWidget(context),
+          );
+        }
+
+        if (!enableCaching) {
+          // Check if we're offline - if so, don't try to load network image
+          final networkState = ref.watch(networkProvider);
+          if (networkState.isDisconnected) {
+            return _buildErrorWidget(context);
+          }
+
+          return Image.network(
+            resolvedUrl,
+            width: width,
+            height: height,
+            fit: fit,
+            loadingBuilder: enableLazyLoading ? _buildLoadingBuilder : null,
+            errorBuilder: (context, error, stackTrace) => _buildErrorWidget(context),
+          );
+        }
+
+        return CachedNetworkImage(
+          imageUrl: resolvedUrl,
+          width: width,
+          height: height,
+          fit: fit,
+          placeholder: placeholder != null
+              ? (context, url) => placeholder!
+              : enableLazyLoading
+                  ? (context, url) => _buildLoadingWidget(context)
+                  : null,
+          errorWidget: errorWidget != null
+              ? (context, url, error) => errorWidget!
+              : (context, url, error) => _buildErrorWidget(context),
+          memCacheWidth: width.toInt(),
+          memCacheHeight: height.toInt(),
+        );
+      },
     );
   }
 

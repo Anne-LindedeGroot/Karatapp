@@ -5,6 +5,7 @@ import '../../utils/responsive_utils.dart';
 import '../../widgets/responsive_layout.dart';
 import '../../widgets/collapsible_ohyo_card.dart';
 import '../../widgets/modern_loading_widget.dart';
+import '../../providers/precaching_provider.dart';
 
 /// Home Ohyo List - Handles ohyo list building and display
 class HomeOhyoList extends ConsumerStatefulWidget {
@@ -24,6 +25,35 @@ class HomeOhyoList extends ConsumerStatefulWidget {
 }
 
 class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Trigger pre-caching when ohyo list is loaded and has data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndTriggerPreCaching();
+    });
+  }
+
+  void _checkAndTriggerPreCaching() {
+    final ohyoState = ref.read(ohyoNotifierProvider);
+    if (ohyoState.ohyos.isNotEmpty) {
+      final preCachingNotifier = ref.read(preCachingProvider.notifier);
+      if (preCachingNotifier.shouldTriggerPreCaching(ref)) {
+        debugPrint('🏠 Ohyo list loaded with ${ohyoState.ohyos.length} ohyos, triggering pre-caching');
+        preCachingNotifier.triggerPreCaching(ref);
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Also check when dependencies change (in case data loads after init)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndTriggerPreCaching();
+    });
+  }
 
   Widget _buildOhyoList(List<dynamic> ohyos) {
     // Use ListView for mobile (natural height) like kata cards

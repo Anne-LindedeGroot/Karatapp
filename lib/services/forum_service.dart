@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/forum_models.dart';
 
@@ -92,7 +93,8 @@ class ForumService {
       final response = await query
           .order('is_pinned', ascending: false)
           .order('created_at', ascending: false)
-          .range(offset, offset + limit - 1);
+          .range(offset, offset + limit - 1)
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
       final posts = List<Map<String, dynamic>>.from(response);
       
@@ -110,8 +112,9 @@ class ForumService {
           .from('forum_posts')
           .select('*')
           .eq('id', postId)
-          .single();
-      
+          .single()
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+
       // Get comments for this post
       final commentsResponse = await _client
           .from('forum_comments')
@@ -161,7 +164,8 @@ class ForumService {
           .from('forum_posts')
           .insert(postData)
           .select()
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
       final responseData = Map<String, dynamic>.from(response);
       responseData['comment_count'] = 0;
@@ -220,7 +224,8 @@ class ForumService {
           .update(updateData)
           .eq('id', postId)
           .select()
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
       return ForumPost.fromJson(response);
     } catch (e) {
@@ -260,13 +265,15 @@ class ForumService {
       await _client
           .from('forum_comments')
           .delete()
-          .eq('post_id', postId);
+          .eq('post_id', postId)
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
       // Then delete the post
       await _client
           .from('forum_posts')
           .delete()
-          .eq('id', postId);
+          .eq('id', postId)
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
     } catch (e) {
       throw Exception('Failed to delete post: $e');
     }
@@ -329,7 +336,8 @@ class ForumService {
           .from('forum_comments')
           .insert(commentData)
           .select()
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
       return ForumComment.fromJson(response);
     } catch (e) {
@@ -337,7 +345,48 @@ class ForumService {
     }
   }
 
-  // Get comments for a specific post
+  // Get a specific post without comments
+  Future<ForumPost> getPost(int postId) async {
+    try {
+      final response = await _client
+          .from('forum_posts')
+          .select('*')
+          .eq('id', postId)
+          .single()
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+
+      return ForumPost.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to load post: $e');
+    }
+  }
+
+  // Get comments for a specific post with pagination
+  Future<List<ForumComment>> getCommentsPaginated({
+    required int postId,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _client
+          .from('forum_comments')
+          .select('*')
+          .eq('post_id', postId)
+          .order('created_at', ascending: true)
+          .range(offset, offset + limit - 1)
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+
+      final comments = List<Map<String, dynamic>>.from(response)
+          .map((comment) => ForumComment.fromJson(comment))
+          .toList();
+
+      return comments;
+    } catch (e) {
+      throw Exception('Failed to load comments: $e');
+    }
+  }
+
+  // Get comments for a specific post (legacy method - loads all)
   Future<List<ForumComment>> getComments(int postId) async {
     try {
       final response = await _client
@@ -357,6 +406,27 @@ class ForumService {
     }
   }
 
+  // Helper method to recursively get all child comment IDs
+  Future<List<int>> _getAllChildCommentIds(int parentCommentId) async {
+    final childComments = await _client
+        .from('forum_comments')
+        .select('id')
+        .eq('parent_comment_id', parentCommentId);
+
+    final directChildren = List<Map<String, dynamic>>.from(childComments);
+    final allChildIds = <int>[];
+
+    for (final child in directChildren) {
+      final childId = child['id'] as int;
+      allChildIds.add(childId);
+      // Recursively get children of this child
+      final grandChildren = await _getAllChildCommentIds(childId);
+      allChildIds.addAll(grandChildren);
+    }
+
+    return allChildIds;
+  }
+
   // Delete a forum comment (only author, post author, or host can do this)
   Future<void> deleteComment(int commentId) async {
     try {
@@ -369,25 +439,25 @@ class ForumService {
       final allComments = await _client
           .from('forum_comments')
           .select('author_id, post_id, id');
-      
+
       final comments = List<Map<String, dynamic>>.from(allComments);
       final commentList = comments.where((comment) => comment['id'] == commentId).toList();
-      
+
       if (commentList.isEmpty) {
         throw Exception('Comment not found');
       }
-      
+
       final comment = commentList.first;
       final isCommentAuthor = comment['author_id'] == user.id;
-      
+
       // Get the post to check if user is post author
       final allPosts = await _client
           .from('forum_posts')
           .select('author_id, id');
-      
+
       final posts = List<Map<String, dynamic>>.from(allPosts);
       final postList = posts.where((post) => post['id'] == comment['post_id']).toList();
-      
+
       final isPostAuthor = postList.isNotEmpty && postList.first['author_id'] == user.id;
       final isHost = await isAppHost(user.id);
 
@@ -395,11 +465,24 @@ class ForumService {
         throw Exception('You do not have permission to delete this comment');
       }
 
-      // Delete the comment
+      // Get all child comment IDs recursively
+      final childCommentIds = await _getAllChildCommentIds(commentId);
+
+      // Delete all child comments first (in reverse order to handle dependencies)
+      for (final childId in childCommentIds.reversed) {
+        await _client
+            .from('forum_comments')
+            .delete()
+            .eq('id', childId)
+            .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+      }
+
+      // Finally delete the parent comment
       await _client
           .from('forum_comments')
           .delete()
-          .eq('id', commentId);
+          .eq('id', commentId)
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
     } catch (e) {
       throw Exception('Failed to delete comment: $e');
     }
@@ -445,7 +528,8 @@ class ForumService {
           .update(updateData)
           .eq('id', commentId)
           .select()
-          .single();
+          .single()
+          .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
       return ForumComment.fromJson(response);
     } catch (e) {

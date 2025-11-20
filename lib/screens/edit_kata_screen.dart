@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../models/kata_model.dart';
 import '../providers/kata_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../providers/image_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/enhanced_accessible_text.dart';
@@ -73,6 +74,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
       _hasChanges = true;
     });
   }
+
 
   Future<void> _loadCurrentImages() async {
     try {
@@ -198,10 +200,19 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
   Future<void> _pickImagesFromGallery() async {
     final images = await ImageUtils.pickMultipleImagesFromGallery();
     if (images.isNotEmpty) {
-      setState(() {
-        _newSelectedImages.addAll(images);
-        _hasChanges = true;
-      });
+      // Check for duplicates - don't add images that are already in the kata
+      final filteredImages = images.where((image) {
+        // For now, we'll assume all selected images are new
+        // In a future improvement, we could compare file hashes or metadata
+        return true;
+      }).toList();
+
+      if (filteredImages.isNotEmpty) {
+        setState(() {
+          _newSelectedImages.addAll(filteredImages);
+          _hasChanges = true;
+        });
+      }
     }
   }
 
@@ -249,6 +260,9 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         _currentImageUrls,
       );
 
+      // Update the kata model with the new image order
+      ref.read(kataNotifierProvider.notifier).updateKataImages(widget.kata.id, _currentImageUrls);
+
       // Show success feedback
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -260,6 +274,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         );
       }
     } catch (e) {
+      debugPrint('Failed to save image order: $e');
       // Revert the local change if save failed
       setState(() {
         if (newIndex > oldIndex) {
@@ -267,13 +282,16 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         }
         final item = _currentImageUrls.removeAt(newIndex);
         _currentImageUrls.insert(oldIndex, item);
+        // Mark as having changes so user can save manually
+        _hasChanges = true;
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Fout bij opslaan volgorde: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Automatisch opslaan mislukt. Gebruik de Opslaan knop: $e'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
           ),
         );
       }
@@ -357,50 +375,69 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 margin: const EdgeInsets.only(right: 12),
                 child: Stack(
                   children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isHovered ? borderColor.withValues(alpha: 0.8) : borderColor,
-                          width: isHovered ? 3 : 2,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: isHovered ? [
-                          BoxShadow(
-                            color: borderColor.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          ),
-                        ] : null,
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: imageFile != null
-                            ? Image.file(imageFile, fit: BoxFit.cover, width: 96, height: 96)
-                            : Image.network(
-                                imageUrl!,
-                                fit: BoxFit.cover,
-                                width: 96,
-                                height: 96,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return Container(
-                                    width: 96,
-                                    height: 96,
-                                    color: Colors.grey[200],
-                                    child: const Center(child: CircularProgressIndicator()),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 96,
-                                    height: 96,
-                                    color: Colors.grey[200],
-                                    child: const Icon(Icons.broken_image, color: Colors.grey),
-                                  );
-                                },
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+                        return GestureDetector(
+                          onTap: () async {
+                            final accessibilityState = ref.read(accessibilityNotifierProvider);
+                            if (accessibilityState.isTextToSpeechEnabled) {
+                              final imageType = imageFile != null ? 'nieuwe afbeelding' : 'huidige afbeelding';
+                              await accessibilityNotifier.speak('Afbeelding ${index + 1} van $totalItems, $imageType');
+                            }
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: isHovered ? borderColor.withValues(alpha: 0.8) : borderColor,
+                                width: isHovered ? 3 : 2,
                               ),
-                      ),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: isHovered ? [
+                                BoxShadow(
+                                  color: borderColor.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ] : null,
+                            ),
+                            child: Semantics(
+                              label: 'Afbeelding ${index + 1} van $totalItems',
+                              hint: 'Tik om te horen welke afbeelding dit is',
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(6),
+                                child: imageFile != null
+                                    ? Image.file(imageFile, fit: BoxFit.cover, width: 96, height: 96)
+                                    : Image.network(
+                                        imageUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 96,
+                                        height: 96,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return Container(
+                                            width: 96,
+                                            height: 96,
+                                            color: Colors.grey[200],
+                                            child: const Center(child: CircularProgressIndicator()),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Container(
+                                            width: 96,
+                                            height: 96,
+                                            color: Colors.grey[200],
+                                            child: const Icon(Icons.broken_image, color: Colors.grey),
+                                          );
+                                        },
+                                      ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     Positioned(
                       top: 4,
@@ -509,9 +546,13 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
 
     if (!_hasChanges) {
       debugPrint('No changes detected, popping screen');
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
       return;
     }
+
+    if (!mounted) return;
 
     setState(() {
       _isLoading = true;
@@ -519,7 +560,9 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
 
     try {
       debugPrint('Starting save process...');
+
       // Update text fields in database
+      if (!mounted) return; // Check mounted before each ref usage
       await ref.read(kataNotifierProvider.notifier).updateKata(
         kataId: widget.kata.id,
         name: _nameController.text.trim(),
@@ -536,16 +579,18 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
 
       // Handle image additions
       if (_newSelectedImages.isNotEmpty) {
+        debugPrint('📤 Starting upload of ${_newSelectedImages.length} new images for kata ${widget.kata.id}');
         // Upload new images
         final newImageUrls = await ImageUtils.uploadMultipleImagesToSupabase(
           _newSelectedImages,
           widget.kata.id,
         );
+        debugPrint('📥 Upload completed. Got ${newImageUrls.length} URLs: $newImageUrls');
         _currentImageUrls.addAll(newImageUrls);
       }
 
       // Update image order if needed
-      if (_currentImageUrls.isNotEmpty) {
+      if (_currentImageUrls.isNotEmpty && mounted) {
         await ref.read(imageNotifierProvider.notifier).reorderImages(
           widget.kata.id,
           _currentImageUrls,
@@ -553,7 +598,9 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
       }
 
       // Refresh kata data
-      await ref.read(kataNotifierProvider.notifier).refreshKatas();
+      if (mounted) {
+        await ref.read(kataNotifierProvider.notifier).refreshKatas();
+      }
 
       debugPrint('Save completed successfully');
       if (mounted) {
@@ -581,9 +628,11 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
       }
     } finally {
       debugPrint('Resetting loading state');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -619,18 +668,20 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            EnhancedAccessibleText(
               'Video URL\'s',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
+              customTTSText: 'Sectie voor het beheren van video URL\'s',
             ),
             const SizedBox(height: 16),
 
             // Add new URL field
-            Text(
+            EnhancedAccessibleText(
               'Nieuwe URL toevoegen:',
               style: Theme.of(context).textTheme.bodyMedium,
+              customTTSText: 'Veld voor het toevoegen van een nieuwe video URL',
             ),
             const SizedBox(height: 8),
             TextFormField(
@@ -645,11 +696,12 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
 
             if (_videoUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
-              Text(
-                'Toegevoegde URLs (${_videoUrls.length}):',
+              EnhancedAccessibleText(
+                '${_videoUrls.length} ${_videoUrls.length == 1 ? 'URL' : 'URLs'} toegevoegd',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
+                customTTSText: '${_videoUrls.length} ${_videoUrls.length == 1 ? 'video URL toegevoegd' : 'video URLs toegevoegd'}',
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -868,52 +920,59 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Afbeeldingen Toevoegen',
+                        EnhancedAccessibleText(
+                          'Afbeeldingen',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.visible,
                           maxLines: 2,
+                          customTTSText: 'Sectie voor nieuwe afbeeldingen',
                         ),
                         SizedBox(height: 24),
                         Row(
                           children: [
                             Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _pickImagesFromGallery,
-                                icon: Icon(Icons.photo_library, size: 20),
-                                label: const Text(
-                                  'Galerij',
-                                  style: TextStyle(fontSize: 14),
-                                  overflow: TextOverflow.visible,
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                                  minimumSize: Size(0, 56),
-                                  backgroundColor: Colors.blue,
-                                  foregroundColor: Colors.white,
-                                  elevation: 2,
+                              child: Semantics(
+                                label: 'Nieuwe afbeeldingen selecteren uit galerij',
+                                child: ElevatedButton.icon(
+                                  onPressed: _pickImagesFromGallery,
+                                  icon: Icon(Icons.photo_library, size: 20),
+                                  label: const Text(
+                                    'Galerij',
+                                    style: TextStyle(fontSize: 14),
+                                    overflow: TextOverflow.visible,
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                                    minimumSize: Size(0, 56),
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    elevation: 2,
+                                  ),
                                 ),
                               ),
                             ),
                             SizedBox(width: 16),
                             Expanded(
-                              child: ElevatedButton.icon(
-                                onPressed: _captureImageWithCamera,
-                                icon: Icon(Icons.camera_alt, size: 20),
-                                label: const Text(
-                                  'Camera',
-                                  style: TextStyle(fontSize: 14),
-                                  overflow: TextOverflow.visible,
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                                  minimumSize: Size(0, 56),
-                                  backgroundColor: Colors.green,
-                                  foregroundColor: Colors.white,
-                                  elevation: 2,
+                              child: Semantics(
+                                label: 'Nieuwe afbeelding maken met camera',
+                                child: ElevatedButton.icon(
+                                  onPressed: _captureImageWithCamera,
+                                  icon: Icon(Icons.camera_alt, size: 20),
+                                  label: const Text(
+                                    'Camera',
+                                    style: TextStyle(fontSize: 14),
+                                    overflow: TextOverflow.visible,
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                                    minimumSize: Size(0, 56),
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    elevation: 2,
+                                  ),
                                 ),
                               ),
                             ),
@@ -933,12 +992,19 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Huidige Afbeeldingen (${_currentImageUrls.length})',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: EnhancedAccessibleText(
+                                  'Huidige Afbeeldingen (${_currentImageUrls.length})',
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  customTTSText: '${_currentImageUrls.length} ${_currentImageUrls.length == 1 ? 'huidige afbeelding' : 'huidige afbeeldingen'}',
+                                ),
+                              ),
+                            ],
                           ),
                            const SizedBox(height: 12),
                            Text(

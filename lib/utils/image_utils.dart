@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'retry_utils.dart';
+import '../services/offline_media_cache_service.dart';
 
 class ImageUtils {
   static final ImagePicker _picker = ImagePicker();
@@ -64,20 +65,25 @@ class ImageUtils {
   static Future<List<String>> uploadMultipleImagesToSupabase(List<File> imageFiles, int kataId) async {
     return await RetryUtils.executeWithRetry(
       () async {
+        debugPrint('🖼️ Starting upload of ${imageFiles.length} images to kata $kataId');
         List<String> uploadedUrls = [];
-        
+
         for (int i = 0; i < imageFiles.length; i++) {
           final imageFile = imageFiles[i];
           final fileName = generateUniqueFileName('kata_${kataId}_$i');
+          debugPrint('📤 Uploading image ${i + 1}/${imageFiles.length}: ${imageFile.path} -> kata_images/$kataId/$fileName');
           final url = await uploadImageToSupabase(imageFile, fileName, kataId);
-          
+
           if (url != null) {
             uploadedUrls.add(url);
+            debugPrint('✅ Successfully uploaded image ${i + 1}: $url');
           } else {
+            debugPrint('❌ Failed to upload image ${i + 1}: $fileName');
             throw Exception('Failed to upload image ${i + 1} of ${imageFiles.length}');
           }
         }
-        
+
+        debugPrint('🎉 Completed upload of ${uploadedUrls.length} images');
         return uploadedUrls;
       },
       maxRetries: 3,
@@ -95,40 +101,46 @@ class ImageUtils {
       () async {
         try {
           final supabase = Supabase.instance.client;
-          
+
           // Validate file exists and is readable
           if (!await imageFile.exists()) {
             throw Exception('Image file does not exist: ${imageFile.path}');
           }
-          
-          // Try to create the bucket if it doesn't exist
+
+          // Check if the bucket exists and is accessible
           try {
-            await supabase.storage.createBucket('kata_images');
-          } catch (e) {
-            // Bucket might already exist, which is fine
-            debugPrint('Bucket creation attempt: $e');
+            await supabase.storage.getBucket('kata_images');
+            debugPrint('✅ kata_images bucket exists and is accessible');
+          } catch (bucketError) {
+            debugPrint('❌ kata_images bucket error: $bucketError');
+            throw Exception('Storage bucket kata_images not found or not accessible. Please create it in your Supabase dashboard.');
           }
-          
+
           // Create a folder structure: kata_images/{kata_id}/filename
           final filePath = '$kataId/$fileName';
-          
+          debugPrint('📁 Uploading to path: kata_images/$filePath');
+
           // Read the file as bytes
           final bytes = await imageFile.readAsBytes();
-          
+          debugPrint('📏 File size: ${bytes.length} bytes');
+
           if (bytes.isEmpty) {
             throw Exception('Image file is empty: ${imageFile.path}');
           }
-          
+
           // Upload to Supabase Storage (in a 'kata_images' bucket with folder structure)
+          debugPrint('☁️ Starting upload to Supabase...');
           await supabase.storage
               .from('kata_images')
               .uploadBinary(filePath, bytes);
-          
+          debugPrint('✅ Upload completed successfully');
+
           // Get the public URL of the uploaded image
           final publicUrl = supabase.storage
               .from('kata_images')
               .getPublicUrl(filePath);
-          
+
+          debugPrint('🔗 Generated public URL: $publicUrl');
           return publicUrl;
         } catch (e) {
           debugPrint('Error uploading image to Supabase: $e');
@@ -206,73 +218,78 @@ class ImageUtils {
   }
   
   /// Fetch all images for a specific kata ID from the bucket
-  static Future<List<String>> fetchKataImagesFromBucket(int kataId) async {
+  static Future<List<String>> fetchKataImagesFromBucket(int kataId, {dynamic ref}) async {
     return await RetryUtils.executeWithRetry(
       () async {
         try {
           final supabase = Supabase.instance.client;
-          
+
           // First check if the bucket exists
           try {
             await supabase.storage.getBucket('kata_images');
             debugPrint('✅ kata_images bucket found');
           } catch (e) {
             debugPrint('⚠️ kata_images bucket not found or not accessible: $e');
-            
+
             // Check if this is a network error or file descriptor error
             if (_isNetworkError(e) || _isFileDescriptorError(e)) {
               debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
               return [];
             }
-            
-            // Try to create the bucket if it doesn't exist (only if we have network)
-            try {
-              await supabase.storage.createBucket('kata_images', 
-                BucketOptions(public: true, allowedMimeTypes: ['image/*']));
-              debugPrint('✅ Created kata_images bucket');
-            } catch (createError) {
-              debugPrint('❌ Failed to create kata_images bucket: $createError');
-              
-              // If it's a network or file descriptor error, return empty list instead of throwing
-              if (_isNetworkError(createError) || _isFileDescriptorError(createError)) {
-                debugPrint('🌐 Network/file error during bucket creation, returning empty list');
-                return [];
-              }
-              
-              throw Exception('Storage bucket not available. Please check your Supabase configuration.');
-            }
+
+            // Bucket should already exist - if not accessible, return empty list
           }
-          
+
+          // Check if there's a stored image order in the kata record
+          List<String>? storedOrder;
+          try {
+            final kataResponse = await supabase
+                .from('katas')
+                .select('image_urls')
+                .eq('id', kataId)
+                .single();
+
+            storedOrder = kataResponse['image_urls'] != null
+                ? List<String>.from(kataResponse['image_urls'] as List)
+                : null;
+
+            if (storedOrder != null && storedOrder.isNotEmpty) {
+              debugPrint('📋 Found stored image order for kata $kataId: ${storedOrder.length} images');
+            }
+          } catch (e) {
+            debugPrint('⚠️ Could not fetch stored image order: $e');
+          }
+
           // List all files in the kata's folder with proper error handling
           debugPrint('🔍 Listing files for kata $kataId...');
           List<dynamic> response = [];
-          
+
           try {
             response = await supabase.storage
                 .from('kata_images')
                 .list(path: kataId.toString());
           } catch (listError) {
             debugPrint('❌ Error listing files for kata $kataId: $listError');
-            
+
             // If it's a file descriptor error, return empty list
             if (_isFileDescriptorError(listError)) {
               debugPrint('🔧 File descriptor error detected, returning empty list');
               return [];
             }
-            
+
             // For other errors, rethrow
             rethrow;
           }
-          
+
           debugPrint('📁 Found ${response.length} files in kata $kataId folder');
-          
+
           if (response.isEmpty) {
             debugPrint('ℹ️ No images found for kata $kataId');
             return [];
           }
-          
+
           List<Map<String, String>> imageData = [];
-          
+
           for (final file in response) {
             if (file.name.isNotEmpty && !file.name.startsWith('.') && _isImageFile(file.name)) {
               try {
@@ -280,27 +297,37 @@ class ImageUtils {
                 final signedUrl = await supabase.storage
                     .from('kata_images')
                     .createSignedUrl('$kataId/${file.name}', 7200); // 2 hour expiry
-                
+
                 imageData.add({
                   'url': signedUrl,
                   'name': file.name,
                 });
                 debugPrint('✅ Generated signed URL for ${file.name}');
+
+                // Cache the image for offline access if ref is provided
+                if (ref != null) {
+                  try {
+                    await OfflineMediaCacheService.cacheMediaFile(signedUrl, false, ref);
+                    await OfflineMediaCacheService.updateKataMetadata(kataId, signedUrl);
+                  } catch (cacheError) {
+                    debugPrint('⚠️ Failed to cache kata image ${file.name}: $cacheError');
+                  }
+                }
               } catch (signedUrlError) {
                 debugPrint('❌ Failed to create signed URL for ${file.name}: $signedUrlError');
-                
+
                 // If it's a file descriptor error, skip this file
                 if (_isFileDescriptorError(signedUrlError)) {
                   debugPrint('🔧 File descriptor error for ${file.name}, skipping');
                   continue;
                 }
-                
+
                 // Try public URL as fallback (in case bucket is actually public)
                 try {
                   final publicUrl = supabase.storage
                       .from('kata_images')
                       .getPublicUrl('$kataId/${file.name}');
-                  
+
                   if (publicUrl.isNotEmpty) {
                     imageData.add({
                       'url': publicUrl,
@@ -312,7 +339,7 @@ class ImageUtils {
                   }
                 } catch (publicUrlError) {
                   debugPrint('❌ Failed to create any URL for ${file.name}: $publicUrlError');
-                  
+
                   // If it's a file descriptor error, skip this file
                   if (_isFileDescriptorError(publicUrlError)) {
                     debugPrint('🔧 File descriptor error for ${file.name}, skipping');
@@ -324,26 +351,73 @@ class ImageUtils {
               debugPrint('⏭️ Skipping non-image file: ${file.name}');
             }
           }
-          
+
           if (imageData.isEmpty) {
             debugPrint('ℹ️ No valid image files found for kata $kataId');
             return [];
           }
-          
-          // Sort by filename to maintain order (files with order prefix will be sorted correctly)
-          imageData.sort((a, b) => a['name']!.compareTo(b['name']!));
-          
-          // Extract just the URLs in the correct order
-          final urls = imageData.map((data) => data['url']!).toList();
-          debugPrint('✅ Successfully fetched ${urls.length} images for kata $kataId');
-          debugPrint('🖼️ Image URLs: ${urls.take(3).join(', ')}${urls.length > 3 ? '...' : ''}');
-          return urls;
+
+          // If we have a stored order, use it to sort the images
+          if (storedOrder != null && storedOrder.isNotEmpty) {
+            debugPrint('🔄 Using stored image order for sorting');
+
+            // Create a map of filename to URL for quick lookup
+            final fileNameToData = <String, Map<String, String>>{};
+            for (final data in imageData) {
+              fileNameToData[data['name']!] = data;
+            }
+
+            // Sort images according to stored order
+            final orderedUrls = <String>[];
+            for (final storedUrl in storedOrder) {
+              final storedFileName = extractFileNameFromUrl(storedUrl);
+              if (storedFileName != null && fileNameToData.containsKey(storedFileName)) {
+                orderedUrls.add(fileNameToData[storedFileName]!['url']!);
+              }
+            }
+
+            // Add any remaining images that weren't in the stored order
+            for (final data in imageData) {
+              if (!orderedUrls.contains(data['url'])) {
+                orderedUrls.add(data['url']!);
+              }
+            }
+
+            debugPrint('✅ Successfully ordered ${orderedUrls.length} images using stored order');
+            debugPrint('🖼️ Ordered image URLs: ${orderedUrls.take(3).join(', ')}${orderedUrls.length > 3 ? '...' : ''}');
+            return orderedUrls;
+          } else {
+            // Fall back to sorting by filename (files with order prefix will be sorted correctly)
+            debugPrint('📝 No stored order found, sorting by filename');
+            imageData.sort((a, b) => a['name']!.compareTo(b['name']!));
+
+            // Extract just the URLs in the correct order
+            final urls = imageData.map((data) => data['url']!).toList();
+            debugPrint('✅ Successfully fetched ${urls.length} images for kata $kataId');
+            debugPrint('🖼️ Image URLs: ${urls.take(3).join(', ')}${urls.length > 3 ? '...' : ''}');
+            return urls;
+          }
         } catch (e) {
           debugPrint('❌ Error fetching kata images from bucket: $e');
           
-          // Check if this is a network error or file descriptor error - if so, return empty list for offline mode
+          // Check if this is a network error or file descriptor error - if so, try to return cached images
           if (_isNetworkError(e) || _isFileDescriptorError(e)) {
-            debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
+            debugPrint('🌐 Network/file error detected, checking for cached kata images');
+
+            // Try to return cached images if available
+            if (ref != null) {
+              try {
+                final cachedPaths = await OfflineMediaCacheService.getCachedKataImageUrls(kataId);
+                if (cachedPaths.isNotEmpty) {
+                  debugPrint('✅ Found ${cachedPaths.length} cached images for kata $kataId');
+                  return cachedPaths;
+                }
+              } catch (cacheError) {
+                debugPrint('⚠️ Failed to get cached kata images: $cacheError');
+              }
+            }
+
+            debugPrint('ℹ️ No cached images available for kata $kataId, returning empty list');
             return [];
           }
           
@@ -362,6 +436,55 @@ class ImageUtils {
       shouldRetry: RetryUtils.shouldRetryImageError,
       onRetry: (attempt, error) {
         debugPrint('🔄 Retrying fetch kata images (attempt $attempt): $error');
+      },
+    );
+  }
+
+  /// Get file extension from a filename
+  static String? getFileExtension(String fileName) {
+    final lastDot = fileName.lastIndexOf('.');
+    if (lastDot != -1 && lastDot < fileName.length - 1) {
+      return fileName.substring(lastDot + 1).toLowerCase();
+    }
+    return null;
+  }
+
+  /// Create ordered image file name (for multiple images)
+  static String createOrderedImageFileName(int kataId, int order, String originalFileName) {
+    final extension = getFileExtension(originalFileName) ?? 'jpg';
+    final orderPrefix = order.toString().padLeft(3, '0');
+    return '${kataId}_${orderPrefix}_image.$extension';
+  }
+
+  /// Rename/move an image file in Supabase storage (used for reordering)
+  static Future<bool> renameImageFile(int kataId, String oldFileName, String newFileName) async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          final supabase = Supabase.instance.client;
+
+          // Copy the file to the new name
+          await supabase.storage
+              .from('kata_images')
+              .copy('$kataId/$oldFileName', '$kataId/$newFileName');
+
+          // Delete the old file
+          await supabase.storage
+              .from('kata_images')
+              .remove(['$kataId/$oldFileName']);
+
+          debugPrint('✅ Renamed image file: $oldFileName -> $newFileName');
+          return true;
+        } catch (e) {
+          debugPrint('❌ Failed to rename image file $oldFileName to $newFileName: $e');
+          return false;
+        }
+      },
+      maxRetries: 3,
+      initialDelay: const Duration(seconds: 1),
+      shouldRetry: RetryUtils.shouldRetryImageError,
+      onRetry: (attempt, error) {
+        debugPrint('🔄 Retrying rename image file (attempt $attempt): $error');
       },
     );
   }
@@ -722,7 +845,7 @@ class ImageUtils {
   }
 
   /// Fetch all images for a specific ohyo ID from the bucket
-  static Future<List<String>> fetchOhyoImagesFromBucket(int ohyoId) async {
+  static Future<List<String>> fetchOhyoImagesFromBucket(int ohyoId, {dynamic ref}) async {
     return await RetryUtils.executeWithRetry<List<String>>(
       () async {
         try {
@@ -800,6 +923,15 @@ class ImageUtils {
                   'name': file.name,
                 });
                 debugPrint('✅ Generated signed URL for ${file.name}');
+
+                // Cache the image for offline access if ref is provided
+                if (ref != null) {
+                  try {
+                    await OfflineMediaCacheService.cacheOhyoImage(ohyoId, file.name, signedUrl, ref);
+                  } catch (cacheError) {
+                    debugPrint('⚠️ Failed to cache ohyo image ${file.name}: $cacheError');
+                  }
+                }
               } catch (signedUrlError) {
                 debugPrint('❌ Failed to create signed URL for ${file.name}: $signedUrlError');
 
@@ -855,9 +987,24 @@ class ImageUtils {
         } catch (e) {
           debugPrint('❌ Error fetching ohyo images from bucket: $e');
 
-          // Check if this is a network error or file descriptor error - if so, return empty list for offline mode
+          // Check if this is a network error or file descriptor error - if so, try to return cached images
           if (_isNetworkError(e) || _isFileDescriptorError(e)) {
-            debugPrint('🌐 Network/file error detected, returning empty list for offline mode');
+            debugPrint('🌐 Network/file error detected, checking for cached ohyo images');
+
+            // Try to return cached images if available
+            if (ref != null) {
+              try {
+                final cachedPaths = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
+                if (cachedPaths.isNotEmpty) {
+                  debugPrint('✅ Found ${cachedPaths.length} cached images for ohyo $ohyoId');
+                  return cachedPaths;
+                }
+              } catch (cacheError) {
+                debugPrint('⚠️ Failed to get cached images: $cacheError');
+              }
+            }
+
+            debugPrint('ℹ️ No cached images available for ohyo $ohyoId, returning empty list');
             return [];
           }
 

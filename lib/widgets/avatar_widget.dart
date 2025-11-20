@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/avatar_model.dart';
+import '../services/offline_media_cache_service.dart';
+import '../providers/network_provider.dart';
 
 class AvatarWidget extends ConsumerWidget {
   final String? avatarId;
@@ -37,7 +40,7 @@ class AvatarWidget extends ConsumerWidget {
               ),
             ),
             child: ClipOval(
-              child: _buildAvatarContent(context),
+              child: _buildAvatarContent(context, ref),
             ),
           ),
           if (showEditIcon)
@@ -67,27 +70,53 @@ class AvatarWidget extends ConsumerWidget {
     );
   }
 
-  Widget _buildAvatarContent(BuildContext context) {
+  Widget _buildAvatarContent(BuildContext context, WidgetRef ref) {
     // Priority: Custom avatar URL > Preset avatar > Initials fallback
     if (customAvatarUrl != null && customAvatarUrl!.isNotEmpty) {
-      return Image.network(
-        customAvatarUrl!,
-        width: size,
-        height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildInitialsAvatar(context);
-        },
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Center(
-            child: CircularProgressIndicator(
-              value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
-                  : null,
-            ),
-          );
+      return FutureBuilder<String>(
+        future: OfflineMediaCacheService.getMediaUrl(customAvatarUrl!, false, ref),
+        builder: (context, snapshot) {
+          final resolvedUrl = snapshot.data ?? customAvatarUrl!;
+          final isLocalFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
+
+          if (isLocalFile) {
+            return Image.file(
+              File(resolvedUrl.replaceFirst('file://', '')),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildInitialsAvatar(context);
+              },
+            );
+          } else {
+            // Check if we're offline - if so, don't try to load network image
+            final networkState = ref.watch(networkProvider);
+            if (networkState.isDisconnected) {
+              return _buildInitialsAvatar(context);
+            }
+
+            return Image.network(
+              resolvedUrl,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return _buildInitialsAvatar(context);
+              },
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            loadingProgress.expectedTotalBytes!
+                        : null,
+                  ),
+                );
+              },
+            );
+          }
         },
       );
     }
@@ -180,10 +209,9 @@ class AvatarPreview extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox(
-        width: size,
-        height: size + 30, // Extra space for name
+      child: IntrinsicWidth(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Stack(
               children: [
@@ -193,8 +221,8 @@ class AvatarPreview extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected 
-                          ? Colors.green 
+                      color: isSelected
+                          ? Colors.green
                           : Colors.grey.shade300,
                       width: isSelected ? 3 : 1,
                     ),
@@ -258,18 +286,26 @@ class AvatarPreview extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              avatar.name,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected 
-                    ? Colors.green 
-                    : Colors.grey.shade700,
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: size,
+                maxWidth: size,
               ),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.visible,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  avatar.name,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? Colors.green
+                        : Colors.grey.shade700,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.visible,
+                ),
+              ),
             ),
           ],
         ),

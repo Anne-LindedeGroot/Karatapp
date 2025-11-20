@@ -128,6 +128,7 @@ class OhyoState {
   final String? error;
   final String searchQuery;
   final OhyoCategory? selectedCategory;
+  final bool isOfflineMode;
 
   const OhyoState({
     this.ohyos = const [],
@@ -136,6 +137,7 @@ class OhyoState {
     this.error,
     this.searchQuery = '',
     this.selectedCategory,
+    this.isOfflineMode = false,
   });
 
   OhyoState.initial()
@@ -144,7 +146,8 @@ class OhyoState {
         isLoading = false,
         error = null,
         searchQuery = '',
-        selectedCategory = null;
+        selectedCategory = null,
+        isOfflineMode = false;
 
   OhyoState copyWith({
     List<Ohyo>? ohyos,
@@ -153,6 +156,7 @@ class OhyoState {
     String? error,
     String? searchQuery,
     OhyoCategory? selectedCategory,
+    bool? isOfflineMode,
   }) {
     return OhyoState(
       ohyos: ohyos ?? this.ohyos,
@@ -161,12 +165,13 @@ class OhyoState {
       error: error,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedCategory: selectedCategory ?? this.selectedCategory,
+      isOfflineMode: isOfflineMode ?? this.isOfflineMode,
     );
   }
 
   @override
   String toString() {
-    return 'OhyoState(ohyos: ${ohyos.length}, filteredOhyos: ${filteredOhyos.length}, isLoading: $isLoading, error: $error, searchQuery: $searchQuery, selectedCategory: $selectedCategory)';
+    return 'OhyoState(ohyos: ${ohyos.length}, filteredOhyos: ${filteredOhyos.length}, isLoading: $isLoading, error: $error, searchQuery: $searchQuery, selectedCategory: $selectedCategory, isOfflineMode: $isOfflineMode)';
   }
 
   @override
@@ -178,7 +183,8 @@ class OhyoState {
         other.isLoading == isLoading &&
         other.error == error &&
         other.searchQuery == searchQuery &&
-        other.selectedCategory == selectedCategory;
+        other.selectedCategory == selectedCategory &&
+        other.isOfflineMode == isOfflineMode;
   }
 
   @override
@@ -188,6 +194,7 @@ class OhyoState {
         isLoading.hashCode ^
         error.hashCode ^
         searchQuery.hashCode ^
-        selectedCategory.hashCode;
+        selectedCategory.hashCode ^
+        isOfflineMode.hashCode;
   }
 }

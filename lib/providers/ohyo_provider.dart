@@ -3,19 +3,29 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/ohyo_model.dart';
+import '../services/offline_ohyo_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/retry_utils.dart';
 import '../supabase_client.dart';
 import 'error_boundary_provider.dart';
-import 'network_provider.dart';
+import 'offline_services_provider.dart';
+
+// Provider for offline ohyo service
+final offlineOhyoServiceProvider = Provider<OfflineOhyoService>((ref) {
+  throw UnimplementedError('OfflineOhyoService must be provided by a parent provider');
+});
 
 // StateNotifier for ohyo management
 class OhyoNotifier extends StateNotifier<OhyoState> {
   final ErrorBoundaryNotifier _errorBoundary;
-  final Ref _ref;
+  OfflineOhyoService? _offlineOhyoService;
 
-  OhyoNotifier(this._errorBoundary, this._ref) : super(OhyoState.initial()) {
+  OhyoNotifier(this._errorBoundary) : super(OhyoState.initial()) {
     // Don't auto-load ohyos on initialization - wait for explicit call
+  }
+
+  void initializeOfflineService(OfflineOhyoService offlineOhyoService) {
+    _offlineOhyoService = offlineOhyoService;
   }
 
   final SupabaseClient _supabase = SupabaseClientManager().client;
@@ -59,18 +69,35 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
   }
 
   Future<void> loadOhyos() async {
-    // Check network status first
-    final networkState = _ref.read(networkProvider);
-    if (networkState.isDisconnected) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'No internet connection',
-      );
-      return;
-    }
-
     state = state.copyWith(isLoading: true, error: null);
 
+    List<Ohyo>? cachedOhyos;
+
+    // First, try to load from cache if available
+    if (_offlineOhyoService != null) {
+      try {
+        cachedOhyos = await _offlineOhyoService!.getValidCachedOhyos();
+        if (cachedOhyos != null && cachedOhyos.isNotEmpty) {
+          // Load cached ohyos first for immediate UI feedback
+          state = state.copyWith(
+            ohyos: cachedOhyos,
+            filteredOhyos: cachedOhyos,
+            isLoading: true, // Keep loading true while we try to refresh from online
+            error: null,
+            isOfflineMode: true,
+          );
+
+          // Preload images for cached ohyos
+          if (cachedOhyos.isNotEmpty) {
+            _preloadInitialOhyoImages(cachedOhyos.take(3).toList());
+          }
+        }
+      } catch (e) {
+        // Ignore cache errors, continue with online loading
+      }
+    }
+
+    // Then try to load from online
     try {
       await RetryUtils.executeWithRetry(
         () async {
@@ -79,22 +106,27 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
               .select()
               .order('order', ascending: true);
 
-          final ohyos = (response as List)
+          final onlineOhyos = (response as List)
               .map((data) => Ohyo.fromMap(data as Map<String, dynamic>))
               .toList();
 
-          // Load ohyos without images for faster startup
-          // Images will be loaded lazily when needed
+          // Cache the online data
+          if (_offlineOhyoService != null) {
+            await _offlineOhyoService!.cacheOhyos(onlineOhyos);
+          }
+
+          // Update state with online data
           state = state.copyWith(
-            ohyos: ohyos,
-            filteredOhyos: ohyos,
+            ohyos: onlineOhyos,
+            filteredOhyos: onlineOhyos,
             isLoading: false,
             error: null,
+            isOfflineMode: false,
           );
 
-          // Preload images for first 3 ohyos to improve perceived performance
-          if (ohyos.isNotEmpty) {
-            _preloadInitialOhyoImages(ohyos.take(3).toList());
+          // Preload images for online ohyos
+          if (onlineOhyos.isNotEmpty) {
+            _preloadInitialOhyoImages(onlineOhyos.take(3).toList());
           }
         },
         maxRetries: 3,
@@ -105,16 +137,27 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
         },
       );
     } catch (e) {
-      final errorMessage = 'Failed to load ohyos: ${e.toString()}';
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      // Online loading failed
+      if (cachedOhyos != null && cachedOhyos.isNotEmpty) {
+        // We have cached data, show it with offline indicator
+        state = state.copyWith(
+          isLoading: false,
+          error: null,
+          isOfflineMode: true,
+        );
+      } else {
+        // No cached data available, show error
+        final errorMessage = 'Failed to load ohyos: ${e.toString()}';
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+          isOfflineMode: false,
+        );
 
-      // Only report to error boundary if it's not a network error
-      // Network errors are handled by the network provider
-      if (!_isNetworkError(e)) {
-        _errorBoundary.reportNetworkError(errorMessage);
+        // Only report to error boundary if it's not a network error
+        if (!_isNetworkError(e)) {
+          _errorBoundary.reportNetworkError(errorMessage);
+        }
       }
     }
   }
@@ -533,7 +576,13 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 // Provider for the OhyoNotifier
 final ohyoNotifierProvider = StateNotifierProvider<OhyoNotifier, OhyoState>((ref) {
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  return OhyoNotifier(errorBoundary, ref);
+  final notifier = OhyoNotifier(errorBoundary);
+
+  // Initialize offline service if available
+  final offlineOhyoService = ref.watch(offlineOhyoServiceProviderOverride);
+  notifier.initializeOfflineService(offlineOhyoService);
+
+  return notifier;
 });
 
 // Convenience providers for specific ohyo state properties
@@ -543,6 +592,10 @@ final ohyosProvider = Provider<List<Ohyo>>((ref) {
 
 final ohyoLoadingProvider = Provider<bool>((ref) {
   return ref.watch(ohyoNotifierProvider).isLoading;
+});
+
+final ohyoOfflineModeProvider = Provider<bool>((ref) {
+  return ref.watch(ohyoNotifierProvider).isOfflineMode;
 });
 
 final ohyoErrorProvider = Provider<String?>((ref) {
@@ -569,5 +622,5 @@ final ohyoByIdProvider = Provider.family<Ohyo?, int>((ref, ohyoId) {
 
 // Family provider for ohyo images
 final ohyoImagesProvider = FutureProvider.family<List<String>, int>((ref, ohyoId) async {
-  return await ImageUtils.fetchOhyoImagesFromBucket(ohyoId);
+  return await ImageUtils.fetchOhyoImagesFromBucket(ohyoId, ref: ref);
 });

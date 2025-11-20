@@ -127,7 +127,7 @@ class _KataCardInteractionsState extends State<KataCardInteractions> {
               const SizedBox(height: 12),
               KataCardComments(
                 kata: widget.kata,
-                comments: comments,
+                initialComments: comments,
                 isLoading: interactionState.isLoading,
                 onCollapse: () {
                   setState(() {

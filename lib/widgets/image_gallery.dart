@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../services/offline_media_cache_service.dart';
+import '../providers/network_provider.dart';
 
 class ImageGallery extends ConsumerStatefulWidget {
   final List<String> imageUrls;
@@ -23,12 +26,71 @@ class ImageGallery extends ConsumerStatefulWidget {
 class _ImageGalleryState extends ConsumerState<ImageGallery> {
   late PageController _pageController;
   int _currentIndex = 0;
+  final Map<int, String> _resolvedUrls = {};
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: widget.initialIndex);
     _currentIndex = widget.initialIndex;
+    _resolveImageUrls();
+  }
+
+  /// Resolve image URLs - use cached files when offline
+  Future<void> _resolveImageUrls() async {
+    // First, proactively cache all images if online
+    final networkState = ref.read(networkProvider);
+    if (networkState.isConnected) {
+      debugPrint('🖼️ Gallery opened online - pre-caching ${widget.imageUrls.length} images');
+      await OfflineMediaCacheService.preCacheMediaFiles(widget.imageUrls, false, ref);
+    }
+
+    // Then resolve URLs (will use cached files if available)
+    for (int i = 0; i < widget.imageUrls.length; i++) {
+      final originalUrl = widget.imageUrls[i];
+      final resolvedUrl = await OfflineMediaCacheService.getMediaUrl(originalUrl, false, ref);
+      setState(() {
+        _resolvedUrls[i] = resolvedUrl;
+      });
+    }
+  }
+
+  /// Build thumbnail image widget - handles both local files and network images
+  Widget _buildThumbnailImage(int index) {
+    final imageUrl = _resolvedUrls[index] ?? widget.imageUrls[index];
+    final isLocalFile = imageUrl.startsWith('/') || imageUrl.startsWith('file://');
+
+    if (isLocalFile) {
+      return Image.file(
+        File(imageUrl.replaceFirst('file://', '')),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(
+            Icons.error,
+            size: 20,
+            color: Colors.white,
+          ),
+        ),
+      );
+    } else {
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        placeholder: (context, url) => const Center(
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        ),
+        errorWidget: (context, url, error) => const Center(
+          child: Icon(
+            Icons.error,
+            size: 20,
+            color: Colors.white,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -71,12 +133,37 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                 });
               },
               itemBuilder: (context, index) {
+                final imageUrl = _resolvedUrls[index] ?? widget.imageUrls[index];
+                final isLocalFile = imageUrl.startsWith('/') || imageUrl.startsWith('file://');
+
                 return Center(
                   child: InteractiveViewer(
                     minScale: 0.5,
                     maxScale: 4.0,
-                    child: CachedNetworkImage(
-                      imageUrl: widget.imageUrls[index],
+                    child: isLocalFile
+                        ? Image.file(
+                            File(imageUrl.replaceFirst('file://', '')),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.error,
+                                    size: 50,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Afbeelding laden mislukt',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : CachedNetworkImage(
+                      imageUrl: imageUrl,
                       fit: BoxFit.contain,
                       placeholder: (context, url) => const Center(
                         child: CircularProgressIndicator(
@@ -184,23 +271,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(2.0),
-                      child: CachedNetworkImage(
-                        imageUrl: widget.imageUrls[index],
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => const Center(
-                          child: Icon(
-                            Icons.error,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                      child: _buildThumbnailImage(index),
                     ),
                   ),
                 );

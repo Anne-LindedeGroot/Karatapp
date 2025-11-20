@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'config/environment.dart';
 import 'core/theme/app_theme.dart';
 import 'core/navigation/app_router.dart';
@@ -9,12 +10,19 @@ import 'providers/theme_provider.dart';
 import 'core/navigation/scaffold_messenger.dart';
 import 'providers/accessibility_provider.dart';
 import 'providers/error_boundary_provider.dart';
+import 'providers/offline_services_provider.dart';
+import 'providers/interaction_provider.dart';
+import 'providers/forum_provider.dart';
+import 'providers/kata_provider.dart';
+import 'providers/ohyo_provider.dart';
+import 'services/offline_media_cache_service.dart';
+import 'services/precaching_service.dart';
 import 'widgets/global_tts_overlay.dart';
 import 'widgets/global_overflow_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize environment variables (with fallback for missing .env)
   try {
     await Environment.initialize();
@@ -23,10 +31,30 @@ void main() async {
     debugPrint('App will continue with default environment values');
   }
 
+  // Initialize SharedPreferences synchronously (it will be cached after first call)
+  final sharedPreferences = await SharedPreferences.getInstance();
+
+  // Initialize offline media cache
+  await OfflineMediaCacheService.initialize();
+
+  // Initialize pre-caching service
+  PreCachingService.initialize();
+
   // Start app immediately with simplified initialization
   runApp(
     ProviderScope(
       observers: kDebugMode ? [OptimizedRiverpodObserver()] : [],
+      overrides: [
+        // Override the SharedPreferences provider with the initialized instance
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        // Override the main offline service providers with properly initialized ones
+        offlineQueueServiceProvider.overrideWith((ref) => ref.watch(offlineQueueServiceProviderOverride)),
+        commentCacheServiceProvider.overrideWith((ref) => ref.watch(commentCacheServiceProviderOverride)),
+        conflictResolutionServiceProvider.overrideWith((ref) => ref.watch(conflictResolutionServiceProviderOverride)),
+        offlineForumServiceProvider.overrideWith((ref) => ref.watch(offlineForumServiceProviderOverride)),
+        offlineKataServiceProvider.overrideWith((ref) => ref.watch(offlineKataServiceProviderOverride)),
+        offlineOhyoServiceProvider.overrideWith((ref) => ref.watch(offlineOhyoServiceProviderOverride)),
+      ],
       child: const MyApp(),
     ),
   );
@@ -319,6 +347,9 @@ class MyApp extends ConsumerStatefulWidget {
 class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
+    // Initialize offline services
+    ref.watch(offlineServicesInitializerProvider);
+
     // Use AppErrorBoundary to catch any build errors
     return AppErrorBoundary(
       child: Builder(

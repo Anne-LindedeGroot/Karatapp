@@ -5,6 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/storage/local_storage.dart' as app_storage;
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
+import 'offline_queue_service.dart';
+import 'comment_cache_service.dart';
+import 'conflict_resolution_service.dart';
+import 'interaction_service.dart';
+import 'offline_media_cache_service.dart';
+import '../models/interaction_models.dart';
 
 /// Offline sync status
 enum SyncStatus {
@@ -99,6 +105,24 @@ class OfflineSyncService {
   Timer? _backgroundSyncTimer;
   static const Duration _backgroundSyncInterval = Duration(minutes: 15);
 
+  // Offline services - will be injected
+  OfflineQueueService? _offlineQueueService;
+  CommentCacheService? _commentCacheService;
+  ConflictResolutionService? _conflictResolutionService;
+  InteractionService? _interactionService;
+
+  void initializeOfflineServices(
+    OfflineQueueService queueService,
+    CommentCacheService cacheService,
+    ConflictResolutionService conflictResolutionService,
+    InteractionService interactionService,
+  ) {
+    _offlineQueueService = queueService;
+    _commentCacheService = cacheService;
+    _conflictResolutionService = conflictResolutionService;
+    _interactionService = interactionService;
+  }
+
   /// Start background sync if enabled
   void startBackgroundSync(Ref ref) {
     final dataUsageState = ref.read(dataUsageProvider);
@@ -129,6 +153,7 @@ class OfflineSyncService {
     try {
       await syncKatas(ref, background: true);
       await syncForumPosts(ref, background: true);
+      await syncCommentOperations(ref, background: true);
     } catch (e) {
       debugPrint('Background sync failed: $e');
     }
@@ -199,7 +224,10 @@ class OfflineSyncService {
 
       // Save to local storage
       await app_storage.LocalStorage.saveKatas(katasToCache);
-      
+
+      // Cache media files (images and videos) for offline use
+      await _cacheKataMedia(katasToCache, ref);
+
       // Record data usage
       final estimatedBytes = response.length * 1024; // ~1KB per kata
       ref.read(dataUsageProvider.notifier).recordDataUsage(estimatedBytes, type: 'forum');
@@ -388,8 +416,8 @@ class OfflineSyncService {
       
       for (final kata in favoriteKatas) {
         try {
-          // Preload kata videos if available
-          await _preloadKataVideos(kata.id, ref);
+          // Cache kata videos for offline use
+          await _cacheKataVideos(kata.id, ref);
           
           // Small delay to avoid overwhelming the network
           await Future.delayed(const Duration(milliseconds: 500));
@@ -405,31 +433,401 @@ class OfflineSyncService {
   }
 
   /// Preload videos for a specific kata
-  Future<void> _preloadKataVideos(int kataId, Ref ref) async {
+  /// Cache media files for katas (images and videos)
+  Future<void> _cacheKataMedia(List<app_storage.CachedKata> katas, Ref ref) async {
     try {
-      // This would integrate with your existing video service
-      // For now, we'll just mark it as a placeholder
-      debugPrint('Preloading videos for kata $kataId');
-      
-      // Record data usage for preloading
-      const estimatedBytes = 1024 * 1024; // 1MB estimate
-      ref.read(dataUsageProvider.notifier).recordDataUsage(estimatedBytes, type: 'video');
+      for (final kata in katas) {
+        // Cache images
+        if (kata.imageUrls.isNotEmpty) {
+          await OfflineMediaCacheService.preCacheMediaFiles(kata.imageUrls, false, ref);
+        }
+
+        // Fetch and cache videos for this kata
+        await _cacheKataVideos(kata.id, ref);
+      }
+      debugPrint('Media caching completed for ${katas.length} katas');
     } catch (e) {
-      debugPrint('Error preloading videos for kata $kataId: $e');
+      debugPrint('Error caching kata media: $e');
     }
   }
 
-  /// Get pending items count
+  Future<void> _cacheKataVideos(int kataId, Ref ref) async {
+    try {
+      // Fetch video URLs for this kata from the database
+      final response = await _supabase
+          .from('katas')
+          .select('video_urls')
+          .eq('id', kataId)
+          .single();
+
+      final videoUrls = List<String>.from(response['video_urls'] ?? []);
+
+      if (videoUrls.isNotEmpty) {
+        // Cache video files
+        await OfflineMediaCacheService.preCacheMediaFiles(videoUrls, true, ref);
+        debugPrint('Cached ${videoUrls.length} videos for kata $kataId');
+      }
+    } catch (e) {
+      debugPrint('Error caching videos for kata $kataId: $e');
+    }
+  }
+
+  /// Sync comment operations from offline queue
+  Future<SyncResult> syncCommentOperations(Ref ref, {bool background = false}) async {
+    if (_offlineQueueService == null || _interactionService == null) {
+      return SyncResult(
+        operation: SyncOperation.userData,
+        success: true,
+        itemsProcessed: 0,
+        itemsFailed: 0,
+        error: null,
+        timestamp: DateTime.now(),
+      );
+    }
+
+    int processed = 0;
+    int failed = 0;
+    String? error;
+
+    try {
+      if (!background) {
+        ref.read(offlineSyncProvider.notifier).updateStatus(
+          SyncStatus.syncing,
+          SyncOperation.userData,
+          0.0,
+        );
+      }
+
+      // Get all pending operations
+      final pendingOperations = await _offlineQueueService!.getPendingOperations();
+
+      if (pendingOperations.isEmpty) {
+        return SyncResult(
+          operation: SyncOperation.userData,
+          success: true,
+          itemsProcessed: 0,
+          itemsFailed: 0,
+          error: null,
+          timestamp: DateTime.now(),
+        );
+      }
+
+      // Process operations in batches
+      const batchSize = 5;
+      for (int i = 0; i < pendingOperations.length; i += batchSize) {
+        final batchEnd = (i + batchSize).clamp(0, pendingOperations.length);
+        final batch = pendingOperations.sublist(i, batchEnd);
+
+        // Process batch concurrently
+        final batchResults = await Future.wait(
+          batch.map((operation) => _processCommentOperation(operation)),
+        );
+
+        // Count results
+        for (final success in batchResults) {
+          if (success) {
+            processed++;
+          } else {
+            failed++;
+          }
+        }
+
+        // Update progress
+        if (!background) {
+          final progress = batchEnd / pendingOperations.length;
+          ref.read(offlineSyncProvider.notifier).updateProgress(progress);
+        }
+      }
+
+      final result = SyncResult(
+        operation: SyncOperation.userData,
+        success: failed == 0,
+        itemsProcessed: processed,
+        itemsFailed: failed,
+        error: failed > 0 ? '$failed operations failed to sync' : null,
+        timestamp: DateTime.now(),
+      );
+
+      if (!background) {
+        ref.read(offlineSyncProvider.notifier).addSyncResult(result);
+        ref.read(offlineSyncProvider.notifier).updateStatus(
+          SyncStatus.completed,
+          null,
+          1.0,
+        );
+      }
+
+      return result;
+    } catch (e) {
+      error = e.toString();
+      debugPrint('Error syncing comment operations: $e');
+
+      final result = SyncResult(
+        operation: SyncOperation.userData,
+        success: false,
+        itemsProcessed: processed,
+        itemsFailed: failed + 1,
+        error: error,
+        timestamp: DateTime.now(),
+      );
+
+      if (!background) {
+        ref.read(offlineSyncProvider.notifier).addSyncResult(result);
+        ref.read(offlineSyncProvider.notifier).updateStatus(
+          SyncStatus.failed,
+          null,
+          0.0,
+          error: error,
+        );
+      }
+
+      return result;
+    }
+  }
+
+  /// Process a single comment operation
+  Future<bool> _processCommentOperation(OfflineOperation operation) async {
+    if (_offlineQueueService == null || _interactionService == null) return false;
+
+    try {
+      // Mark operation as processing
+      await _offlineQueueService!.updateOperation(
+        operation.id,
+        status: OfflineOperationStatus.processing,
+      );
+
+      bool success = false;
+
+      switch (operation.type) {
+        case OfflineOperationType.addComment:
+          final content = operation.data['content'] as String;
+          final targetId = operation.data['target_id'] as int;
+          final targetType = operation.data['target_type'] as String;
+
+          if (targetType == 'kata') {
+            await _interactionService!.addKataComment(kataId: targetId, content: content);
+          } else if (targetType == 'ohyo') {
+            await _interactionService!.addOhyoComment(ohyoId: targetId, content: content);
+          }
+          success = true;
+          break;
+
+        case OfflineOperationType.updateComment:
+          final commentId = operation.data['comment_id'] as int;
+          final commentType = operation.data['comment_type'] as String;
+          final content = operation.data['content'] as String;
+          final localVersion = operation.data['version'] as int? ?? 1;
+
+          // Try to update the comment with conflict detection
+          success = await _updateCommentWithConflictResolution(
+            commentId,
+            commentType,
+            content,
+            localVersion,
+            operation.userId!,
+          );
+          break;
+
+        case OfflineOperationType.deleteComment:
+          final commentId = operation.data['comment_id'] as int;
+          final commentType = operation.data['comment_type'] as String;
+
+          if (commentType == 'kata_comment') {
+            await _interactionService!.deleteKataComment(commentId);
+          } else if (commentType == 'ohyo_comment') {
+            await _interactionService!.deleteOhyoComment(commentId);
+          }
+          success = true;
+          break;
+
+        case OfflineOperationType.toggleLike:
+          final commentId = operation.data['comment_id'] as int;
+          final commentType = operation.data['comment_type'] as String;
+          await _interactionService!.executeToggleCommentLike(commentId, commentType, operation.userId!);
+          success = true;
+          break;
+
+        case OfflineOperationType.toggleDislike:
+          final commentId = operation.data['comment_id'] as int;
+          final commentType = operation.data['comment_type'] as String;
+          await _interactionService!.executeToggleCommentDislike(commentId, commentType, operation.userId!);
+          success = true;
+          break;
+      }
+
+      if (success) {
+        // Mark as completed
+        await _offlineQueueService!.updateOperation(
+          operation.id,
+          status: OfflineOperationStatus.completed,
+          processedAt: DateTime.now(),
+        );
+
+        // Update cache if needed
+        if (_commentCacheService != null && operation.data.containsKey('comment_id')) {
+          final commentId = operation.data['comment_id'] as int;
+          final commentType = operation.data['comment_type'] as String;
+          await _commentCacheService!.removeCachedState(commentId, commentType); // Clear cache to force refresh
+        }
+      }
+
+      return success;
+    } catch (e) {
+      debugPrint('Failed to process operation ${operation.id}: $e');
+
+      // Check if this is a conflict that can be resolved
+      if (_conflictResolutionService != null && e.toString().contains('version_conflict')) {
+        // Create a conflict for manual resolution
+        final conflictData = operation.data;
+        final serverData = await _fetchCurrentCommentData(
+          conflictData['comment_id'] as int,
+          conflictData['comment_type'] as String,
+        );
+
+        if (serverData != null) {
+          await _conflictResolutionService!.detectConflict(
+            commentType: conflictData['comment_type'] as String,
+            commentId: conflictData['comment_id'] as int,
+            localData: conflictData,
+            serverData: serverData,
+            userId: operation.userId,
+          );
+
+          // Mark operation as failed but don't retry automatically
+          await _offlineQueueService!.updateOperation(
+            operation.id,
+            status: OfflineOperationStatus.failed,
+            error: 'Conflict detected - manual resolution required',
+          );
+          return false; // Don't retry
+        }
+      }
+
+      // Mark as failed
+      await _offlineQueueService!.markOperationFailed(operation.id, e.toString());
+      return false;
+    }
+  }
+
+  /// Update comment with conflict resolution
+  Future<bool> _updateCommentWithConflictResolution(
+    int commentId,
+    String commentType,
+    String content,
+    int localVersion,
+    String userId,
+  ) async {
+    if (_interactionService == null) return false;
+
+    try {
+      // First, try to get the current server state
+      final currentServerData = await _fetchCurrentCommentData(commentId, commentType);
+
+      if (currentServerData == null) {
+        // Comment doesn't exist on server
+        return false;
+      }
+
+      final serverVersion = currentServerData['version'] as int? ?? 1;
+
+      // Check for version conflict
+      if (serverVersion > localVersion) {
+        // There's a conflict - create a conflict record
+        if (_conflictResolutionService != null) {
+          final localData = {
+            'comment_id': commentId,
+            'comment_type': commentType,
+            'content': content,
+            'version': localVersion,
+          };
+
+          await _conflictResolutionService!.detectConflict(
+            commentType: commentType,
+            commentId: commentId,
+            localData: localData,
+            serverData: currentServerData,
+            userId: userId,
+          );
+        }
+        return false; // Don't proceed with update
+      }
+
+      // No conflict, proceed with update
+      if (commentType == 'kata_comment') {
+        await _interactionService!.updateKataComment(
+          commentId: commentId,
+          content: content,
+          version: localVersion + 1,
+        );
+      } else if (commentType == 'ohyo_comment') {
+        await _interactionService!.updateOhyoComment(
+          commentId: commentId,
+          content: content,
+          version: localVersion + 1,
+        );
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('Error updating comment with conflict resolution: $e');
+      return false;
+    }
+  }
+
+  /// Fetch current comment data from server
+  Future<Map<String, dynamic>?> _fetchCurrentCommentData(int commentId, String commentType) async {
+    try {
+      final tableName = commentType == 'kata_comment' ? 'kata_comments' : 'ohyo_comments';
+
+      final response = await _supabase
+          .from(tableName)
+          .select('*')
+          .eq('id', commentId)
+          .single();
+
+      return response;
+    } catch (e) {
+      debugPrint('Error fetching current comment data: $e');
+      return null;
+    }
+  }
+
+  /// Get pending items count (including comment operations)
   int getPendingItemsCount() {
-    // This would check for items that need to be synced
-    // For now, return 0 as placeholder
+    // This is now handled by the offline sync notifier
+    // Return 0 as the actual count is tracked in the notifier
     return 0;
+  }
+
+  /// Force sync all pending operations (for manual sync)
+  Future<void> forceSyncPendingOperations(Ref ref) async {
+    final networkState = ref.read(networkProvider);
+    if (!networkState.isConnected) return;
+
+    try {
+      await syncCommentOperations(ref);
+    } catch (e) {
+      debugPrint('Force sync failed: $e');
+    }
   }
 }
 
 /// Offline sync notifier
 class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
   final OfflineSyncService _syncService = OfflineSyncService();
+  OfflineQueueService? _offlineQueueService;
+
+  void initializeOfflineQueueService(OfflineQueueService queueService) {
+    _offlineQueueService = queueService;
+    // Listen to operations stream to update pending items count
+    _offlineQueueService?.operationsStream.listen((operations) {
+      final pendingCount = operations
+          .where((op) => op.status == OfflineOperationStatus.pending ||
+                         op.status == OfflineOperationStatus.processing)
+          .length;
+      state = state.copyWith(pendingItems: pendingCount);
+    });
+  }
 
   OfflineSyncNotifier() : super(const OfflineSyncState(
     status: SyncStatus.idle,

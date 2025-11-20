@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'universal_video_player.dart';
+import '../services/offline_media_cache_service.dart';
 
 enum MediaType { image, video }
 
@@ -37,6 +39,41 @@ class MediaGallery extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<MediaGallery> createState() => _MediaGalleryState();
+
+  /// Helper method to build image widget with offline cache support
+  static Widget _buildCachedImage(String imageUrl, WidgetRef ref, {
+    BoxFit fit = BoxFit.cover,
+    Widget? placeholder,
+    Widget? errorWidget,
+  }) {
+    return FutureBuilder<String>(
+      future: OfflineMediaCacheService.getMediaUrl(imageUrl, false, ref),
+      builder: (context, snapshot) {
+        final resolvedUrl = snapshot.data ?? imageUrl;
+        final isLocalFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
+
+        if (isLocalFile) {
+          return Image.file(
+            File(resolvedUrl.replaceFirst('file://', '')),
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) =>
+                errorWidget ?? const Center(child: Icon(Icons.error, size: 20)),
+          );
+        } else {
+          return CachedNetworkImage(
+            imageUrl: resolvedUrl,
+            fit: fit,
+            placeholder: placeholder != null
+                ? (context, url) => placeholder
+                : (context, url) => const Center(child: CircularProgressIndicator()),
+            errorWidget: errorWidget != null
+                ? (context, url, error) => errorWidget
+                : (context, url, error) => const Center(child: Icon(Icons.error, size: 20)),
+          );
+        }
+      },
+    );
+  }
 }
 
 class _MediaGalleryState extends ConsumerState<MediaGallery>
@@ -223,13 +260,11 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
             },
             itemBuilder: (context, index) {
               return Center(
-                child: CachedNetworkImage(
-                  imageUrl: widget.imageUrls[index],
+                child: MediaGallery._buildCachedImage(
+                  widget.imageUrls[index],
+                  ref,
                   fit: BoxFit.contain,
-                  placeholder: (context, url) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                  errorWidget: (context, url, error) => const Center(
+                  errorWidget: const Center(
                     child: Icon(Icons.error, size: 50),
                   ),
                 ),
@@ -315,15 +350,10 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(2.0),
-                    child: CachedNetworkImage(
-                      imageUrl: widget.imageUrls[index],
+                    child: MediaGallery._buildCachedImage(
+                      widget.imageUrls[index],
+                      ref,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                      errorWidget: (context, url, error) => const Center(
-                        child: Icon(Icons.error, size: 20),
-                      ),
                     ),
                   ),
                 ),

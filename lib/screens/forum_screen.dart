@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/accessibility_provider.dart';
+import '../providers/network_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/skeleton_forum_post.dart';
 import '../widgets/responsive_layout.dart';
@@ -34,10 +35,13 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     // Initialize local state with provider state
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final providerCategory = ref.read(forumSelectedCategoryProvider);
+      final providerSearchQuery = ref.read(forumSearchQueryProvider);
       if (mounted) {
         setState(() {
           _localSelectedCategory = providerCategory;
         });
+        // Synchronize search controller with provider state
+        _searchController.text = providerSearchQuery;
       }
     });
   }
@@ -405,6 +409,19 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () {
+              final networkState = ref.read(networkProvider);
+              if (!networkState.isConnected) {
+                // Show offline message for forum posts
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Forumberichten zijn alleen beschikbaar wanneer je online bent'),
+                    backgroundColor: Colors.orange,
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+                return;
+              }
+
               _speakForumPostContent(post);
               if (context.isDesktop) {
                 // Master-detail mode: select post for detail view
@@ -1079,6 +1096,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final posts = ref.watch(forumPostsProvider);
     final isLoading = ref.watch(forumLoadingProvider);
     final error = ref.watch(forumErrorProvider);
+    final isOfflineMode = ref.watch(forumOfflineModeProvider);
 
     return GestureDetector(
       onTap: () {
@@ -1086,7 +1104,36 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('Forum'),
+        title: Row(
+          children: [
+            const Text('Forum'),
+            if (isOfflineMode) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.wifi_off, size: 14, color: Colors.orange),
+                    SizedBox(width: 4),
+                    Text(
+                      'Offline',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),

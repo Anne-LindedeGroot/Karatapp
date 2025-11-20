@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/kata_provider.dart';
-import '../providers/accessibility_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/video_url_input_widget.dart';
-import '../widgets/global_tts_overlay.dart';
+import '../widgets/enhanced_accessible_text.dart';
 
 class CreateKataScreen extends ConsumerStatefulWidget {
   const CreateKataScreen({super.key});
@@ -112,49 +111,6 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
   }
 
 
-  Future<void> _openDescriptionDialog() async {
-    final TextEditingController dialogController = TextEditingController(
-      text: _descriptionController.text,
-    );
-
-    // Build the dialog content text for TTS
-    final String dialogContent = _buildDescriptionDialogContent(dialogController.text);
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => DialogTTSOverlay(
-        child: DescriptionEditDialog(
-          controller: dialogController,
-          initialContent: dialogContent,
-        ),
-      ),
-    );
-
-    if (result != null) {
-      setState(() {
-        _descriptionController.text = result;
-      });
-    }
-  }
-
-  String _buildDescriptionDialogContent(String currentText) {
-    final List<String> contentParts = [];
-
-    contentParts.add('Kata beschrijving bewerken');
-    contentParts.add('Dialoog geopend voor het bewerken van de kata beschrijving');
-
-    if (currentText.isNotEmpty) {
-      contentParts.add('Huidige beschrijving: $currentText');
-    } else {
-      contentParts.add('Geen beschrijving ingevuld');
-    }
-
-    contentParts.add('Gebruik het tekstveld om de beschrijving te bewerken');
-    contentParts.add('Gebruik de Annuleren knop om te annuleren');
-    contentParts.add('Gebruik de Opslaan knop om de wijzigingen op te slaan');
-
-    return contentParts.join('. ');
-  }
 
 
   @override
@@ -236,7 +192,7 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
               const SizedBox(height: 20),
 
               // Kata Name Field
-              TextFormField(
+              EnhancedAccessibleTextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: 'Kata Naam *',
@@ -249,11 +205,12 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                   }
                   return null;
                 },
+                customTTSLabel: 'Kata naam invoerveld',
               ),
               const SizedBox(height: 20),
 
               // Style Field
-              TextFormField(
+              EnhancedAccessibleTextField(
                 controller: _styleController,
                 decoration: const InputDecoration(
                   labelText: 'Stijl *',
@@ -266,58 +223,29 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
                   }
                   return null;
                 },
+                customTTSLabel: 'Stijl invoerveld',
               ),
               const SizedBox(height: 20),
 
               // Description Field
-              Text(
-                'Beschrijving *',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+              EnhancedAccessibleTextField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Beschrijving *',
+                  hintText: 'Voer kata beschrijving in...',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.description),
+                  contentPadding: EdgeInsets.all(16),
                 ),
-              ),
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () => _openDescriptionDialog(),
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Theme.of(context).colorScheme.outline
-                          : Colors.grey,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: InputDecorator(
-                    decoration: const InputDecoration(
-                      hintText: 'Tik om beschrijving toe te voegen...',
-                      border: InputBorder.none,
-                      prefixIcon: Icon(Icons.description),
-                      suffixIcon: Icon(Icons.edit),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                    ),
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 80),
-                      width: double.infinity,
-                      child: Text(
-                        _descriptionController.text.isEmpty
-                            ? 'Tik om beschrijving toe te voegen...'
-                            : _descriptionController.text,
-                        style: TextStyle(
-                          color: _descriptionController.text.isEmpty
-                              ? Theme.of(context).colorScheme.onSurfaceVariant
-                              : Theme.of(context).colorScheme.onSurface,
-                          fontSize: 16,
-                        ),
-                        maxLines: 5,
-                        overflow: TextOverflow.visible,
-                      ),
-                    ),
-                  ),
-                ),
+                maxLines: 5,
+                minLines: 3,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Voer een beschrijving in';
+                  }
+                  return null;
+                },
+                customTTSLabel: 'Kata beschrijving invoerveld',
               ),
               const SizedBox(height: 20),
 
@@ -421,55 +349,63 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
 
               // Add Images & Videos Section
               const SizedBox(height: 20),
-              Text(
-                'Afbeeldingen & Video\'s Toevoegen',
+              EnhancedAccessibleText(
+                'Afbeeldingen & Videos',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).colorScheme.primary,
                 ),
+                customTTSText: 'Sectie voor afbeeldingen en video\'s',
               ),
               const SizedBox(height: 16),
-              Text(
+              EnhancedAccessibleText(
                 'Afbeeldingen',
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
+                customTTSText: 'Afbeeldingen sectie',
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _pickImagesFromGallery,
-                      icon: const Icon(Icons.photo_library, size: 18),
-                      label: const Text("Galerij"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                    child: Semantics(
+                      label: 'Afbeeldingen selecteren uit galerij',
+                      child: ElevatedButton.icon(
+                        onPressed: _pickImagesFromGallery,
+                        icon: const Icon(Icons.photo_library, size: 18),
+                        label: const Text("Galerij"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                          minimumSize: const Size(0, 60),
+                          elevation: 2,
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        minimumSize: const Size(0, 60),
-                        elevation: 2,
                       ),
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _captureImageWithCamera,
-                      icon: const Icon(Icons.camera_alt, size: 18),
-                      label: const Text("Camera"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                    child: Semantics(
+                      label: 'Nieuwe afbeelding maken met camera',
+                      child: ElevatedButton.icon(
+                        onPressed: _captureImageWithCamera,
+                        icon: const Icon(Icons.camera_alt, size: 18),
+                        label: const Text("Camera"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                          minimumSize: const Size(0, 60),
+                          elevation: 2,
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        minimumSize: const Size(0, 60),
-                        elevation: 2,
                       ),
                     ),
                   ),
@@ -520,111 +456,3 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
   }
 }
 
-class DescriptionEditDialog extends ConsumerStatefulWidget {
-  final TextEditingController controller;
-  final String initialContent;
-
-  const DescriptionEditDialog({
-    super.key,
-    required this.controller,
-    required this.initialContent,
-  });
-
-  @override
-  ConsumerState<DescriptionEditDialog> createState() => _DescriptionEditDialogState();
-}
-
-class _DescriptionEditDialogState extends ConsumerState<DescriptionEditDialog> {
-  @override
-  void initState() {
-    super.initState();
-    // Automatically speak the dialog content when it opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _speakDialogContent();
-    });
-  }
-
-  Future<void> _speakDialogContent() async {
-    final accessibilityState = ref.read(accessibilityNotifierProvider);
-    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-
-    // Only speak if TTS is enabled
-    if (accessibilityState.isTextToSpeechEnabled && mounted) {
-      await accessibilityNotifier.speak(widget.initialContent);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.9,
-          maxHeight: MediaQuery.of(context).size.height * 0.8,
-          minWidth: 300,
-          minHeight: 400,
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Kata Beschrijving',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 300,
-                child: SingleChildScrollView(
-                  child: TextField(
-                    controller: widget.controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Voer kata beschrijving in...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.all(16),
-                    ),
-                    maxLines: 6,
-                    minLines: 6,
-                    textAlignVertical: TextAlignVertical.top,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Annuleren'),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context, widget.controller.text),
-                    child: const Text('Opslaan'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

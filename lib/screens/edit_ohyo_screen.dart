@@ -73,6 +73,7 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
     });
   }
 
+
   Future<void> _loadCurrentImages() async {
     try {
       final imageUrls = await ImageUtils.fetchOhyoImagesFromBucket(widget.ohyo.id);
@@ -192,6 +193,8 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
     });
 
     try {
+      if (!mounted) return; // Check mounted before ref usage
+
       final ohyoNotifier = ref.read(ohyoNotifierProvider.notifier);
 
       // Capture router before async operation to avoid context issues
@@ -640,12 +643,18 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Huidige Afbeeldingen (${_currentImageUrls.length})',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Huidige Afbeeldingen (${_currentImageUrls.length})',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                         Text(
