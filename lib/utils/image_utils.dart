@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'retry_utils.dart';
 import '../services/offline_media_cache_service.dart';
+import '../providers/network_provider.dart';
 
 class ImageUtils {
   static final ImagePicker _picker = ImagePicker();
@@ -219,6 +220,23 @@ class ImageUtils {
   
   /// Fetch all images for a specific kata ID from the bucket
   static Future<List<String>> fetchKataImagesFromBucket(int kataId, {dynamic ref}) async {
+    // Check network connectivity first to avoid unnecessary network requests
+    bool isOnline = true;
+    try {
+      if (ref != null) {
+        final networkState = ref.read(networkProvider);
+        isOnline = networkState.isConnected;
+      }
+    } catch (e) {
+      // If we can't check network state, assume we're online and try
+      isOnline = true;
+    }
+
+    if (!isOnline) {
+      debugPrint('🌐 Offline mode detected, skipping kata image fetch for kata $kataId');
+      return [];
+    }
+
     return await RetryUtils.executeWithRetry(
       () async {
         try {
@@ -846,6 +864,23 @@ class ImageUtils {
 
   /// Fetch all images for a specific ohyo ID from the bucket
   static Future<List<String>> fetchOhyoImagesFromBucket(int ohyoId, {dynamic ref}) async {
+    // Check network connectivity first to avoid unnecessary network requests
+    bool isOnline = true;
+    try {
+      if (ref != null) {
+        final networkState = ref.read(networkProvider);
+        isOnline = networkState.isConnected;
+      }
+    } catch (e) {
+      // If we can't check network state, assume we're online and try
+      isOnline = true;
+    }
+
+    if (!isOnline) {
+      debugPrint('🌐 Offline mode detected, skipping ohyo image fetch for ohyo $ohyoId');
+      return [];
+    }
+
     return await RetryUtils.executeWithRetry<List<String>>(
       () async {
         try {

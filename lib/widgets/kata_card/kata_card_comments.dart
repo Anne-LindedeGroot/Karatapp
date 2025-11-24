@@ -136,7 +136,9 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
         borderRadius: BorderRadius.circular(8.0),
         border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade300),
       ),
-      child: Column(
+      child: Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Comments header
@@ -311,7 +313,7 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
           // Add comment section
           Container(
             decoration: BoxDecoration(
-              color: isDark ? theme.colorScheme.surface : Colors.white,
+              color: (isDark ? theme.colorScheme.surface : Colors.white).withValues(alpha: 0.9),
               border: Border(
                 top: BorderSide(color: isDark ? theme.colorScheme.outline : Colors.grey.shade300),
               ),
@@ -320,74 +322,95 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
                 bottomRight: Radius.circular(8.0),
               ),
             ),
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
+            padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            child: Row(
               children: [
-                EnhancedAccessibleTextField(
-                  controller: commentController,
-                  decoration: const InputDecoration(
-                    hintText: 'Voeg een reactie toe...',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                    contentPadding: EdgeInsets.all(8),
-                  ),
-                  maxLines: 2,
-                  minLines: 1,
-                  maxLength: 500,
-                  customTTSLabel: 'Reactie invoerveld',
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Consumer(
-                      builder: (context, ref, child) {
-                        final isSubmitting = ref.watch(kataInteractionProvider(widget.kata.id)).isLoading;
-
-                        return ElevatedButton(
-                          onPressed: isSubmitting ? null : () async {
-                            if (commentController.text.trim().isNotEmpty) {
-                              try {
-                                await ref.read(kataInteractionProvider(widget.kata.id).notifier)
-                                    .addComment(commentController.text.trim());
-                                commentController.clear();
-                                if (mounted && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Reactie succesvol toegevoegd!'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (mounted && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Fout bij toevoegen reactie: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            }
-                          },
-                          child: isSubmitting
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Text('Plaats'),
-                        );
-                      },
+                Expanded(
+                  child: EnhancedAccessibleTextField(
+                    controller: commentController,
+                    decoration: InputDecoration(
+                      hintText: 'Voeg een reactie toe...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      filled: true,
+                      fillColor: isDark 
+                          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                          : Colors.grey[100],
+                      counterText: "",
                     ),
-                  ],
+                    maxLines: 1,
+                    minLines: 1,
+                    maxLength: 500,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) async {
+                      // Trigger send
+                      final notifier = ref.read(kataInteractionProvider(widget.kata.id).notifier);
+                      if (commentController.text.trim().isNotEmpty) {
+                        await notifier.addComment(commentController.text.trim());
+                        commentController.clear();
+                      }
+                    },
+                    customTTSLabel: 'Reactie invoerveld',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Consumer(
+                  builder: (context, ref, child) {
+                    final isSubmitting = ref.watch(kataInteractionProvider(widget.kata.id)).isLoading;
+
+                    return IconButton(
+                      onPressed: isSubmitting ? null : () async {
+                        if (commentController.text.trim().isNotEmpty) {
+                          try {
+                            await ref.read(kataInteractionProvider(widget.kata.id).notifier)
+                                .addComment(commentController.text.trim());
+                            commentController.clear();
+                            if (mounted && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Reactie succesvol toegevoegd!'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (mounted && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Fout bij toevoegen reactie: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                      icon: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            Icons.send,
+                            color: theme.colorScheme.primary,
+                          ),
+                    );
+                  },
                 ),
               ],
             ),
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -788,7 +811,7 @@ class _ReplyKataCommentScreenState extends ConsumerState<ReplyKataCommentScreen>
                                     );
                                 if (context.mounted) {
                                   Navigator.pop(context, true);
-                                }R
+                                }
                               } catch (e) {
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(

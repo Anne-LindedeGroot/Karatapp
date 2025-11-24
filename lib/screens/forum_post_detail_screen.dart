@@ -847,9 +847,11 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   }
 
   Widget _buildCommentSection(ForumPost post) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + (_post!.isLocked ? 0 : 90)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
         // Comments header
         Container(
           padding: const EdgeInsets.all(16),
@@ -941,6 +943,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           ),
         ),
       ],
+    ),
     );
   }
 
@@ -1228,16 +1231,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     ),
                   ];
                 },
-                body: Column(
-                  children: [
-                    Expanded(
-                      child: _buildCommentSection(_post!),
-                    ),
-                    // Add extra space when comment input is visible to ensure content is not hidden
-                    if (!_post!.isLocked)
-                      SizedBox(height: MediaQuery.of(context).viewInsets.bottom + 120),
-                  ],
-                ),
+                body: _buildCommentSection(_post!),
               ),
             ),
 
@@ -1245,23 +1239,18 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
             if (!_post!.isLocked)
               Container(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
+                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.90),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
+                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
                       spreadRadius: 1,
-                      blurRadius: 5,
-                      offset: const Offset(0, -2),
+                      blurRadius: 3,
+                      offset: const Offset(0, -1),
                     ),
                   ],
                 ),
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 16,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1277,9 +1266,9 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                              const Icon(Icons.info_outline, size: 16, color: Colors.orange),
                               const SizedBox(width: 6),
-                              Text(
+                              const Text(
                                 'Offline: reacties kunnen niet worden geplaatst',
                                 style: TextStyle(
                                   color: Colors.orange,
@@ -1298,55 +1287,52 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                               focusNode: _commentFocusNode,
                               decoration: InputDecoration(
                                 hintText: _isOfflineMode
-                                    ? 'Offline - reacties kunnen niet worden geplaatst'
+                                    ? 'Offline'
                                     : _replyingToComment != null
                                         ? 'Reageer op ${_replyingToComment!.authorName}...'
                                         : 'Schrijf een reactie...',
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.all(Radius.circular(25)),
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
                                 ),
-                                contentPadding: EdgeInsets.symmetric(
+                                contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
-                                  vertical: 12,
+                                  vertical: 10,
                                 ),
-                                filled: _isOfflineMode,
+                                filled: true,
                                 fillColor: _isOfflineMode
                                     ? Colors.grey.withValues(alpha: 0.1)
-                                    : null,
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                counterText: "",
                               ),
-                              maxLines: null,
+                              maxLines: 5,
+                              minLines: 1,
                               maxLength: 1000,
-                              textInputAction: TextInputAction.send,
+                              textInputAction: TextInputAction.newline,
                               onSubmitted: _isOfflineMode ? null : (_) => _submitComment(),
                               customTTSLabel: 'Reactie invoerveld',
                               enabled: !_isOfflineMode,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: _isOfflineMode
-                                  ? Colors.grey
-                                  : Theme.of(context).primaryColor,
-                              shape: BoxShape.circle,
-                            ),
-                            child: IconButton(
-                              onPressed: (_isSubmittingComment || _isOfflineMode)
-                                  ? null
-                                  : _submitComment,
-                              icon: _isSubmittingComment
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
-                                      ),
-                                    )
-                                  : const Icon(Icons.send, color: Colors.white),
-                            ),
+                          IconButton(
+                            onPressed: (_isSubmittingComment || _isOfflineMode)
+                                ? null
+                                : _submitComment,
+                            icon: _isSubmittingComment
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.send, 
+                                    color: _isOfflineMode 
+                                      ? Colors.grey 
+                                      : Theme.of(context).colorScheme.primary
+                                  ),
                           ),
                         ],
                       ),

@@ -9,6 +9,7 @@ class ImageGallery extends ConsumerStatefulWidget {
   final List<String> imageUrls;
   final String title;
   final int? kataId;
+  final int? ohyoId;
   final int initialIndex;
 
   const ImageGallery({
@@ -16,6 +17,7 @@ class ImageGallery extends ConsumerStatefulWidget {
     required this.imageUrls,
     this.title = 'Afbeeldingen Gallerij',
     this.kataId,
+    this.ohyoId,
     this.initialIndex = 0,
   });
 
@@ -38,14 +40,50 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
 
   /// Resolve image URLs - use cached files when offline
   Future<void> _resolveImageUrls() async {
-    // First, proactively cache all images if online
     final networkState = ref.read(networkProvider);
+
+    // Check if we're offline and have kata or ohyo ID
+    if (!networkState.isConnected) {
+      if (widget.kataId != null) {
+        // Use cached kata images
+        debugPrint('📱 Offline - using cached kata images for kata ${widget.kataId}');
+        final cachedPaths = await OfflineMediaCacheService.getCachedKataImageUrls(widget.kataId!);
+        if (cachedPaths.isNotEmpty) {
+          setState(() {
+            for (int i = 0; i < cachedPaths.length && i < widget.imageUrls.length; i++) {
+              _resolvedUrls[i] = cachedPaths[i];
+            }
+          });
+          debugPrint('📱 Loaded ${cachedPaths.length} cached kata images');
+          return;
+        } else {
+          debugPrint('📱 No cached kata images found for kata ${widget.kataId}');
+        }
+      } else if (widget.ohyoId != null) {
+        // Use cached ohyo images
+        debugPrint('📱 Offline - using cached ohyo images for ohyo ${widget.ohyoId}');
+        final cachedPaths = await OfflineMediaCacheService.getCachedOhyoImagePaths(widget.ohyoId!);
+        if (cachedPaths.isNotEmpty) {
+          setState(() {
+            for (int i = 0; i < cachedPaths.length && i < widget.imageUrls.length; i++) {
+              _resolvedUrls[i] = cachedPaths[i];
+            }
+          });
+          debugPrint('📱 Loaded ${cachedPaths.length} cached ohyo images');
+          return;
+        } else {
+          debugPrint('📱 No cached ohyo images found for ohyo ${widget.ohyoId}');
+        }
+      }
+    }
+
+    // Online or no cached images available - use regular URL resolution
     if (networkState.isConnected) {
       debugPrint('🖼️ Gallery opened online - pre-caching ${widget.imageUrls.length} images');
       await OfflineMediaCacheService.preCacheMediaFiles(widget.imageUrls, false, ref);
     }
 
-    // Then resolve URLs (will use cached files if available)
+    // Resolve URLs (will use cached files if available)
     for (int i = 0; i < widget.imageUrls.length; i++) {
       final originalUrl = widget.imageUrls[i];
       final resolvedUrl = await OfflineMediaCacheService.getMediaUrl(originalUrl, false, ref);

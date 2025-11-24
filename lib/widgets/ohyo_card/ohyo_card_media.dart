@@ -27,6 +27,19 @@ class OhyoCardMedia extends StatelessWidget {
     return _buildMediaSection(context);
   }
 
+  /// Check if ohyo images are available offline
+  Future<bool> _checkOhyoImagesOfflineAvailability(int ohyoId, List<String> imageUrls) async {
+    try {
+      final cachedPaths = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
+      return cachedPaths.isNotEmpty;
+    } catch (e) {
+      // Fallback to checking individual URLs
+      return imageUrls.any((url) =>
+        OfflineMediaCacheService.getCachedFilePath(url, false) != null
+      );
+    }
+  }
+
   Widget _buildMediaSection(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
@@ -91,7 +104,7 @@ class OhyoCardMedia extends StatelessWidget {
                     builder: (context) => ImageGallery(
                       imageUrls: ohyoImages,
                       title: '${ohyo.name} - Images',
-                      kataId: ohyo.id,
+                      ohyoId: ohyo.id,
                     ),
                   ),
                 );
@@ -119,20 +132,20 @@ class OhyoCardMedia extends StatelessWidget {
             if (hasImages)
               Consumer(
                 builder: (context, ref, child) {
-                  // Check offline availability for images
-                  final offlineAvailable = ohyoImages.any((url) =>
-                    OfflineMediaCacheService.getCachedFilePath(url, false) != null
-                  );
+                  return FutureBuilder<bool>(
+                    future: _checkOhyoImagesOfflineAvailability(ohyo.id, ohyoImages),
+                    builder: (context, snapshot) {
+                      final offlineAvailable = snapshot.data ?? false;
 
-                  return OverflowSafeButton(
+                      return OverflowSafeButton(
                     onPressed: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => ImageGallery(
                             imageUrls: ohyoImages,
-                              title: '${ohyo.name} - Images',
-                              kataId: ohyo.id,
+                            title: '${ohyo.name} - Images',
+                            ohyoId: ohyo.id,
                           ),
                         ),
                       );
@@ -178,6 +191,8 @@ class OhyoCardMedia extends StatelessWidget {
                         ),
                         minimumSize: Size(0, context.responsiveValue(mobile: 32.0, tablet: 36.0, desktop: 40.0)),
                       ),
+                      );
+                    },
                   );
                 },
               ),

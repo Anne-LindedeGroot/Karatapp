@@ -111,23 +111,37 @@ class OfflineMediaCacheService {
             final hash = _generateUrlHash(stableKey);
             final file = File('${_imagesDir!.path}/$hash.jpg');
             if (await file.exists()) {
-              paths.add(file.path);
+              final fileSize = await file.length();
+              if (fileSize > 0) {
+                paths.add(file.path);
+                debugPrint('Found cached ohyo image: ${file.path}');
+              }
             }
           }
+          debugPrint('Found ${paths.length} cached images for ohyo $ohyoId via metadata');
           return paths;
         }
       }
 
-      // Fallback: scan directory (less reliable)
+      // If no metadata exists, try to scan for files with the ohyo pattern
+      debugPrint('No metadata found for ohyo $ohyoId, scanning directory for cached files...');
       final files = await _getFilesInDirectory(_imagesDir!);
       for (final file in files) {
-        // Skip metadata file
-        if (file.uri.pathSegments.last == 'ohyo_metadata.json') continue;
+        final fileName = file.uri.pathSegments.last;
+        // Skip metadata files
+        if (fileName == 'ohyo_metadata.json' || fileName == 'kata_metadata.json') continue;
 
-        // For now, return all image files (this is not perfect but better than nothing)
-        // In a real implementation, we'd want better metadata tracking
-        paths.add(file.path);
+        // Check if this file matches the ohyo pattern (contains the ohyo ID)
+        if (fileName.contains('ohyo_${ohyoId}_')) {
+          final fileSize = await file.length();
+          if (fileSize > 0) {
+            paths.add(file.path);
+            debugPrint('Found cached ohyo image via scan: ${file.path}');
+          }
+        }
       }
+
+      debugPrint('Found ${paths.length} cached images for ohyo $ohyoId via directory scan');
     } catch (e) {
       debugPrint('Failed to get cached ohyo images for ohyo $ohyoId: $e');
     }

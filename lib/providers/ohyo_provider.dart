@@ -190,31 +190,35 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       return;
     }
 
-    final filtered = state.ohyos.where((ohyo) {
-      // Search by exact numbers (order, ID) - highest priority
-      final matchesNumericQuery = ohyo.order.toString() == trimmedQuery ||
-                                 ohyo.id.toString() == trimmedQuery;
+    // Check if query is purely numeric (contains only digits)
+    final isNumericQuery = RegExp(r'^\d+$').hasMatch(trimmedQuery);
 
-      // Search in text fields with better matching logic
-      bool matchesTextQuery = false;
-      if (!matchesNumericQuery) {
-        // Check if name starts with the query (for "1" -> "ohyo 1" but not "ohyo 2")
-        matchesTextQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
+    final filtered = state.ohyos.where((ohyo) {
+      bool matchesQuery = false;
+
+      if (isNumericQuery) {
+        // For numeric queries, match exact order, ID, or exact Ohyo number
+        matchesQuery = ohyo.order.toString() == trimmedQuery ||
+                       ohyo.id.toString() == trimmedQuery ||
+                       ohyo.name.toLowerCase() == 'ohyo $trimmedQuery' ||
+                       ohyo.name.toLowerCase().endsWith(' $trimmedQuery');
+      } else {
+        // For text queries, search in text fields with better matching logic
+        // Check if name starts with the query
+        matchesQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
 
         // If not, check if any word in the name starts with the query
-        if (!matchesTextQuery) {
+        if (!matchesQuery) {
           final nameWords = ohyo.name.toLowerCase().split(' ');
-          matchesTextQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
+          matchesQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
         }
 
         // Also check description and style with contains (less strict for these)
-        if (!matchesTextQuery) {
-          matchesTextQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
-                           ohyo.style.toLowerCase().contains(trimmedQuery);
+        if (!matchesQuery) {
+          matchesQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
+                         ohyo.style.toLowerCase().contains(trimmedQuery);
         }
       }
-
-      final matchesQuery = matchesTextQuery || matchesNumericQuery;
 
       if (state.selectedCategory != null && state.selectedCategory != OhyoCategory.all) {
         final category = OhyoCategory.fromStyle(ohyo.style);
@@ -247,31 +251,34 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       // Also apply search filter if present
       if (state.searchQuery.isNotEmpty) {
         final trimmedQuery = state.searchQuery.toLowerCase().trim();
+        // Check if query is purely numeric (contains only digits)
+        final isNumericQuery = RegExp(r'^\d+$').hasMatch(trimmedQuery);
 
-        // Check numeric match first
-        final matchesNumericQuery = ohyo.order.toString() == trimmedQuery ||
-                                   ohyo.id.toString() == trimmedQuery;
-
-        // Check text match with improved logic
-        bool matchesTextQuery = false;
-        if (!matchesNumericQuery) {
+        bool matchesQuery = false;
+        if (isNumericQuery) {
+          // For numeric queries, match exact order, ID, or exact Ohyo number
+          matchesQuery = ohyo.order.toString() == trimmedQuery ||
+                         ohyo.id.toString() == trimmedQuery ||
+                         ohyo.name.toLowerCase() == 'ohyo $trimmedQuery' ||
+                         ohyo.name.toLowerCase().endsWith(' $trimmedQuery');
+        } else {
+          // For text queries, search in text fields with improved logic
           // Check if name starts with the query
-          matchesTextQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
+          matchesQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
 
           // If not, check if any word in the name starts with the query
-          if (!matchesTextQuery) {
+          if (!matchesQuery) {
             final nameWords = ohyo.name.toLowerCase().split(' ');
-            matchesTextQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
+            matchesQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
           }
 
           // Also check description and style with contains (less strict for these)
-          if (!matchesTextQuery) {
-            matchesTextQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
-                             ohyo.style.toLowerCase().contains(trimmedQuery);
+          if (!matchesQuery) {
+            matchesQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
+                           ohyo.style.toLowerCase().contains(trimmedQuery);
           }
         }
 
-        final matchesQuery = matchesTextQuery || matchesNumericQuery;
         return matchesCategory && matchesQuery;
       }
 

@@ -580,11 +580,14 @@ class ForumNotifier extends StateNotifier<ForumState> {
   }
 
   void searchPosts(String query) {
-    final filteredPosts = _filterPosts(state.posts, query, state.selectedCategory);
-    state = state.copyWith(
-      searchQuery: query,
-      filteredPosts: filteredPosts,
-    );
+    // Store the search query even if posts aren't loaded yet
+    state = state.copyWith(searchQuery: query);
+
+    // Only filter if we have posts loaded
+    if (state.posts.isNotEmpty) {
+      final filteredPosts = _filterPosts(state.posts, query, state.selectedCategory);
+      state = state.copyWith(filteredPosts: filteredPosts);
+    }
   }
 
   void filterByCategory(ForumCategory? category) {
