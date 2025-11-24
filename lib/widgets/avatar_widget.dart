@@ -288,15 +288,15 @@ class AvatarPreview extends StatelessWidget {
             const SizedBox(height: 8),
             ConstrainedBox(
               constraints: BoxConstraints(
-                minWidth: size,
-                maxWidth: size,
+                minWidth: size + 100,
+                maxWidth: size + 100,
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
                   avatar.name,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10, // Smaller font for better fit
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     color: isSelected
                         ? Colors.green

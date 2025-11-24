@@ -885,52 +885,57 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               // Organize comments into threaded structure
               final threadedComments = CommentThreadingUtils.organizeForumComments(_comments);
 
-              return ListView.builder(
-                controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                itemCount: threadedComments.length + (_isLoadingMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  // Show loading indicator at the end
-                  if (index == threadedComments.length) {
-                    return Container(
-                      padding: const EdgeInsets.all(16),
-                      alignment: Alignment.center,
-                      child: const CircularProgressIndicator(),
-                    );
-                  }
+              return Container(
+                constraints: const BoxConstraints(maxHeight: 600),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  shrinkWrap: true,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  itemCount: threadedComments.length + (_isLoadingMore ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // Show loading indicator at the end
+                    if (index == threadedComments.length) {
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        alignment: Alignment.center,
+                        child: const CircularProgressIndicator(),
+                      );
+                    }
 
-                  final threadedComment = threadedComments[index];
-                  return ThreadedCommentWidget<ForumComment>(
-                    threadedComment: threadedComment,
-                    isCommentAuthor: (comment) => comment.authorId == ref.watch(authUserProvider)?.id,
-                    canDeleteComment: () {
-                        final currentUser = ref.watch(authUserProvider);
-                        final canModerateAsync = ref.watch(canModerateProvider);
-                        final isCommentAuthor = threadedComment.comment.authorId == currentUser?.id;
-                        final isPostAuthor = _post!.authorId == currentUser?.id;
-                        final canModerate = canModerateAsync.when(
-                          data: (value) => value,
-                          loading: () => false,
-                          error: (_, __) => false,
-                        );
-                        return isCommentAuthor || isPostAuthor || canModerate;
-                      },
-                      getCommentState: (commentId) => ref.watch(forumCommentInteractionProvider(commentId)),
-                      onCommentTap: _handleCommentTap,
-                      onEditComment: (comment, ref) => _showEditCommentDialog(comment),
-                      onDeleteComment: (comment, ref) => _showDeleteCommentConfirmation(comment),
-                      onReply: (comment) => _handleReply(comment),
-                      onToggleLike: (commentId) => ref.read(forumCommentInteractionProvider(commentId).notifier).toggleLike(),
-                      onToggleDislike: (commentId) => ref.read(forumCommentInteractionProvider(commentId).notifier).toggleDislike(),
-                      getCommentId: (comment) => comment.id,
-                      getAuthorName: (comment) => comment.authorName,
-                      getAuthorAvatar: (comment) => comment.authorAvatar,
-                      getContent: (comment) => comment.content,
-                      getCreatedAt: (comment) => comment.createdAt,
-                      showReplyButton: true,
-                      maxDepth: 5,
-                  );
-                },
+                    final threadedComment = threadedComments[index];
+                    return ThreadedCommentWidget<ForumComment>(
+                      threadedComment: threadedComment,
+                      isCommentAuthor: (comment) => comment.authorId == ref.watch(authUserProvider)?.id,
+                      canDeleteComment: () {
+                          final currentUser = ref.watch(authUserProvider);
+                          final canModerateAsync = ref.watch(canModerateProvider);
+                          final isCommentAuthor = threadedComment.comment.authorId == currentUser?.id;
+                          final isPostAuthor = _post!.authorId == currentUser?.id;
+                          final canModerate = canModerateAsync.when(
+                            data: (value) => value,
+                            loading: () => false,
+                            error: (_, __) => false,
+                          );
+                          return isCommentAuthor || isPostAuthor || canModerate;
+                        },
+                        getCommentState: (commentId) => ref.watch(forumCommentInteractionProvider(commentId)),
+                        onCommentTap: _handleCommentTap,
+                        onEditComment: (comment, ref) => _showEditCommentDialog(comment),
+                        onDeleteComment: (comment, ref) => _showDeleteCommentConfirmation(comment),
+                        onReply: (comment) => _handleReply(comment),
+                        onToggleLike: (commentId) => ref.read(forumCommentInteractionProvider(commentId).notifier).toggleLike(),
+                        onToggleDislike: (commentId) => ref.read(forumCommentInteractionProvider(commentId).notifier).toggleDislike(),
+                        getCommentId: (comment) => comment.id,
+                        getAuthorName: (comment) => comment.authorName,
+                        getAuthorAvatar: (comment) => comment.authorAvatar,
+                        getContent: (comment) => comment.content,
+                        getCreatedAt: (comment) => comment.createdAt,
+                        showReplyButton: true,
+                        maxDepth: 5,
+                    );
+                  },
+                ),
               );
             },
           ),

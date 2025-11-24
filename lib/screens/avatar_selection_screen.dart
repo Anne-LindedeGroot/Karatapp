@@ -246,17 +246,17 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
           const SizedBox(height: 16),
           Expanded(
             child: GridView.builder(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 0.8,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 140, // Better balance for text width
+                childAspectRatio: 0.8, // Taller aspect ratio for text
+                crossAxisSpacing: 8, // Closer horizontal spacing
+                mainAxisSpacing: 16, // Tighter vertical spacing
               ),
               itemCount: avatars.length,
               itemBuilder: (context, index) {
                 final avatar = avatars[index];
                 final isSelected = _selectedAvatarId == avatar.id && _selectedCustomImage == null;
-                
+
                 return AvatarPreview(
                   avatar: avatar,
                   isSelected: isSelected,
