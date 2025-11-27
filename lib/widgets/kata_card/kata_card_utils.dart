@@ -17,7 +17,15 @@ class KataCardUtils {
   /// Speak kata content using TTS
   static Future<void> speakKataContent(BuildContext context, WidgetRef ref, Kata kata) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('KataCardUtils TTS: TTS is disabled, not speaking kata content');
+        return;
+      }
+
       final skipGeneralInfo = ref.read(skipGeneralInfoInTTSKataProvider);
       final content = StringBuffer();
 

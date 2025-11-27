@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -84,9 +85,36 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
     state = state.copyWith(status: NetworkStatus.checking);
 
     try {
-      // Try to reach Supabase specifically
+      // Try multiple connectivity checks for better reliability
+
+      // First, try a simple HTTP request to a reliable endpoint
+      final httpClient = HttpClient();
+      httpClient.connectionTimeout = const Duration(seconds: 5);
+
+      try {
+        final request = await httpClient.headUrl(Uri.parse('https://www.google.com'));
+        final response = await request.close();
+        await response.drain(); // Consume the response
+
+        if (response.statusCode == 200) {
+          // Basic HTTP connectivity works
+          state = state.copyWith(
+            status: NetworkStatus.connected,
+            lastError: null,
+            lastChecked: DateTime.now(),
+          );
+          httpClient.close();
+          return;
+        }
+      } catch (httpError) {
+        debugPrint('HTTP connectivity check failed: $httpError');
+      } finally {
+        httpClient.close();
+      }
+
+      // If HTTP check fails, try Supabase as fallback
       final client = Supabase.instance.client;
-      
+
       // Simple health check - try to get auth user (lightweight operation)
       await client.auth.getUser().timeout(
         const Duration(seconds: 10),
@@ -101,7 +129,7 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
       );
     } catch (e) {
       final errorMessage = _getConnectionErrorMessage(e);
-      
+
       state = state.copyWith(
         status: NetworkStatus.disconnected,
         lastError: errorMessage,

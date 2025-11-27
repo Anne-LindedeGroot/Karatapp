@@ -132,12 +132,9 @@ class AccessibleRichText extends ConsumerWidget {
           if (isTextToSpeechEnabled) {
             accessibilityNotifier.speak(fullText);
           } else {
-            // Enable TTS first, then speak
-            accessibilityNotifier.setTextToSpeechEnabled(true).then((_) {
-              Future.delayed(const Duration(milliseconds: 300), () {
-                accessibilityNotifier.speak(fullText);
-              });
-            });
+            // TTS is disabled by user - do not automatically enable it
+            // Just silently ignore the tap for TTS purposes
+            debugPrint('AccessibleText: TTS is disabled, not speaking on tap');
           }
         },
         child: richTextWidget,

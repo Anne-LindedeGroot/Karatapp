@@ -52,6 +52,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
   bool _showError = false; // New flag to control error visibility
   Timer? _errorDelayTimer; // Timer for delayed error showing
   bool _isOfflineVideoError = false; // Flag for offline video informational message
+  bool _isUnsupportedVideoError = false; // Flag for unsupported video platform error
 
   @override
   void initState() {
@@ -85,10 +86,10 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           throw Exception('OFFLINE_VIDEO_INFO');
         }
 
-        // When online, allow YouTube URLs but warn user they won't work offline
+        // Block YouTube and social media URLs - they cannot be played directly
         if (isYouTubeUrl || isUnsupportedExternalUrl) {
-          // Show a warning but don't prevent playback
-          debugPrint('⚠️ YouTube/social media videos work online but cannot be cached for offline use');
+          _isUnsupportedVideoError = true;
+          throw Exception('UNSUPPORTED_VIDEO_PLATFORM');
         }
 
         // Validate the URL format
@@ -246,6 +247,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
       _isInitialized = false;
       _showError = false;
       _isOfflineVideoError = false;
+      _isUnsupportedVideoError = false;
     });
 
     await _disposeControllers();
@@ -388,6 +390,54 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Show error for unsupported video platforms (YouTube, etc.)
+    if (_hasError && _showError && _isUnsupportedVideoError && _errorMessage == 'UNSUPPORTED_VIDEO_PLATFORM') {
+      return Container(
+        height: 200,
+        decoration: BoxDecoration(
+          color: isDark ? theme.colorScheme.surface : Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? theme.colorScheme.outline : Colors.grey[300]!,
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.videocam_off_outlined,
+                color: isDark ? theme.colorScheme.error : Colors.red[600],
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Video platform niet ondersteund',
+                style: TextStyle(
+                  color: isDark ? theme.colorScheme.onSurface : Colors.black87,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'YouTube en andere sociale media video\'s kunnen niet direct worden afgespeeld. Gebruik een directe videolink (.mp4, .mov, etc.) voor de beste ervaring.',
+                  style: TextStyle(
+                    color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.black54,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
               ),
             ],

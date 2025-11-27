@@ -398,9 +398,20 @@ class AccessibilitySettingsScreen extends ConsumerWidget {
                         child: AccessibleButton(
                           text: 'Test spraakfunctie',
                           icon: const Icon(Icons.play_arrow),
-                          onPressed: () => accessibilityNotifier.speak(
-                            'Dit is een test van de spraakfunctie. Hallo, dit is hoe de app klinkt.',
-                          ),
+                          onPressed: () async {
+                            // Only speak if TTS is enabled
+                            if (accessibilityState.isTextToSpeechEnabled) {
+                              await accessibilityNotifier.speak(
+                                'Dit is een test van de spraakfunctie. Hallo, dit is hoe de app klinkt.',
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Spraak is uitgeschakeld. Schakel spraak eerst in om te testen.'),
+                                ),
+                              );
+                            }
+                          },
                         ),
                       ),
                     ],

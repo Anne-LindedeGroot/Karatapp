@@ -1455,7 +1455,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   Future<void> _speakUserContent(Map<String, dynamic> user, int index) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('UserManagementScreen TTS: TTS is disabled, not speaking user content');
+        return;
+      }
+
       final fullName = user['full_name'] as String? ?? 'Unknown User';
       final email = user['email'] as String? ?? 'Unknown Email';
       final role = user['role'] as String? ?? 'user';

@@ -30,13 +30,14 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
   bool _imageLoadingAttempted = false;
   bool _imageLoadingFailed = false;
   bool _isOfflineError = false;
+  bool _isDisposed = false;
 
   @override
   void initState() {
     super.initState();
-    // Try to load images after a short delay
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted && (widget.kata.imageUrls?.isEmpty ?? true)) { // Check if images haven't loaded yet
+    // Load images immediately - critical for offline functionality
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
         _loadImages();
       }
     });
@@ -51,7 +52,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
       if (networkState.isConnected) {
         debugPrint('Connection restored, retrying image load for kata ${widget.kata.id}');
         Future.delayed(const Duration(seconds: 1), () {
-          if (mounted) {
+          if (mounted && !_isDisposed) {
             _retryLoadImages();
           }
         });
@@ -59,8 +60,16 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
     }
   }
 
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
+  }
+
   Future<void> _loadImages() async {
     if (_imageLoadingAttempted) return; // Prevent multiple attempts
+
+    if (!mounted || _isDisposed) return; // Check if widget is still mounted
 
     setState(() {
       _imageLoadingAttempted = true;
@@ -68,29 +77,70 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
     });
 
     try {
-      // Check network status before attempting to load
+      if (!mounted || _isDisposed) return;
+
+      // Get current kata from provider
+      final kataState = ref.read(kataNotifierProvider);
+      final currentKata = kataState.katas.firstWhere(
+        (k) => k.id == widget.kata.id,
+        orElse: () => widget.kata,
+      );
+
+      if (!mounted || _isDisposed) return;
+
+      // Check network status
       final networkState = ref.read(networkProvider);
-      if (!networkState.isConnected) {
-        debugPrint('Offline: Skipping image load for kata ${widget.kata.id}');
-        setState(() {
-          _imageLoadingFailed = true;
-          _isOfflineError = true;
-        });
+      final isOffline = !networkState.isConnected;
+
+      if (isOffline) {
+        debugPrint('Offline: Checking for cached images for kata ${currentKata.id}');
+        // Try to load cached images from local storage
+        try {
+          final cachedImageUrls = await OfflineMediaCacheService.getCachedKataImageUrls(currentKata.id);
+          if (cachedImageUrls.isNotEmpty && mounted) {
+            debugPrint('Found ${cachedImageUrls.length} cached images for kata ${currentKata.id}');
+            // Update the provider state with cached images
+            ref.read(kataNotifierProvider.notifier).updateKataCachedImages(currentKata.id, cachedImageUrls);
+
+            setState(() {
+              _imageLoadingFailed = false;
+            });
+            return;
+          } else {
+            debugPrint('No cached images found for kata ${currentKata.id}');
+          }
+        } catch (cacheError) {
+          debugPrint('Error loading cached images: $cacheError');
+        }
+
+        // No cached images available
+        if (mounted) {
+          setState(() {
+            _imageLoadingFailed = true;
+            _isOfflineError = true;
+          });
+        }
         return;
       }
 
-      await ref.read(kataNotifierProvider.notifier).loadKataImages(widget.kata.id);
-      // Check if images actually loaded
-      final updatedKata = ref.read(kataNotifierProvider).katas
-          .firstWhere((k) => k.id == widget.kata.id, orElse: () => widget.kata);
+      // Online - try to load from server
+      if (!mounted || _isDisposed) return;
+      await ref.read(kataNotifierProvider.notifier).loadKataImages(currentKata.id, ref: ref);
 
-      if (updatedKata.imageUrls?.isEmpty ?? true) {
+      // Check if images actually loaded
+      if (!mounted || _isDisposed) return;
+      final updatedKata = ref.read(kataNotifierProvider).katas
+          .firstWhere((k) => k.id == currentKata.id, orElse: () => currentKata);
+
+      if (mounted && (updatedKata.imageUrls?.isEmpty ?? true)) {
         setState(() {
           _imageLoadingFailed = true;
         });
       }
     } catch (e) {
       debugPrint('Failed to load images for kata ${widget.kata.id}: $e');
+      if (!mounted || _isDisposed) return;
+
       final networkState = ref.read(networkProvider);
       setState(() {
         _imageLoadingFailed = true;
@@ -110,16 +160,23 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
 
   @override
   Widget build(BuildContext context) {
-    return _buildMediaSection(context);
+    // Watch the kata from the provider to get updates when cached images are loaded
+    final kataState = ref.watch(kataNotifierProvider);
+    final currentKata = kataState.katas.firstWhere(
+      (k) => k.id == widget.kata.id,
+      orElse: () => widget.kata, // Fallback to passed kata if not found
+    );
+
+    return _buildMediaSection(context, currentKata);
   }
 
-  Widget _buildMediaSection(BuildContext context) {
+  Widget _buildMediaSection(BuildContext context, Kata kata) {
     // Get images directly from kata model
-    final kataImages = widget.kata.imageUrls ?? [];
+    final kataImages = kata.imageUrls ?? [];
     final hasImages = kataImages.isNotEmpty;
 
     // Get video URLs from kata model
-    final videoUrls = widget.kata.videoUrls ?? [];
+    final videoUrls = kata.videoUrls ?? [];
     final hasVideos = videoUrls.isNotEmpty;
 
     // If no images and no videos, show appropriate state
@@ -283,8 +340,8 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                   MaterialPageRoute(
                     builder: (context) => ImageGallery(
                       imageUrls: kataImages,
-                      title: '${widget.kata.name} - Images',
-                      kataId: widget.kata.id,
+                      title: '${kata.name} - Images',
+                      kataId: kata.id,
                     ),
                   ),
                 );
@@ -294,8 +351,8 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                   MaterialPageRoute(
                     builder: (context) => VideoGallery(
                       videoUrls: videoUrls,
-                      title: '${widget.kata.name} - Videos',
-                      kataId: widget.kata.id,
+                      title: '${kata.name} - Videos',
+                      kataId: kata.id,
                     ),
                   ),
                 );
@@ -324,8 +381,8 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                         MaterialPageRoute(
                           builder: (context) => ImageGallery(
                             imageUrls: kataImages,
-                            title: '${widget.kata.name} - Images',
-                            kataId: widget.kata.id,
+                            title: '${kata.name} - Images',
+                            kataId: kata.id,
                           ),
                         ),
                       );
@@ -407,8 +464,8 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                         MaterialPageRoute(
                           builder: (context) => VideoGallery(
                             videoUrls: videoUrls,
-                            title: '${widget.kata.name} - Videos',
-                            kataId: widget.kata.id,
+                            title: '${kata.name} - Videos',
+                            kataId: kata.id,
                           ),
                         ),
                       );
@@ -494,6 +551,100 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                   }
 
                   if (snapshot.hasError) {
+                    // Check if we have cached images available before showing error
+                    final cachedPath = OfflineMediaCacheService.getCachedFilePath(imageUrls.first, false);
+                    if (cachedPath != null) {
+                      debugPrint('Found cached image despite error, using: $cachedPath');
+                      final isLocalFile = cachedPath.startsWith('/') || cachedPath.startsWith('file://');
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: isLocalFile
+                            ? Image.file(
+                                File(cachedPath.replaceFirst('file://', '')),
+                                fit: BoxFit.contain,
+                                width: double.infinity,
+                                height: double.infinity,
+                                errorBuilder: (context, error, stackTrace) {
+                                  print('❌ Cached image failed to load: $cachedPath');
+                                  print('❌ Error details: $error');
+                                  return Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    color: Colors.grey[200],
+                                    child: const Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Afbeelding laden mislukt',
+                                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              )
+                            : CachedNetworkImage(
+                                imageUrl: cachedPath,
+                                fit: BoxFit.contain,
+                                width: double.infinity,
+                                height: double.infinity,
+                                memCacheWidth: 800,
+                                memCacheHeight: 600,
+                                progressIndicatorBuilder: (context, url, downloadProgress) {
+                                  print('🖼️ Loading cached image: $url - ${(downloadProgress.progress ?? 0) * 100}%');
+                                  if (downloadProgress.progress == null) {
+                                    return Shimmer.fromColors(
+                                      baseColor: Colors.grey[300]!,
+                                      highlightColor: Colors.grey[100]!,
+                                      child: Container(
+                                        width: double.infinity,
+                                        height: double.infinity,
+                                        color: Colors.white,
+                                      ),
+                                    );
+                                  }
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      value: downloadProgress.progress,
+                                      color: Colors.blue,
+                                    ),
+                                  );
+                                },
+                                errorWidget: (context, url, error) {
+                                  print('❌ Cached image failed to load: $url');
+                                  print('❌ Error details: $error');
+                                  return Container(
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    color: Colors.grey[200],
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Afbeelding laden mislukt',
+                                          style: TextStyle(color: Colors.grey, fontSize: 12),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          error.toString().length > 50
+                                              ? '${error.toString().substring(0, 50)}...'
+                                              : error.toString(),
+                                          style: const TextStyle(color: Colors.red, fontSize: 10),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      );
+                    }
+
+                    // No cached image available, show error
                     final networkState = ref.watch(networkProvider);
                     return Container(
                       width: double.infinity,

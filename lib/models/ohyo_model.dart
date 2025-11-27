@@ -53,7 +53,9 @@ class Ohyo {
           : (map['Time'] != null
               ? DateTime.parse(map['Time'] as String)
               : DateTime.now()),
-      imageUrls: map['imageUrls'] as List<String>?,
+      imageUrls: map['image_urls'] != null
+          ? List<String>.from(map['image_urls'] as List)
+          : null,
       videoUrls: map['video_urls'] != null
           ? List<String>.from(map['video_urls'] as List)
           : null,
@@ -68,6 +70,7 @@ class Ohyo {
       'description': description,
       'style': style,
       'created_at': createdAt.toIso8601String(),
+      'imageUrls': imageUrls,
       'video_urls': videoUrls,
       'order': order,
     };

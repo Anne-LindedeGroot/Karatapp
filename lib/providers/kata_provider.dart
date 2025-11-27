@@ -6,6 +6,7 @@ import '../models/kata_model.dart';
 import '../services/offline_kata_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/retry_utils.dart';
+import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 
@@ -59,6 +60,42 @@ class KataNotifier extends StateNotifier<KataState> {
           // Preload images for cached katas
           if (cachedKatas.isNotEmpty) {
             _preloadInitialKataImages(cachedKatas.take(3).toList());
+          }
+        } else {
+          // If SharedPreferences cache is empty/expired, try Hive storage
+          try {
+            final hiveCachedKatas = app_storage.LocalStorage.getAllKatas();
+            if (hiveCachedKatas.isNotEmpty) {
+              // Convert CachedKata to Kata
+              cachedKatas = hiveCachedKatas.map((cachedKata) {
+                return Kata(
+                  id: cachedKata.id,
+                  name: cachedKata.name,
+                  description: cachedKata.description,
+                  style: cachedKata.style ?? '',
+                  createdAt: cachedKata.createdAt,
+                  imageUrls: cachedKata.imageUrls,
+                  videoUrls: [], // Not stored in CachedKata
+                  order: 0, // Not stored in CachedKata
+                );
+              }).toList();
+
+              // Load cached katas from Hive for immediate UI feedback
+              state = state.copyWith(
+                katas: cachedKatas,
+                filteredKatas: cachedKatas,
+                isLoading: true, // Keep loading true while we try to refresh from online
+                error: null,
+                isOfflineMode: true,
+              );
+
+              // Preload images for cached katas
+              if (cachedKatas.isNotEmpty) {
+                _preloadInitialKataImages(cachedKatas.take(3).toList());
+              }
+            }
+          } catch (e) {
+            debugPrint('Error loading Hive cached katas: $e');
           }
         }
       } catch (e) {
@@ -152,9 +189,9 @@ class KataNotifier extends StateNotifier<KataState> {
   }
 
   /// Lazily load images for a specific kata
-  Future<void> loadKataImages(int kataId) async {
+  Future<void> loadKataImages(int kataId, {dynamic ref}) async {
     try {
-      final imageUrls = await ImageUtils.fetchKataImagesFromBucket(kataId);
+      final imageUrls = await ImageUtils.fetchKataImagesFromBucket(kataId, ref: ref);
 
       // Update the kata with loaded images
       final updatedKatas = state.katas.map((kata) {
@@ -555,6 +592,28 @@ class KataNotifier extends StateNotifier<KataState> {
     );
   }
 
+  /// Update cached images for a specific kata
+  void updateKataCachedImages(int kataId, List<String> imageUrls) {
+    final updatedKatas = state.katas.map((kata) {
+      if (kata.id == kataId) {
+        return kata.copyWith(imageUrls: imageUrls);
+      }
+      return kata;
+    }).toList();
+
+    final updatedFilteredKatas = state.filteredKatas.map((kata) {
+      if (kata.id == kataId) {
+        return kata.copyWith(imageUrls: imageUrls);
+      }
+      return kata;
+    }).toList();
+
+    state = state.copyWith(
+      katas: updatedKatas,
+      filteredKatas: updatedFilteredKatas,
+    );
+  }
+
   /// Clean up orphaned images that don't belong to any existing kata
   /// SAFE cleanup function - only removes specific temporary folders
   /// This is much safer than the previous cleanup function
@@ -562,9 +621,9 @@ class KataNotifier extends StateNotifier<KataState> {
     try {
       // Use the safe cleanup function that only targets known temporary folders
       final deletedPaths = await ImageUtils.safeCleanupTempFolders();
-      
+
       // Cleanup completed successfully
-      
+
       return deletedPaths;
     } catch (e) {
       final errorMessage = 'Failed to cleanup temporary folders: ${e.toString()}';

@@ -17,7 +17,15 @@ class OhyoCardUtils {
   /// Speak ohyo content using TTS
   static Future<void> speakOhyoContent(BuildContext context, WidgetRef ref, Ohyo ohyo) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('OhyoCardUtils TTS: TTS is disabled, not speaking ohyo content');
+        return;
+      }
+
       final skipGeneralInfo = ref.read(skipGeneralInfoInTTSOhyoProvider);
       final content = StringBuffer();
 

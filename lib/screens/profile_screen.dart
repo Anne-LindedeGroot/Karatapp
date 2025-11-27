@@ -214,10 +214,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _deleteAccount() async {
-    // Speak the action once when button is pressed
+    // Speak the action once when button is pressed (only if TTS is enabled)
     try {
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      await accessibilityNotifier.speak('Account verwijderen gestart. Bevestigingsdialoog wordt getoond.');
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
+      if (accessibilityState.isTextToSpeechEnabled) {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Account verwijderen gestart. Bevestigingsdialoog wordt getoond.');
+      }
     } catch (e) {
       // Ignore TTS errors
     }
@@ -253,20 +256,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
 
     if (confirmed != true) {
-      // Speak cancellation message
+      // Speak cancellation message (only if TTS is enabled)
       try {
-        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-        await accessibilityNotifier.speak('Account verwijderen geannuleerd.');
+        final accessibilityState = ref.read(accessibilityNotifierProvider);
+        if (accessibilityState.isTextToSpeechEnabled) {
+          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+          await accessibilityNotifier.speak('Account verwijderen geannuleerd.');
+        }
       } catch (e) {
         // Ignore TTS errors
       }
       return;
     }
 
-    // Speak confirmation for second dialog
+    // Speak confirmation for second dialog (only if TTS is enabled)
     try {
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      await accessibilityNotifier.speak('Laatste bevestiging vereist. Wees voorzichtig, dit kan niet ongedaan worden gemaakt.');
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
+      if (accessibilityState.isTextToSpeechEnabled) {
+        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+        await accessibilityNotifier.speak('Laatste bevestiging vereist. Wees voorzichtig, dit kan niet ongedaan worden gemaakt.');
+      }
     } catch (e) {
       // Ignore TTS errors
     }
@@ -302,10 +311,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
 
     if (finalConfirmed != true) {
-      // Speak final cancellation message
+      // Speak final cancellation message (only if TTS is enabled)
       try {
-        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-        await accessibilityNotifier.speak('Account verwijderen definitief geannuleerd.');
+        final accessibilityState = ref.read(accessibilityNotifierProvider);
+        if (accessibilityState.isTextToSpeechEnabled) {
+          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+          await accessibilityNotifier.speak('Account verwijderen definitief geannuleerd.');
+        }
       } catch (e) {
         // Ignore TTS errors
       }
@@ -315,10 +327,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Check if user is still authenticated before starting deletion
     final currentUser = ref.read(authUserProvider);
     if (currentUser == null) {
-      // Speak error message
+      // Speak error message (only if TTS is enabled)
       try {
-        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-        await accessibilityNotifier.speak('Je bent niet ingelogd. Log eerst in om je account te verwijderen.');
+        final accessibilityState = ref.read(accessibilityNotifierProvider);
+        if (accessibilityState.isTextToSpeechEnabled) {
+          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+          await accessibilityNotifier.speak('Je bent niet ingelogd. Log eerst in om je account te verwijderen.');
+        }
       } catch (e) {
         // Ignore TTS errors
       }
@@ -337,10 +352,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     try {
-      // Speak deletion start message
+      // Speak deletion start message (only if TTS is enabled)
       try {
-        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-        await accessibilityNotifier.speak('Account wordt nu verwijderd. Dit kan even duren.');
+        final accessibilityState = ref.read(accessibilityNotifierProvider);
+        if (accessibilityState.isTextToSpeechEnabled) {
+          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+          await accessibilityNotifier.speak('Account wordt nu verwijderd. Dit kan even duren.');
+        }
       } catch (e) {
         // Ignore TTS errors
       }
@@ -376,10 +394,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // Close loading dialog
       if (mounted) context.pop();
 
-      // Speak success message
+      // Speak success message (only if TTS is enabled)
       try {
-        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-        await accessibilityNotifier.speak('Account succesvol verwijderd. Je wordt doorgestuurd naar het inlogscherm.');
+        final accessibilityState = ref.read(accessibilityNotifierProvider);
+        if (accessibilityState.isTextToSpeechEnabled) {
+          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+          await accessibilityNotifier.speak('Account succesvol verwijderd. Je wordt doorgestuurd naar het inlogscherm.');
+        }
       } catch (e) {
         // Ignore TTS errors
       }
@@ -400,10 +421,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // Close loading dialog
       if (mounted) context.pop();
       
-      // Speak error message
+      // Speak error message (only if TTS is enabled)
       try {
-        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-        await accessibilityNotifier.speak('Fout bij verwijderen account. Probeer het opnieuw.');
+        final accessibilityState = ref.read(accessibilityNotifierProvider);
+        if (accessibilityState.isTextToSpeechEnabled) {
+          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+          await accessibilityNotifier.speak('Fout bij verwijderen account. Probeer het opnieuw.');
+        }
       } catch (e) {
         // Ignore TTS errors
       }
@@ -801,7 +825,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             const SizedBox(height: 8),
                             AccessibleText(
-                              'Toon of verberg de spraakknop op alle schermen',
+                              'Toon of verberg de spraakknop op alle schermen. Verbergen schakelt ook spraak uit.',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,

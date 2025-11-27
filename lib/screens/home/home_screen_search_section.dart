@@ -89,8 +89,10 @@ class _HomeScreenSearchSectionState extends State<HomeScreenSearchSection> {
       desktop: Row(
         children: [
           Expanded(flex: 2, child: _buildSearchBar(context)),
-          SizedBox(width: context.responsiveSpacing(SpacingSize.md)),
-          if (!widget.isConnected) const ConnectionStatusIndicator(),
+          if (!widget.isConnected) ...[
+            SizedBox(width: context.responsiveSpacing(SpacingSize.md)),
+            const ConnectionStatusIndicator(),
+          ],
         ],
       ),
     );

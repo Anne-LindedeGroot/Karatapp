@@ -1182,8 +1182,11 @@ class AppTheme {
       surfaceTint: Colors.black,
     );
 
-    return lightTheme.copyWith(
-      colorScheme: colorScheme,
+    return _buildThemeFromColorScheme(
+      colorScheme,
+      fontScaleFactor: null,
+      isDyslexiaFriendly: false,
+    ).copyWith(
       // Override specific themes for high contrast
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -1285,8 +1288,11 @@ class AppTheme {
       surfaceTint: Colors.white,
     );
 
-    return darkTheme.copyWith(
-      colorScheme: colorScheme,
+    return _buildThemeFromColorScheme(
+      colorScheme,
+      fontScaleFactor: null,
+      isDyslexiaFriendly: false,
+    ).copyWith(
       // Override specific themes for high contrast
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(

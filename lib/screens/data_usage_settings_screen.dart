@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
+import '../services/offline_sync_service.dart';
 
 class DataUsageSettingsScreen extends ConsumerStatefulWidget {
   const DataUsageSettingsScreen({super.key});
@@ -219,25 +220,32 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               ),
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<DataUsageQuality>(
-              initialValue: dataUsageState.videoQuality,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            Container(
+              constraints: const BoxConstraints(maxWidth: double.infinity),
+              child: DropdownButtonFormField<DataUsageQuality>(
+                isExpanded: true,
+                initialValue: dataUsageState.videoQuality,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: DataUsageQuality.values.map((quality) => DropdownMenuItem(
+                  value: quality,
+                  child: Text(
+                    _getQualityTitle(quality),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(dataUsageProvider.notifier).setVideoQuality(value);
+                  }
+                },
               ),
-              items: DataUsageQuality.values.map((quality) => DropdownMenuItem(
-                value: quality,
-                child: Text(_getQualityTitle(quality)),
-              )).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(dataUsageProvider.notifier).setVideoQuality(value);
-                }
-              },
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Image Quality
             Text(
               'Afbeelding Kwaliteit',
@@ -246,21 +254,28 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               ),
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<DataUsageQuality>(
-              initialValue: dataUsageState.imageQuality,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            Container(
+              constraints: const BoxConstraints(maxWidth: double.infinity),
+              child: DropdownButtonFormField<DataUsageQuality>(
+                isExpanded: true,
+                initialValue: dataUsageState.imageQuality,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                items: DataUsageQuality.values.map((quality) => DropdownMenuItem(
+                  value: quality,
+                  child: Text(
+                    _getQualityTitle(quality),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    ref.read(dataUsageProvider.notifier).setImageQuality(value);
+                  }
+                },
               ),
-              items: DataUsageQuality.values.map((quality) => DropdownMenuItem(
-                value: quality,
-                child: Text(_getQualityTitle(quality)),
-              )).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  ref.read(dataUsageProvider.notifier).setImageQuality(value);
-                }
-              },
             ),
           ],
         ),
@@ -383,6 +398,96 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               value: dataUsageState.backgroundSync,
               onChanged: (value) {
                 ref.read(dataUsageProvider.notifier).setBackgroundSync(value);
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Comprehensive Cache Section
+            Consumer(
+              builder: (context, ref, child) {
+                final networkState = ref.watch(networkProvider);
+                final syncState = ref.watch(offlineSyncProvider);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Offline Cache',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    FutureBuilder<bool>(
+                      future: ref.read(offlineSyncProvider.notifier).isComprehensiveCacheCompleted(),
+                      builder: (context, snapshot) {
+                        final isCompleted = snapshot.data ?? false;
+
+                        return SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: (!networkState.isConnected || syncState.isSyncing)
+                                ? null
+                                : () async {
+                                    try {
+                                      // Call comprehensive cache with ref for proper media caching
+                                      await ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref as Ref);
+                                      if (!mounted) return;
+                                      // ignore: use_build_context_synchronously
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Alle content is succesvol gecached voor offline gebruik!'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      // ignore: use_build_context_synchronously
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Fout bij cachen: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  },
+                            icon: Icon(
+                              isCompleted ? Icons.check_circle : Icons.cloud_download,
+                              size: 20,
+                            ),
+                            label: Text(
+                              syncState.isSyncing
+                                  ? 'Bezig met cachen...'
+                                  : isCompleted
+                                      ? 'Alles is gecached'
+                                      : networkState.isConnected
+                                          ? 'Cache alles voor offline'
+                                          : 'Verbinding vereist',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isCompleted
+                                  ? Colors.green
+                                  : networkState.isConnected
+                                      ? theme.colorScheme.primary
+                                      : Colors.grey,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    if (syncState.isSyncing && syncState.currentOperation == SyncOperation.comprehensiveCache)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: LinearProgressIndicator(
+                          value: syncState.progress,
+                          backgroundColor: theme.colorScheme.surface,
+                        ),
+                      ),
+                  ],
+                );
               },
             ),
           ],

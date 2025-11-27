@@ -6,30 +6,36 @@ part 'local_storage.g.dart';
 class CachedKata extends HiveObject {
   @HiveField(0)
   final int id;
-  
+
   @HiveField(1)
   final String name;
-  
+
   @HiveField(2)
   final String description;
-  
+
   @HiveField(3)
   final String? style;
-  
+
   @HiveField(4)
   final DateTime createdAt;
-  
+
   @HiveField(5)
   final DateTime lastSynced;
-  
+
   @HiveField(6)
   final List<String> imageUrls;
-  
+
   @HiveField(7)
   final bool isFavorite;
-  
+
   @HiveField(8)
   final bool needsSync;
+
+  @HiveField(9)
+  final bool isLiked;
+
+  @HiveField(10)
+  final int likeCount;
 
   CachedKata({
     required this.id,
@@ -41,10 +47,62 @@ class CachedKata extends HiveObject {
     this.style,
     this.isFavorite = false,
     this.needsSync = false,
+    this.isLiked = false,
+    this.likeCount = 0,
   });
 }
 
 @HiveType(typeId: 1)
+class CachedOhyo extends HiveObject {
+  @HiveField(0)
+  final int id;
+
+  @HiveField(1)
+  final String name;
+
+  @HiveField(2)
+  final String description;
+
+  @HiveField(3)
+  final String? style;
+
+  @HiveField(4)
+  final DateTime createdAt;
+
+  @HiveField(5)
+  final DateTime lastSynced;
+
+  @HiveField(6)
+  final List<String> imageUrls;
+
+  @HiveField(7)
+  final bool isFavorite;
+
+  @HiveField(8)
+  final bool needsSync;
+
+  @HiveField(9)
+  final bool isLiked;
+
+  @HiveField(10)
+  final int likeCount;
+
+  CachedOhyo({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.createdAt,
+    required this.lastSynced,
+    required this.imageUrls,
+    this.style,
+    this.isFavorite = false,
+    this.needsSync = false,
+    this.isLiked = false,
+    this.likeCount = 0,
+  });
+}
+
+@HiveType(typeId: 2)
 class CachedForumPost extends HiveObject {
   @HiveField(0)
   final String id;
@@ -92,10 +150,12 @@ class CachedForumPost extends HiveObject {
 
 class LocalStorage {
   static const String _katasBoxName = 'katas';
+  static const String _ohyosBoxName = 'ohyos';
   static const String _forumPostsBoxName = 'forum_posts';
   static const String _settingsBoxName = 'settings';
-  
+
   static Box<CachedKata>? _katasBox;
+  static Box<CachedOhyo>? _ohyosBox;
   static Box<CachedForumPost>? _forumPostsBox;
   static Box<dynamic>? _settingsBox;
   
@@ -105,11 +165,15 @@ class LocalStorage {
       Hive.registerAdapter(CachedKataAdapter());
     }
     if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(CachedOhyoAdapter());
+    }
+    if (!Hive.isAdapterRegistered(2)) {
       Hive.registerAdapter(CachedForumPostAdapter());
     }
-    
+
     // Open boxes
     _katasBox = await Hive.openBox<CachedKata>(_katasBoxName);
+    _ohyosBox = await Hive.openBox<CachedOhyo>(_ohyosBoxName);
     _forumPostsBox = await Hive.openBox<CachedForumPost>(_forumPostsBoxName);
     _settingsBox = await Hive.openBox(_settingsBoxName);
   }
@@ -145,7 +209,39 @@ class LocalStorage {
   static Future<void> clearKatas() async {
     await _katasBox?.clear();
   }
-  
+
+  // Ohyo operations
+  static Future<void> saveOhyo(CachedOhyo ohyo) async {
+    await _ohyosBox?.put(ohyo.id, ohyo);
+  }
+
+  static Future<void> saveOhyos(List<CachedOhyo> ohyos) async {
+    final Map<int, CachedOhyo> ohyoMap = {
+      for (final ohyo in ohyos) ohyo.id: ohyo
+    };
+    await _ohyosBox?.putAll(ohyoMap);
+  }
+
+  static CachedOhyo? getOhyo(int id) {
+    return _ohyosBox?.get(id);
+  }
+
+  static List<CachedOhyo> getAllOhyos() {
+    return _ohyosBox?.values.toList() ?? [];
+  }
+
+  static List<CachedOhyo> getFavoriteOhyos() {
+    return _ohyosBox?.values.where((ohyo) => ohyo.isFavorite).toList() ?? [];
+  }
+
+  static Future<void> deleteOhyo(int id) async {
+    await _ohyosBox?.delete(id);
+  }
+
+  static Future<void> clearOhyos() async {
+    await _ohyosBox?.clear();
+  }
+
   // Forum post operations
   static Future<void> saveForumPost(CachedForumPost post) async {
     await _forumPostsBox?.put(post.id, post);

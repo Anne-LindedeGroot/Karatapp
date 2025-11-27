@@ -90,7 +90,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   /// This method is public so it can be called by the TTS button
   Future<void> readAuthScreenContent() async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('AuthScreen TTS: TTS is disabled, not speaking auth screen content');
+        return;
+      }
       
       // Build the text to read based on current tab
       final List<String> contentParts = [];

@@ -383,7 +383,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
               ),
             ),
           ],
-        ),
+          ),
         ),
         floatingActionButton: Consumer(
           builder: (context, ref, child) {

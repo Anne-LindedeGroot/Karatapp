@@ -308,6 +308,15 @@ enum OfflineOperationType {
   deleteComment,
   toggleLike,
   toggleDislike,
+  // Kata and Ohyo operations
+  toggleKataLike,
+  toggleOhyoLike,
+  // Forum-specific operations
+  addForumComment,
+  updateForumComment,
+  deleteForumComment,
+  toggleForumLike,
+  toggleForumFavorite,
 }
 
 // Conflict resolution models
@@ -573,6 +582,7 @@ class KataInteractionState {
   final bool isFavorited;
   final int likeCount;
   final int commentCount;
+  final bool isOffline;
 
   const KataInteractionState({
     this.comments = const [],
@@ -584,6 +594,7 @@ class KataInteractionState {
     this.isFavorited = false,
     this.likeCount = 0,
     this.commentCount = 0,
+    this.isOffline = false,
   });
 
   KataInteractionState copyWith({
@@ -596,6 +607,7 @@ class KataInteractionState {
     bool? isFavorited,
     int? likeCount,
     int? commentCount,
+    bool? isOffline,
   }) {
     return KataInteractionState(
       comments: comments ?? this.comments,
@@ -607,6 +619,7 @@ class KataInteractionState {
       isFavorited: isFavorited ?? this.isFavorited,
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
+      isOffline: isOffline ?? this.isOffline,
     );
   }
 }
@@ -661,6 +674,7 @@ class OhyoInteractionState {
   final bool isFavorited;
   final int likeCount;
   final int commentCount;
+  final bool isOffline;
 
   const OhyoInteractionState({
     this.comments = const [],
@@ -672,6 +686,7 @@ class OhyoInteractionState {
     this.isFavorited = false,
     this.likeCount = 0,
     this.commentCount = 0,
+    this.isOffline = false,
   });
 
   OhyoInteractionState copyWith({
@@ -684,6 +699,7 @@ class OhyoInteractionState {
     bool? isFavorited,
     int? likeCount,
     int? commentCount,
+    bool? isOffline,
   }) {
     return OhyoInteractionState(
       comments: comments ?? this.comments,
@@ -695,6 +711,7 @@ class OhyoInteractionState {
       isFavorited: isFavorited ?? this.isFavorited,
       likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
+      isOffline: isOffline ?? this.isOffline,
     );
   }
 }

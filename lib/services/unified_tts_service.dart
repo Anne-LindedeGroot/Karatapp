@@ -38,15 +38,12 @@ class UnifiedTTSService {
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
     
-    // Check if TTS button is visible - if not, don't read anything
-    if (!accessibilityState.showTTSButton) {
-      debugPrint('TTS: TTS button is hidden, not reading screen content');
-      return;
-    }
-    // Ensure TTS is enabled
+    // TTS button visibility doesn't affect functionality
+    // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      await accessibilityNotifier.setTextToSpeechEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('TTS: Text-to-speech is disabled by user, skipping screen reading');
+      print('❌ TTS: Text-to-speech is disabled by user, skipping screen reading');
+      return;
     }
 
     try {
@@ -160,7 +157,10 @@ class UnifiedTTSService {
     } catch (e) {
       debugPrint('TTS Error: $e');
       print('❌ TTS Error: $e');
-      await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van de pagina.');
+      // Don't speak error message if TTS is disabled
+      if (accessibilityState.isTextToSpeechEnabled) {
+        await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van de pagina.');
+      }
     }
   }
 
@@ -1103,21 +1103,17 @@ class UnifiedTTSService {
       debugPrint('TTS: Context no longer mounted, aborting text reading');
       return;
     }
-    
+
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-    
-    // Check if TTS button is visible - if not, don't read anything
+
+    // TTS button visibility doesn't affect functionality
     final accessibilityState = ref.read(accessibilityNotifierProvider);
-    if (!accessibilityState.showTTSButton) {
-      debugPrint('TTS: TTS button is hidden, not reading text');
-      print('❌ TTS: TTS button is hidden, not reading text');
-      return;
-    }
-    
-    // Ensure TTS is enabled
+
+    // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      await accessibilityNotifier.setTextToSpeechEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('TTS: Text-to-speech is disabled by user, skipping text reading');
+      print('❌ TTS: Text-to-speech is disabled by user, skipping text reading');
+      return;
     }
 
     try {
@@ -1136,7 +1132,10 @@ class UnifiedTTSService {
     } catch (e) {
       debugPrint('TTS Error reading text: $e');
       print('❌ TTS Error reading text: $e');
-      await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van de tekst.');
+      // Don't speak error message if TTS is disabled
+      if (accessibilityState.isTextToSpeechEnabled) {
+        await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van de tekst.');
+      }
     }
   }
 
@@ -1147,21 +1146,17 @@ class UnifiedTTSService {
       debugPrint('TTS: Context no longer mounted, aborting widget reading');
       return;
     }
-    
+
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-    
-    // Check if TTS button is visible - if not, don't read anything
+
+    // TTS button visibility doesn't affect functionality
     final accessibilityState = ref.read(accessibilityNotifierProvider);
-    if (!accessibilityState.showTTSButton) {
-      debugPrint('TTS: TTS button is hidden, not reading widget');
-      print('❌ TTS: TTS button is hidden, not reading widget');
-      return;
-    }
-    
-    // Ensure TTS is enabled
+
+    // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      await accessibilityNotifier.setTextToSpeechEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('TTS: Text-to-speech is disabled by user, skipping widget reading');
+      print('❌ TTS: Text-to-speech is disabled by user, skipping widget reading');
+      return;
     }
 
     try {
@@ -1190,7 +1185,10 @@ class UnifiedTTSService {
     } catch (e) {
       debugPrint('TTS Error reading widget: $e');
       print('❌ TTS Error reading widget: $e');
-      await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van het element.');
+      // Don't speak error message if TTS is disabled
+      if (accessibilityState.isTextToSpeechEnabled) {
+        await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van het element.');
+      }
     }
   }
 
@@ -1210,11 +1208,12 @@ class UnifiedTTSService {
   static Future<void> readEverythingOnScreen(BuildContext context, WidgetRef ref) async {
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-    
-    // Ensure TTS is enabled
+
+    // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      await accessibilityNotifier.setTextToSpeechEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('TTS: Text-to-speech is disabled by user, skipping everything on screen reading');
+      print('❌ TTS: Text-to-speech is disabled by user, skipping everything on screen reading');
+      return;
     }
 
     try {
@@ -1254,7 +1253,10 @@ class UnifiedTTSService {
     } catch (e) {
       debugPrint('TTS Error in comprehensive reading: $e');
       print('❌ TTS Error in comprehensive reading: $e');
-      await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van alle inhoud op het scherm.');
+      // Don't speak error message if TTS is disabled
+      if (accessibilityState.isTextToSpeechEnabled) {
+        await accessibilityNotifier.speak('Er was een probleem bij het voorlezen van alle inhoud op het scherm.');
+      }
     }
   }
 
@@ -1263,11 +1265,12 @@ class UnifiedTTSService {
   static Future<void> scanAndReadEntireWebpage(BuildContext context, WidgetRef ref) async {
     final accessibilityState = ref.read(accessibilityNotifierProvider);
     final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-    
-    // Ensure TTS is enabled
+
+    // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      await accessibilityNotifier.setTextToSpeechEnabled(true);
-      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('TTS: Text-to-speech is disabled by user, skipping webpage scanning');
+      print('❌ TTS: Text-to-speech is disabled by user, skipping webpage scanning');
+      return;
     }
 
     try {
@@ -1316,8 +1319,11 @@ class UnifiedTTSService {
     } catch (e) {
       debugPrint('TTS Error in comprehensive webpage scanning: $e');
       print('❌ TTS Error in comprehensive webpage scanning: $e');
-      await accessibilityNotifier.speak('Er was een probleem bij het scannen van de hele pagina. Ik probeer een alternatieve methode.');
-      
+      // Don't speak error message if TTS is disabled
+      if (accessibilityState.isTextToSpeechEnabled) {
+        await accessibilityNotifier.speak('Er was een probleem bij het scannen van de hele pagina. Ik probeer een alternatieve methode.');
+      }
+
       // Try fallback method
       try {
         if (context.mounted) {
@@ -1325,7 +1331,10 @@ class UnifiedTTSService {
         }
       } catch (fallbackError) {
         debugPrint('TTS: Fallback method also failed: $fallbackError');
-        await accessibilityNotifier.speak('Het scannen van de pagina is mislukt. Probeer het opnieuw.');
+        // Don't speak error message if TTS is disabled
+        if (accessibilityState.isTextToSpeechEnabled) {
+          await accessibilityNotifier.speak('Het scannen van de pagina is mislukt. Probeer het opnieuw.');
+        }
       }
     }
   }

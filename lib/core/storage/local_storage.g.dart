@@ -26,13 +26,15 @@ class CachedKataAdapter extends TypeAdapter<CachedKata> {
       style: fields[3] as String?,
       isFavorite: fields[7] as bool,
       needsSync: fields[8] as bool,
+      isLiked: fields[9] as bool,
+      likeCount: fields[10] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, CachedKata obj) {
     writer
-      ..writeByte(9)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -50,7 +52,11 @@ class CachedKataAdapter extends TypeAdapter<CachedKata> {
       ..writeByte(7)
       ..write(obj.isFavorite)
       ..writeByte(8)
-      ..write(obj.needsSync);
+      ..write(obj.needsSync)
+      ..writeByte(9)
+      ..write(obj.isLiked)
+      ..writeByte(10)
+      ..write(obj.likeCount);
   }
 
   @override
@@ -64,9 +70,73 @@ class CachedKataAdapter extends TypeAdapter<CachedKata> {
           typeId == other.typeId;
 }
 
-class CachedForumPostAdapter extends TypeAdapter<CachedForumPost> {
+class CachedOhyoAdapter extends TypeAdapter<CachedOhyo> {
   @override
   final int typeId = 1;
+
+  @override
+  CachedOhyo read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return CachedOhyo(
+      id: fields[0] as int,
+      name: fields[1] as String,
+      description: fields[2] as String,
+      createdAt: fields[4] as DateTime,
+      lastSynced: fields[5] as DateTime,
+      imageUrls: (fields[6] as List).cast<String>(),
+      style: fields[3] as String?,
+      isFavorite: fields[7] as bool,
+      needsSync: fields[8] as bool,
+      isLiked: fields[9] as bool,
+      likeCount: fields[10] as int,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, CachedOhyo obj) {
+    writer
+      ..writeByte(11)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.description)
+      ..writeByte(3)
+      ..write(obj.style)
+      ..writeByte(4)
+      ..write(obj.createdAt)
+      ..writeByte(5)
+      ..write(obj.lastSynced)
+      ..writeByte(6)
+      ..write(obj.imageUrls)
+      ..writeByte(7)
+      ..write(obj.isFavorite)
+      ..writeByte(8)
+      ..write(obj.needsSync)
+      ..writeByte(9)
+      ..write(obj.isLiked)
+      ..writeByte(10)
+      ..write(obj.likeCount);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CachedOhyoAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+class CachedForumPostAdapter extends TypeAdapter<CachedForumPost> {
+  @override
+  final int typeId = 2;
 
   @override
   CachedForumPost read(BinaryReader reader) {

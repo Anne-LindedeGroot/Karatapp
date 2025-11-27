@@ -492,6 +492,10 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   /// Set text-to-speech enabled
   Future<void> setTextToSpeechEnabled(bool isEnabled) async {
     state = state.copyWith(isTextToSpeechEnabled: isEnabled);
+    // If enabling TTS, also show the TTS button
+    if (isEnabled && !state.showTTSButton) {
+      state = state.copyWith(showTTSButton: true);
+    }
     await _saveAccessibilityToPreferences();
   }
 
@@ -535,6 +539,10 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   /// Set TTS button visibility
   Future<void> setShowTTSButton(bool show) async {
     state = state.copyWith(showTTSButton: show);
+    // If hiding the TTS button, also disable TTS functionality
+    if (!show && state.isTextToSpeechEnabled) {
+      state = state.copyWith(isTextToSpeechEnabled: false);
+    }
     await _saveAccessibilityToPreferences();
   }
 
@@ -570,16 +578,10 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   Future<void> speak(String text) async {
     debugPrint('TTS: speak() called with text: "$text"');
     print('🗣️ TTS: speak() called with text: "$text"');
-    
+
     if (!state.isTextToSpeechEnabled) {
       debugPrint('TTS: Text-to-speech is disabled');
       print('❌ TTS: Text-to-speech is disabled');
-      return;
-    }
-    
-    if (!state.showTTSButton) {
-      debugPrint('TTS: TTS button is hidden, not speaking');
-      print('❌ TTS: TTS button is hidden, not speaking');
       return;
     }
     

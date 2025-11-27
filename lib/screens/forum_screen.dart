@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
 import '../providers/accessibility_provider.dart';
+import '../providers/network_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../widgets/skeleton_forum_post.dart';
 import '../widgets/responsive_layout.dart';
@@ -73,33 +74,40 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
 
   Future<void> _speakForumPostContent(ForumPost post) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('ForumScreen TTS: TTS is disabled, not speaking forum post content');
+        return;
+      }
+
       // Build comprehensive content for TTS
       final content = StringBuffer();
       content.write('Forum Post: ${post.title}. ');
       content.write('Categorie: ${post.category.displayName}. ');
-      
+
       if (post.content.isNotEmpty) {
         content.write('Inhoud: ${post.content}. ');
       }
-      
+
       content.write('Geschreven door: ${post.authorName}. ');
-      
+
       if (post.commentCount > 0) {
         content.write('Dit bericht heeft ${post.commentCount} reacties. ');
       }
-      
+
       if (post.isPinned) {
         content.write('Dit bericht is vastgepind. ');
       }
-      
+
       if (post.isLocked) {
         content.write('Dit bericht is gesloten. ');
       }
-      
+
       content.write('Gepost ${_formatDate(post.createdAt)}. ');
-      
+
       await accessibilityNotifier.speak(content.toString());
     } catch (e) {
       debugPrint('Error speaking forum post content: $e');
@@ -644,9 +652,10 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                 final isLiked = forumInteraction.isLiked;
                                 final likeCount = forumInteraction.likeCount;
                                 final isLoading = forumInteraction.isLoading;
+                                final isConnected = ref.watch(isConnectedProvider);
 
                                 return GestureDetector(
-                                  onTap: isLoading ? null : () async {
+                                  onTap: (isLoading || !isConnected) ? null : () async {
                                     try {
                                       await ref.read(forumInteractionProvider(post.id).notifier).toggleLike();
                                     } catch (e) {
@@ -663,12 +672,16 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: isLiked
-                                        ? Colors.red.withValues(alpha: 0.1)
-                                        : Colors.grey.withValues(alpha: 0.05),
+                                      color: !isConnected
+                                        ? Colors.grey.withValues(alpha: 0.05)
+                                        : isLiked
+                                          ? Colors.red.withValues(alpha: 0.1)
+                                          : Colors.grey.withValues(alpha: 0.05),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: isLiked ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                        color: !isConnected
+                                          ? Colors.grey.withValues(alpha: 0.2)
+                                          : isLiked ? Colors.red.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
                                         width: 1,
                                       ),
                                     ),
@@ -678,13 +691,17 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                         Icon(
                                           isLiked ? Icons.favorite : Icons.favorite_border,
                                           size: 14,
-                                          color: isLiked ? Colors.red : Colors.grey[600],
+                                          color: !isConnected
+                                            ? Colors.grey[400]
+                                            : isLiked ? Colors.red : Colors.grey[600],
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
                                           '$likeCount',
                                           style: TextStyle(
-                                            color: isLiked ? Colors.red : Colors.grey[700],
+                                            color: !isConnected
+                                              ? Colors.grey[400]
+                                              : isLiked ? Colors.red : Colors.grey[700],
                                             fontSize: 12,
                                             fontWeight: FontWeight.w500,
                                           ),
@@ -703,9 +720,10 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                 final forumInteraction = ref.watch(forumInteractionProvider(post.id));
                                 final isFavorited = forumInteraction.isFavorited;
                                 final isLoading = forumInteraction.isLoading;
+                                final isConnected = ref.watch(isConnectedProvider);
 
                                 return GestureDetector(
-                                  onTap: isLoading ? null : () async {
+                                  onTap: (isLoading || !isConnected) ? null : () async {
                                     try {
                                       await ref.read(forumInteractionProvider(post.id).notifier).toggleFavorite();
                                       if (context.mounted) {
@@ -732,19 +750,25 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: isFavorited
-                                        ? Colors.teal.withValues(alpha: 0.1)
-                                        : Colors.grey.withValues(alpha: 0.05),
+                                      color: !isConnected
+                                        ? Colors.grey.withValues(alpha: 0.05)
+                                        : isFavorited
+                                          ? Colors.teal.withValues(alpha: 0.1)
+                                          : Colors.grey.withValues(alpha: 0.05),
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: isFavorited ? Colors.teal.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
+                                        color: !isConnected
+                                          ? Colors.grey.withValues(alpha: 0.2)
+                                          : isFavorited ? Colors.teal.withValues(alpha: 0.3) : Colors.grey.withValues(alpha: 0.2),
                                         width: 1,
                                       ),
                                     ),
                                     child: Icon(
                                       isFavorited ? Icons.bookmark : Icons.bookmark_border,
                                       size: 14,
-                                      color: isFavorited ? Colors.teal : Colors.grey[600],
+                                      color: !isConnected
+                                        ? Colors.grey[400]
+                                        : isFavorited ? Colors.teal : Colors.grey[600],
                                     ),
                                   ),
                                 );
@@ -1086,7 +1110,6 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final posts = ref.watch(forumPostsProvider);
     final isLoading = ref.watch(forumLoadingProvider);
     final error = ref.watch(forumErrorProvider);
-    final isOfflineMode = ref.watch(forumOfflineModeProvider);
 
     return GestureDetector(
       onTap: () {
@@ -1097,31 +1120,68 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         title: Row(
           children: [
             const Text('Forum'),
-            if (isOfflineMode) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
-                ),
-                child: const Row(
+            Consumer(
+              builder: (context, ref, child) {
+                final isConnected = ref.watch(isConnectedProvider);
+                final pendingOperations = ref.watch(forumPendingOperationsProvider);
+                final hasPendingOperations = pendingOperations > 0;
+
+                return Row(
                   children: [
-                    Icon(Icons.wifi_off, size: 14, color: Colors.orange),
-                    SizedBox(width: 4),
-                    Text(
-                      'Offline',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w500,
+                    if (!isConnected) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.wifi_off, size: 14, color: Colors.orange),
+                            SizedBox(width: 4),
+                            Text(
+                              'Offline',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                    ],
+                    if (hasPendingOperations) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.sync, size: 14, color: Colors.blue),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$pendingOperations',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ],
         ),
         leading: IconButton(
@@ -1301,18 +1361,27 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
             ),
           ),
         ),
-        floatingActionButton: FloatingActionButton(
-          heroTag: "forum_fab",
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const CreateForumPostScreen(),
+        floatingActionButton: Consumer(
+          builder: (context, ref, child) {
+            final isConnected = ref.watch(isConnectedProvider);
+            return FloatingActionButton(
+              heroTag: "forum_fab",
+              onPressed: isConnected ? () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateForumPostScreen(),
+                  ),
+                );
+              } : null,
+              backgroundColor: isConnected ? null : Colors.grey,
+              child: Icon(
+                isConnected ? Icons.add : Icons.cloud_off,
+                color: isConnected ? null : Colors.white70,
               ),
+              tooltip: isConnected ? 'Nieuw bericht maken' : 'Niet beschikbaar offline',
             );
           },
-          child: const Icon(Icons.add),
-          tooltip: 'Nieuw bericht maken',
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       ),

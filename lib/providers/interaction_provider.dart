@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/interaction_models.dart';
 import '../services/interaction_service.dart';
 import '../services/offline_queue_service.dart';
 import '../services/comment_cache_service.dart';
 import '../services/conflict_resolution_service.dart';
+import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
+import 'auth_provider.dart';
 
 // Provider for the InteractionService instance
 final interactionServiceProvider = Provider<InteractionService>((ref) {
@@ -42,7 +45,18 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Load comments, likes, and favorites in parallel
+      // First, try to load from cache for immediate UI feedback
+      final cachedKata = app_storage.LocalStorage.getKata(kataId);
+      if (cachedKata != null) {
+        state = state.copyWith(
+          isLiked: cachedKata.isLiked,
+          likeCount: cachedKata.likeCount,
+          isFavorited: cachedKata.isFavorite,
+          isOffline: true,
+        );
+      }
+
+      // Load comments, likes, and favorites from server
       final results = await Future.wait([
         _interactionService.getKataComments(kataId),
         _interactionService.getKataLikes(kataId),
@@ -64,13 +78,37 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
         commentCount: comments.length,
         isLoading: false,
         error: null,
+        isOffline: false,
       );
     } catch (e) {
       final errorMessage = 'Failed to load kata interactions: ${e.toString()}';
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      // If we have cached data, keep it but mark as offline
+      final cachedKata = app_storage.LocalStorage.getKata(kataId);
+      if (cachedKata != null) {
+        // Update state with cached data if not already loaded
+        if (state.likeCount == 0) {
+          state = state.copyWith(
+            isLiked: cachedKata.isLiked,
+            likeCount: cachedKata.likeCount,
+            isFavorited: cachedKata.isFavorite,
+            isLoading: false,
+            error: null,
+            isOffline: true,
+          );
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            error: null,
+            isOffline: true,
+          );
+        }
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+          isOffline: true,
+        );
+      }
       // Only report non-network errors to global error boundary
       if (!_isNetworkError(e)) {
         _errorBoundary.reportNetworkError(errorMessage);
@@ -166,15 +204,34 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
   Future<void> toggleLike() async {
     try {
       final isLiked = await _interactionService.toggleKataLike(kataId);
-      
+
       // Reload likes to get updated count
       final likes = await _interactionService.getKataLikes(kataId);
-      
+
       state = state.copyWith(
         isLiked: isLiked,
         likes: likes,
         likeCount: likes.length,
       );
+
+      // Update cached data
+      final cachedKata = app_storage.LocalStorage.getKata(kataId);
+      if (cachedKata != null) {
+        final updatedKata = app_storage.CachedKata(
+          id: cachedKata.id,
+          name: cachedKata.name,
+          description: cachedKata.description,
+          createdAt: cachedKata.createdAt,
+          lastSynced: DateTime.now(),
+          imageUrls: cachedKata.imageUrls,
+          style: cachedKata.style,
+          isFavorite: cachedKata.isFavorite,
+          needsSync: cachedKata.needsSync,
+          isLiked: isLiked,
+          likeCount: likes.length,
+        );
+        await app_storage.LocalStorage.saveKata(updatedKata);
+      }
     } catch (e) {
       final errorMessage = 'Failed to toggle like: ${e.toString()}';
       state = state.copyWith(error: errorMessage);
@@ -232,11 +289,15 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
 class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
   final InteractionService _interactionService;
   final ErrorBoundaryNotifier _errorBoundary;
+  final OfflineQueueService? _offlineQueueService;
+  final Ref _ref;
   final int forumPostId;
 
   ForumInteractionNotifier(
     this._interactionService,
     this._errorBoundary,
+    this._offlineQueueService,
+    this._ref,
     this.forumPostId,
   ) : super(const ForumInteractionState()) {
     loadForumInteractions();
@@ -289,41 +350,133 @@ class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
   }
 
   Future<void> toggleLike() async {
-    try {
-      final isLiked = await _interactionService.toggleForumPostLike(forumPostId);
-      
-      // Reload likes to get updated count
-      final likes = await _interactionService.getForumPostLikes(forumPostId);
-      
-      state = state.copyWith(
-        isLiked: isLiked,
-        likes: likes,
-        likeCount: likes.length,
-      );
-    } catch (e) {
-      final errorMessage = 'Failed to toggle like: ${e.toString()}';
-      state = state.copyWith(error: errorMessage);
-      // Only report non-network errors to global error boundary
-      if (!_isNetworkError(e)) {
-        _errorBoundary.reportNetworkError(errorMessage);
+    // Check if we're online
+    final isOnline = await _isOnline();
+
+    if (isOnline) {
+      // Online mode - try to toggle like directly
+      try {
+        final isLiked = await _interactionService.toggleForumPostLike(forumPostId);
+
+        // Reload likes to get updated count
+        final likes = await _interactionService.getForumPostLikes(forumPostId);
+
+        state = state.copyWith(
+          isLiked: isLiked,
+          likes: likes,
+          likeCount: likes.length,
+        );
+      } catch (e) {
+        final errorMessage = 'Failed to toggle like: ${e.toString()}';
+        state = state.copyWith(error: errorMessage);
+        // Only report non-network errors to global error boundary
+        if (!_isNetworkError(e)) {
+          _errorBoundary.reportNetworkError(errorMessage);
+        }
+        rethrow;
       }
-      rethrow;
+    } else {
+      // Offline mode - queue the operation
+      if (_offlineQueueService == null) {
+        throw Exception('Offline queue service not available');
+      }
+
+      // Get current user ID from auth service
+      final authService = _ref.read(authServiceProvider);
+      final userId = authService.currentUser?.id;
+
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Optimistically update UI
+      final newLikedState = !state.isLiked;
+      final newLikeCount = newLikedState ? state.likeCount + 1 : state.likeCount - 1;
+
+      state = state.copyWith(
+        isLiked: newLikedState,
+        likeCount: newLikeCount,
+      );
+
+      // Queue the operation
+      final operation = OfflineOperation(
+        id: 'forum_like_${forumPostId}_${DateTime.now().millisecondsSinceEpoch}',
+        type: OfflineOperationType.toggleForumLike,
+        status: OfflineOperationStatus.pending,
+        data: {
+          'forum_post_id': forumPostId,
+          'was_liked': state.isLiked, // Store the previous state
+        },
+        createdAt: DateTime.now(),
+        userId: userId,
+      );
+
+      await _offlineQueueService!.addOperation(operation);
+    }
+  }
+
+  Future<bool> _isOnline() async {
+    try {
+      // Use a quick network check
+      await _interactionService.getForumPostLikes(forumPostId);
+      return true;
+    } catch (e) {
+      return false;
     }
   }
 
   Future<void> toggleFavorite() async {
-    try {
-      final isFavorited = await _interactionService.toggleForumPostFavorite(forumPostId);
-      
-      state = state.copyWith(isFavorited: isFavorited);
-    } catch (e) {
-      final errorMessage = 'Failed to toggle favorite: ${e.toString()}';
-      state = state.copyWith(error: errorMessage);
-      // Only report non-network errors to global error boundary
-      if (!_isNetworkError(e)) {
-        _errorBoundary.reportNetworkError(errorMessage);
+    // Check if we're online
+    final isOnline = await _isOnline();
+
+    if (isOnline) {
+      // Online mode - try to toggle favorite directly
+      try {
+        final isFavorited = await _interactionService.toggleForumPostFavorite(forumPostId);
+
+        state = state.copyWith(isFavorited: isFavorited);
+      } catch (e) {
+        final errorMessage = 'Failed to toggle favorite: ${e.toString()}';
+        state = state.copyWith(error: errorMessage);
+        // Only report non-network errors to global error boundary
+        if (!_isNetworkError(e)) {
+          _errorBoundary.reportNetworkError(errorMessage);
+        }
+        rethrow;
       }
-      rethrow;
+    } else {
+      // Offline mode - queue the operation
+      if (_offlineQueueService == null) {
+        throw Exception('Offline queue service not available');
+      }
+
+      // Get current user ID from auth service
+      final authService = _ref.read(authServiceProvider);
+      final userId = authService.currentUser?.id;
+
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Optimistically update UI
+      final newFavoritedState = !state.isFavorited;
+
+      state = state.copyWith(isFavorited: newFavoritedState);
+
+      // Queue the operation
+      final operation = OfflineOperation(
+        id: 'forum_favorite_${forumPostId}_${DateTime.now().millisecondsSinceEpoch}',
+        type: OfflineOperationType.toggleForumFavorite,
+        status: OfflineOperationStatus.pending,
+        data: {
+          'forum_post_id': forumPostId,
+          'was_favorited': state.isFavorited, // Store the previous state
+        },
+        createdAt: DateTime.now(),
+        userId: userId,
+      );
+
+      await _offlineQueueService!.addOperation(operation);
     }
   }
 
@@ -357,7 +510,18 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Load comments, likes, and favorites in parallel
+      // First, try to load from cache for immediate UI feedback
+      final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+      if (cachedOhyo != null) {
+        state = state.copyWith(
+          isLiked: cachedOhyo.isLiked,
+          likeCount: cachedOhyo.likeCount,
+          isFavorited: cachedOhyo.isFavorite,
+          isOffline: true,
+        );
+      }
+
+      // Load comments, likes, and favorites from server
       final results = await Future.wait([
         _interactionService.getOhyoComments(ohyoId),
         _interactionService.getOhyoLikes(ohyoId),
@@ -379,13 +543,37 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
         commentCount: comments.length,
         isLoading: false,
         error: null,
+        isOffline: false,
       );
     } catch (e) {
       final errorMessage = 'Failed to load ohyo interactions: ${e.toString()}';
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      // If we have cached data, keep it but mark as offline
+      final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+      if (cachedOhyo != null) {
+        // Update state with cached data if not already loaded
+        if (state.likeCount == 0) {
+          state = state.copyWith(
+            isLiked: cachedOhyo.isLiked,
+            likeCount: cachedOhyo.likeCount,
+            isFavorited: cachedOhyo.isFavorite,
+            isLoading: false,
+            error: null,
+            isOffline: true,
+          );
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            error: null,
+            isOffline: true,
+          );
+        }
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+          isOffline: true,
+        );
+      }
       // Only report non-network errors to global error boundary
       if (!_isNetworkError(e)) {
         _errorBoundary.reportNetworkError(errorMessage);
@@ -490,6 +678,25 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
         likes: likes,
         likeCount: likes.length,
       );
+
+      // Update cached data
+      final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+      if (cachedOhyo != null) {
+        final updatedOhyo = app_storage.CachedOhyo(
+          id: cachedOhyo.id,
+          name: cachedOhyo.name,
+          description: cachedOhyo.description,
+          createdAt: cachedOhyo.createdAt,
+          lastSynced: DateTime.now(),
+          imageUrls: cachedOhyo.imageUrls,
+          style: cachedOhyo.style,
+          isFavorite: cachedOhyo.isFavorite,
+          needsSync: cachedOhyo.needsSync,
+          isLiked: isLiked,
+          likeCount: likes.length,
+        );
+        await app_storage.LocalStorage.saveOhyo(updatedOhyo);
+      }
     } catch (e) {
       final errorMessage = 'Failed to toggle like: ${e.toString()}';
       state = state.copyWith(error: errorMessage);
@@ -541,13 +748,30 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
       rethrow;
     }
   }
+
+  /// Force reload cached interaction data (useful after comprehensive cache completion)
+  Future<void> reloadCachedInteractions() async {
+    debugPrint('🔄 Reloading cached interactions for ohyo $ohyoId');
+    final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+    if (cachedOhyo != null) {
+      state = state.copyWith(
+        isLiked: cachedOhyo.isLiked,
+        likeCount: cachedOhyo.likeCount,
+        isFavorited: cachedOhyo.isFavorite,
+        isOffline: true,
+        isLoading: false,
+        error: null,
+      );
+    }
+  }
 }
 
 // Provider for forum post interactions (family provider for different posts)
 final forumInteractionProvider = StateNotifierProvider.family<ForumInteractionNotifier, ForumInteractionState, int>((ref, forumPostId) {
   final interactionService = ref.watch(interactionServiceProvider);
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  return ForumInteractionNotifier(interactionService, errorBoundary, forumPostId);
+  final offlineQueueService = ref.watch(offlineQueueServiceProvider);
+  return ForumInteractionNotifier(interactionService, errorBoundary, offlineQueueService, ref, forumPostId);
 });
 
 // Provider for ohyo interactions (family provider for different ohyos)

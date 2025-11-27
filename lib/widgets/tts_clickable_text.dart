@@ -66,7 +66,15 @@ class TTSClickableText extends ConsumerWidget {
 
   Future<void> _handleTTSClick(BuildContext context, WidgetRef ref) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('TTSClickableText: TTS is disabled, not speaking text');
+        return;
+      }
+
       final textToSpeak = ttsLabel ?? text;
       
       // Stop any current speech
@@ -143,14 +151,21 @@ class TTSClickableWidget extends ConsumerWidget {
 
   Future<void> _handleTTSClick(BuildContext context, WidgetRef ref) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-      
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('TTSClickableText: TTS is disabled, not speaking text');
+        return;
+      }
+
       // Stop any current speech
       if (accessibilityNotifier.isSpeaking()) {
         await accessibilityNotifier.stopSpeaking();
         await Future.delayed(const Duration(milliseconds: 300));
       }
-      
+
       // Speak the text
       await accessibilityNotifier.speak(ttsText);
       

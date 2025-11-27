@@ -38,58 +38,33 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
     _resolveImageUrls();
   }
 
-  /// Resolve image URLs - use cached files when offline
+  /// Resolve image URLs - use cached files when available
   Future<void> _resolveImageUrls() async {
     final networkState = ref.read(networkProvider);
 
-    // Check if we're offline and have kata or ohyo ID
-    if (!networkState.isConnected) {
-      if (widget.kataId != null) {
-        // Use cached kata images
-        debugPrint('📱 Offline - using cached kata images for kata ${widget.kataId}');
-        final cachedPaths = await OfflineMediaCacheService.getCachedKataImageUrls(widget.kataId!);
-        if (cachedPaths.isNotEmpty) {
-          setState(() {
-            for (int i = 0; i < cachedPaths.length && i < widget.imageUrls.length; i++) {
-              _resolvedUrls[i] = cachedPaths[i];
-            }
-          });
-          debugPrint('📱 Loaded ${cachedPaths.length} cached kata images');
-          return;
-        } else {
-          debugPrint('📱 No cached kata images found for kata ${widget.kataId}');
-        }
-      } else if (widget.ohyoId != null) {
-        // Use cached ohyo images
-        debugPrint('📱 Offline - using cached ohyo images for ohyo ${widget.ohyoId}');
-        final cachedPaths = await OfflineMediaCacheService.getCachedOhyoImagePaths(widget.ohyoId!);
-        if (cachedPaths.isNotEmpty) {
-          setState(() {
-            for (int i = 0; i < cachedPaths.length && i < widget.imageUrls.length; i++) {
-              _resolvedUrls[i] = cachedPaths[i];
-            }
-          });
-          debugPrint('📱 Loaded ${cachedPaths.length} cached ohyo images');
-          return;
-        } else {
-          debugPrint('📱 No cached ohyo images found for ohyo ${widget.ohyoId}');
-        }
-      }
-    }
-
-    // Online or no cached images available - use regular URL resolution
-    if (networkState.isConnected) {
-      debugPrint('🖼️ Gallery opened online - pre-caching ${widget.imageUrls.length} images');
-      await OfflineMediaCacheService.preCacheMediaFiles(widget.imageUrls, false, ref);
-    }
-
-    // Resolve URLs (will use cached files if available)
+    // For each input URL, resolve it to a cached file if available, or keep the original URL
     for (int i = 0; i < widget.imageUrls.length; i++) {
       final originalUrl = widget.imageUrls[i];
+
+      // Check if it's already a local file path
+      final isLocalFile = originalUrl.startsWith('/') || originalUrl.startsWith('file://');
+      if (isLocalFile) {
+        _resolvedUrls[i] = originalUrl;
+        continue;
+      }
+
+      // Try to get cached version or use original
       final resolvedUrl = await OfflineMediaCacheService.getMediaUrl(originalUrl, false, ref);
-      setState(() {
-        _resolvedUrls[i] = resolvedUrl;
-      });
+      _resolvedUrls[i] = resolvedUrl;
+    }
+
+    // Pre-cache images if online (for future offline use)
+    if (networkState.isConnected && widget.kataId != null) {
+      debugPrint('🖼️ Online - pre-caching kata ${widget.kataId} images');
+      await OfflineMediaCacheService.preCacheMediaFiles(widget.imageUrls, false, ref);
+    } else if (networkState.isConnected && widget.ohyoId != null) {
+      debugPrint('🖼️ Online - pre-caching ohyo ${widget.ohyoId} images');
+      // Note: ohyo images are cached individually in fetchOhyoImagesFromBucket
     }
   }
 
@@ -99,8 +74,21 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
     final isLocalFile = imageUrl.startsWith('/') || imageUrl.startsWith('file://');
 
     if (isLocalFile) {
+      final filePath = imageUrl.replaceFirst('file://', '');
+      final file = File(filePath);
+
+      if (!file.existsSync()) {
+        return const Center(
+          child: Icon(
+            Icons.error,
+            size: 20,
+            color: Colors.white,
+          ),
+        );
+      }
+
       return Image.file(
-        File(imageUrl.replaceFirst('file://', '')),
+        file,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => const Center(
           child: Icon(
@@ -173,6 +161,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
               itemBuilder: (context, index) {
                 final imageUrl = _resolvedUrls[index] ?? widget.imageUrls[index];
                 final isLocalFile = imageUrl.startsWith('/') || imageUrl.startsWith('file://');
+
 
                 return Center(
                   child: InteractiveViewer(

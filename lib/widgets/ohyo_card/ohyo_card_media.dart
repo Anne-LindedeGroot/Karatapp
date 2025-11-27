@@ -51,11 +51,22 @@ class OhyoCardMedia extends StatelessWidget {
         final videoUrls = ohyo.videoUrls ?? [];
         final hasVideos = videoUrls.isNotEmpty;
 
-        // Lazy load images if ohyo doesn't have them yet
+        // Load images if needed - immediately for offline support
         if (!hasImages) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            ref.read(ohyoNotifierProvider.notifier).loadOhyoImages(ohyo.id);
+            ref.read(ohyoNotifierProvider.notifier).loadOhyoImages(ohyo.id, ref: ref);
           });
+        } else {
+          // If we have images but might be offline, check if we need to load cached versions
+          final networkState = ref.read(networkProvider);
+          final hasNetworkUrls = ohyoImages.any((url) => !url.startsWith('/') && !url.startsWith('file://'));
+          if (!networkState.isConnected && hasNetworkUrls) {
+            // We're offline and have network URLs - try to load cached versions immediately
+            debugPrint('📱 Offline ohyo ${ohyo.id} has network URLs, loading cached versions');
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(ohyoNotifierProvider.notifier).loadOhyoImages(ohyo.id, ref: ref);
+            });
+          }
         }
 
         // If no images and no videos, show placeholder (loading or no media)

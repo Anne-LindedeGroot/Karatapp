@@ -278,9 +278,22 @@ class AccessibilitySettingsWidget extends ConsumerWidget {
                   text: 'Test spraakfunctie',
                   icon: const Icon(Icons.play_arrow),
                   isElevated: false,
-                  onPressed: () => accessibilityNotifier.speak(
-                    'Dit is een test van de spraakfunctie. De tekst wordt nu voorgelezen.',
-                  ),
+                  onPressed: () async {
+                    // Only speak if TTS is enabled
+                    if (accessibilityState.isTextToSpeechEnabled) {
+                      await accessibilityNotifier.speak(
+                        'Dit is een test van de spraakfunctie. De tekst wordt nu voorgelezen.',
+                      );
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Spraak is uitgeschakeld. Schakel spraak eerst in om te testen.'),
+                          ),
+                        );
+                      }
+                    }
+                  },
                 ),
               ),
             ],
@@ -298,9 +311,22 @@ class AccessibilitySettingsWidget extends ConsumerWidget {
                                 text: 'Test spraak',
                                 icon: const Icon(Icons.play_arrow),
                                 isElevated: false,
-                                onPressed: () => accessibilityNotifier.speak(
-                                  'Test van de spraakfunctie.',
-                                ),
+                                onPressed: () async {
+                                  // Only speak if TTS is enabled
+                                  if (accessibilityState.isTextToSpeechEnabled) {
+                                    await accessibilityNotifier.speak(
+                                      'Test van de spraakfunctie.',
+                                    );
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Spraak is uitgeschakeld. Schakel spraak eerst in om te testen.'),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -320,9 +346,22 @@ class AccessibilitySettingsWidget extends ConsumerWidget {
                               text: 'Test spraak',
                               icon: const Icon(Icons.play_arrow),
                               isElevated: false,
-                              onPressed: () => accessibilityNotifier.speak(
-                                'Test van de spraakfunctie.',
-                              ),
+                              onPressed: () async {
+                                // Only speak if TTS is enabled
+                                if (accessibilityState.isTextToSpeechEnabled) {
+                                  await accessibilityNotifier.speak(
+                                    'Test van de spraakfunctie.',
+                                  );
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Spraak is uitgeschakeld. Schakel spraak eerst in om te testen.'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
                             ),
                             const SizedBox(height: 8),
                             AccessibleButton(

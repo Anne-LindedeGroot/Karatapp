@@ -223,6 +223,35 @@ class OfflineIndicatorWidget extends ConsumerWidget {
                       ),
                     ),
                   ],
+                  if (networkState.isConnected && syncState.status != SyncOperation.comprehensiveCache) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FutureBuilder<bool>(
+                        future: ref.read(offlineSyncProvider.notifier).isComprehensiveCacheCompleted(),
+                        builder: (context, snapshot) {
+                          final isCompleted = snapshot.data ?? false;
+                          return ElevatedButton.icon(
+                            onPressed: isCompleted
+                                ? null
+                                : () => ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref as Ref),
+                            icon: Icon(
+                              isCompleted ? Icons.check_circle : Icons.cloud_download,
+                              size: 16,
+                            ),
+                            label: Text(isCompleted ? 'Fully Cached' : 'Cache Everything'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isCompleted
+                                  ? Colors.green
+                                  : theme.colorScheme.tertiary,
+                              foregroundColor: isCompleted
+                                  ? Colors.white
+                                  : theme.colorScheme.onTertiary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -250,7 +279,14 @@ class OfflineIndicatorWidget extends ConsumerWidget {
 
   String _getStatusText(networkState, dataUsageState, syncState) {
     if (dataUsageState.isOfflineMode) return 'Offline';
-    if (!networkState.isConnected) return 'No Connection';
+    if (!networkState.isConnected) {
+      // Show "Offline" if truly offline (no WiFi/cellular), "Geen verbinding" if connected but no internet
+      if (dataUsageState.connectionType == ConnectionType.unknown) {
+        return 'Offline';
+      } else {
+        return 'Offline';
+      }
+    }
     if (syncState.isSyncing) return 'Syncing';
     if (syncState.hasRecentErrors) return 'Sync Issues';
     return 'Online';
@@ -258,7 +294,13 @@ class OfflineIndicatorWidget extends ConsumerWidget {
 
   String _getStatusTitle(networkState, dataUsageState, syncState) {
     if (dataUsageState.isOfflineMode) return 'Offline Mode Active';
-    if (!networkState.isConnected) return 'No Internet Connection';
+    if (!networkState.isConnected) {
+      if (dataUsageState.connectionType == ConnectionType.unknown) {
+        return 'Offline';
+      } else {
+        return 'Offline';
+      }
+    }
     if (syncState.isSyncing) return 'Synchronizing Data';
     if (syncState.hasRecentErrors) return 'Sync Issues Detected';
     return 'Connected';
@@ -269,9 +311,16 @@ class OfflineIndicatorWidget extends ConsumerWidget {
       return 'App is running in offline mode. Some features may be limited.';
     }
     if (!networkState.isConnected) {
-      return 'Unable to connect to the internet. Check your network connection.';
+      if (dataUsageState.connectionType == ConnectionType.unknown) {
+        return 'Device is offline. Turn on WiFi or mobile data to connect.';
+      } else {
+        return 'Connected to network but no internet access. Check your connection.';
+      }
     }
     if (syncState.isSyncing) {
+      if (syncState.currentOperation == SyncOperation.comprehensiveCache) {
+        return 'Downloading all content for complete offline functionality. This may take several minutes and use significant data.';
+      }
       return 'Updating your data with the latest information from the server.';
     }
     if (syncState.hasRecentErrors) {
@@ -292,6 +341,8 @@ class OfflineIndicatorWidget extends ConsumerWidget {
         return 'videos';
       case SyncOperation.images:
         return 'images';
+      case SyncOperation.comprehensiveCache:
+        return 'everything for offline use';
       case null:
         return 'data';
     }

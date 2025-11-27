@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -7,6 +8,8 @@ import '../services/offline_ohyo_service.dart';
 import '../utils/image_utils.dart';
 import '../utils/retry_utils.dart';
 import '../supabase_client.dart';
+import '../core/storage/local_storage.dart' as app_storage;
+import '../services/offline_media_cache_service.dart';
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 
@@ -39,29 +42,92 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
   }
 
   /// Load images for a specific ohyo (lazy loading)
-  Future<void> loadOhyoImages(int ohyoId) async {
+  Future<void> loadOhyoImages(int ohyoId, {dynamic ref}) async {
     try {
-      final imageUrls = await ImageUtils.fetchOhyoImagesFromBucket(ohyoId);
+      List<String> imageUrls = [];
 
-      // Update the ohyo in the state with the loaded images
-      final updatedOhyos = state.ohyos.map((ohyo) {
-        if (ohyo.id == ohyoId) {
-          return ohyo.copyWith(imageUrls: imageUrls);
+      // First, check if we're offline and try to load cached images immediately
+      try {
+        final isOnline = await _checkNetworkConnectivity();
+        if (!isOnline) {
+          debugPrint('🌐 Offline mode detected for ohyo $ohyoId, loading cached images first');
+          final cachedImageUrls = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
+          if (cachedImageUrls.isNotEmpty) {
+            debugPrint('✅ Found ${cachedImageUrls.length} cached images for ohyo $ohyoId');
+            imageUrls = cachedImageUrls;
+
+            // Update the ohyo in the state with cached images
+            final updatedOhyos = state.ohyos.map((ohyo) {
+              if (ohyo.id == ohyoId) {
+                return ohyo.copyWith(imageUrls: imageUrls);
+              }
+              return ohyo;
+            }).toList();
+
+            final updatedFilteredOhyos = state.filteredOhyos.map((ohyo) {
+              if (ohyo.id == ohyoId) {
+                return ohyo.copyWith(imageUrls: imageUrls);
+              }
+              return ohyo;
+            }).toList();
+
+            state = state.copyWith(
+              ohyos: updatedOhyos,
+              filteredOhyos: updatedFilteredOhyos,
+            );
+            return; // Return early if we have cached images and are offline
+          } else {
+            debugPrint('ℹ️ No cached images available for ohyo $ohyoId');
+          }
         }
-        return ohyo;
-      }).toList();
+      } catch (networkCheckError) {
+        debugPrint('⚠️ Failed to check network status: $networkCheckError');
+      }
 
-      final updatedFilteredOhyos = state.filteredOhyos.map((ohyo) {
-        if (ohyo.id == ohyoId) {
-          return ohyo.copyWith(imageUrls: imageUrls);
+      // Try to fetch online images
+      try {
+        imageUrls = await ImageUtils.fetchOhyoImagesFromBucket(ohyoId, ref: ref);
+            debugPrint('✅ Successfully loaded ${imageUrls.length} online images for ohyo $ohyoId');
+            debugPrint('🖼️ Online image URLs for ohyo $ohyoId: ${imageUrls.take(2).join(', ')}${imageUrls.length > 2 ? '...' : ''}');
+      } catch (e) {
+        debugPrint('❌ Online image fetch failed for ohyo $ohyoId: $e');
+
+        // Try to load cached images as fallback when online fetch fails
+        try {
+          final cachedImageUrls = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
+          if (cachedImageUrls.isNotEmpty) {
+            debugPrint('🔄 Using ${cachedImageUrls.length} cached images for ohyo $ohyoId as fallback');
+            debugPrint('🖼️ Cached image URLs for ohyo $ohyoId: ${cachedImageUrls.take(2).join(', ')}${cachedImageUrls.length > 2 ? '...' : ''}');
+            imageUrls = cachedImageUrls;
+          } else {
+            debugPrint('ℹ️ No cached images available for ohyo $ohyoId');
+          }
+        } catch (cacheError) {
+          debugPrint('❌ Failed to load cached images for ohyo $ohyoId: $cacheError');
         }
-        return ohyo;
-      }).toList();
+      }
 
-      state = state.copyWith(
-        ohyos: updatedOhyos,
-        filteredOhyos: updatedFilteredOhyos,
-      );
+      if (imageUrls.isNotEmpty) {
+        // Update the ohyo in the state with the loaded images
+        final updatedOhyos = state.ohyos.map((ohyo) {
+          if (ohyo.id == ohyoId) {
+            return ohyo.copyWith(imageUrls: imageUrls);
+          }
+          return ohyo;
+        }).toList();
+
+        final updatedFilteredOhyos = state.filteredOhyos.map((ohyo) {
+          if (ohyo.id == ohyoId) {
+            return ohyo.copyWith(imageUrls: imageUrls);
+          }
+          return ohyo;
+        }).toList();
+
+        state = state.copyWith(
+          ohyos: updatedOhyos,
+          filteredOhyos: updatedFilteredOhyos,
+        );
+      }
     } catch (e) {
       debugPrint('Failed to load ohyo images for ohyo $ohyoId: $e');
       // Don't show error for image loading failures - it's not critical
@@ -87,9 +153,45 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
             isOfflineMode: true,
           );
 
-          // Preload images for cached ohyos
+          // Preload images for cached ohyos (try cached images first, especially when offline)
           if (cachedOhyos.isNotEmpty) {
-            _preloadInitialOhyoImages(cachedOhyos.take(3).toList());
+            await _preloadInitialOhyoImagesWithCache(cachedOhyos.take(3).toList());
+          }
+        } else {
+          // If SharedPreferences cache is empty/expired, try Hive storage
+          try {
+            final hiveCachedOhyos = app_storage.LocalStorage.getAllOhyos();
+            if (hiveCachedOhyos.isNotEmpty) {
+              // Convert CachedOhyo to Ohyo
+              cachedOhyos = hiveCachedOhyos.map((cachedOhyo) {
+                return Ohyo(
+                  id: cachedOhyo.id,
+                  name: cachedOhyo.name,
+                  description: cachedOhyo.description,
+                  style: cachedOhyo.style ?? '',
+                  createdAt: cachedOhyo.createdAt,
+                  imageUrls: cachedOhyo.imageUrls,
+                  videoUrls: [], // Not stored in CachedOhyo
+                  order: 0, // Not stored in CachedOhyo
+                );
+              }).toList();
+
+              // Load cached ohyos from Hive for immediate UI feedback
+              state = state.copyWith(
+                ohyos: cachedOhyos,
+                filteredOhyos: cachedOhyos,
+                isLoading: true, // Keep loading true while we try to refresh from online
+                error: null,
+                isOfflineMode: true,
+              );
+
+              // Preload images for cached ohyos
+              if (cachedOhyos.isNotEmpty) {
+                await _preloadInitialOhyoImagesWithCache(cachedOhyos.take(3).toList());
+              }
+            }
+          } catch (e) {
+            debugPrint('Error loading Hive cached ohyos: $e');
           }
         }
       } catch (e) {
@@ -103,7 +205,7 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
         () async {
           final response = await _supabase
               .from("ohyo")
-              .select()
+              .select('id, name, description, style, created_at, image_urls, video_urls, order')
               .order('order', ascending: true);
 
           final onlineOhyos = (response as List)
@@ -126,7 +228,7 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
           // Preload images for online ohyos
           if (onlineOhyos.isNotEmpty) {
-            _preloadInitialOhyoImages(onlineOhyos.take(3).toList());
+            await _preloadInitialOhyoImagesWithCache(onlineOhyos.take(3).toList());
           }
         },
         maxRetries: 3,
@@ -170,6 +272,20 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
            errorString.contains('socket') ||
            errorString.contains('dns') ||
            errorString.contains('host');
+  }
+
+  /// Check network connectivity more reliably
+  Future<bool> _checkNetworkConnectivity() async {
+    try {
+      // Use a simple connectivity check by trying to resolve a hostname
+      final result = await InternetAddress.lookup('google.com').timeout(
+        const Duration(seconds: 3),
+      );
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (e) {
+      debugPrint('Network connectivity check failed: $e');
+      return false;
+    }
   }
 
   void searchOhyos(String query) {
@@ -565,18 +681,44 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
     }
   }
 
-  void _preloadInitialOhyoImages(List<Ohyo> initialOhyos) {
-    // Preload images for better UX - but don't block the main thread
-    Future.microtask(() async {
-      for (final ohyo in initialOhyos) {
-        try {
-          await ImageUtils.fetchOhyoImagesFromBucket(ohyo.id);
-        } catch (e) {
-          // Silently fail - images will be loaded when needed
-          debugPrint('Failed to preload ohyo images for ohyo ${ohyo.id}: $e');
+  Future<void> _preloadInitialOhyoImagesWithCache(List<Ohyo> initialOhyos) async {
+    // Preload images for better UX - prioritize cached images when offline
+    for (final ohyo in initialOhyos) {
+      try {
+        // First, try to load cached images immediately
+        final cachedImageUrls = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyo.id);
+        if (cachedImageUrls.isNotEmpty) {
+          debugPrint('🏠 Preloaded ${cachedImageUrls.length} cached images for ohyo ${ohyo.id}');
+
+          // Update the ohyo in the state with cached images
+          final updatedOhyos = state.ohyos.map((o) {
+            if (o.id == ohyo.id) {
+              return o.copyWith(imageUrls: cachedImageUrls);
+            }
+            return o;
+          }).toList();
+
+          final updatedFilteredOhyos = state.filteredOhyos.map((o) {
+            if (o.id == ohyo.id) {
+              return o.copyWith(imageUrls: cachedImageUrls);
+            }
+            return o;
+          }).toList();
+
+          state = state.copyWith(
+            ohyos: updatedOhyos,
+            filteredOhyos: updatedFilteredOhyos,
+          );
+          continue; // Skip online fetch if we have cached images
         }
+
+        // If no cached images, try online fetch (will cache them)
+        await ImageUtils.fetchOhyoImagesFromBucket(ohyo.id);
+      } catch (e) {
+        // Silently fail - images will be loaded when needed
+        debugPrint('Failed to preload ohyo images for ohyo ${ohyo.id}: $e');
       }
-    });
+    }
   }
 }
 

@@ -8,6 +8,7 @@ import '../providers/accessibility_provider.dart';
 import '../widgets/enhanced_accessible_text.dart';
 import '../providers/permission_provider.dart';
 import '../providers/interaction_provider.dart';
+import '../providers/network_provider.dart';
 import '../widgets/avatar_widget.dart';
 import '../services/unified_tts_service.dart';
 import '../widgets/threaded_comment_widget.dart';
@@ -41,7 +42,6 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   ForumPost? _post;
   bool _isLoading = true;
   ForumComment? _replyingToComment;
-  bool _isOfflineMode = false;
 
   // Pagination state
   List<ForumComment> _comments = [];
@@ -80,16 +80,12 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           .read(forumNotifierProvider.notifier)
           .getPost(widget.postId);
 
-      // Check if we're in offline mode (forum posts list is offline)
-      final isForumOffline = ref.read(forumOfflineModeProvider);
-
       setState(() {
         _post = post;
         _isLoading = false;
         _comments = [];
         _currentOffset = 0;
         _hasMoreComments = true;
-        _isOfflineMode = isForumOffline;
       });
 
       // Automatically read the forum post content when loaded
@@ -102,7 +98,6 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _isOfflineMode = true; // Assume offline if loading fails
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -171,12 +166,13 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       return;
     }
 
-    // Check if we're in offline mode
-    if (_isOfflineMode) {
+    // Check if we're online
+    final isConnected = ref.read(isConnectedProvider);
+    if (!isConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Je kunt geen reacties plaatsen in offline modus'),
+            content: Text('Je kunt geen reacties plaatsen zonder internetverbinding'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -645,6 +641,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               final likeCount = forumInteraction.likeCount;
               final isFavorited = forumInteraction.isFavorited;
               final isLoading = forumInteraction.isLoading;
+              final isConnected = ref.watch(isConnectedProvider);
 
               return SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -652,7 +649,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                   children: [
                     // Like button
                     GestureDetector(
-                      onTap: isLoading
+                      onTap: (isLoading || !isConnected)
                           ? null
                           : () async {
                               try {
@@ -680,12 +677,16 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: isLiked
-                              ? Colors.red.withValues(alpha: 0.1)
-                              : Colors.grey.withValues(alpha: 0.1),
+                          color: !isConnected
+                              ? Colors.grey.withValues(alpha: 0.05)
+                              : isLiked
+                                  ? Colors.red.withValues(alpha: 0.1)
+                                  : Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isLiked ? Colors.red : Colors.grey,
+                            color: !isConnected
+                                ? Colors.grey.withValues(alpha: 0.2)
+                                : isLiked ? Colors.red : Colors.grey,
                             width: 1,
                           ),
                         ),
@@ -695,13 +696,17 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                             Icon(
                               isLiked ? Icons.favorite : Icons.favorite_border,
                               size: 16,
-                              color: isLiked ? Colors.red : Colors.grey[600],
+                              color: !isConnected
+                                  ? Colors.grey[400]
+                                  : isLiked ? Colors.red : Colors.grey[600],
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '$likeCount',
                               style: TextStyle(
-                                color: isLiked ? Colors.red : Colors.grey[600],
+                                color: !isConnected
+                                    ? Colors.grey[400]
+                                    : isLiked ? Colors.red : Colors.grey[600],
                                 fontWeight: FontWeight.w500,
                                 fontSize: 12,
                               ),
@@ -714,7 +719,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
                     // Favorite button
                     GestureDetector(
-                      onTap: isLoading
+                      onTap: (isLoading || !isConnected)
                           ? null
                           : () async {
                               try {
@@ -754,13 +759,17 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: isFavorited
-                              ? Colors.teal.shade400.withValues(alpha: 0.1)
-                              : Colors.grey.withValues(alpha: 0.1),
+                          color: !isConnected
+                              ? Colors.grey.withValues(alpha: 0.05)
+                              : isFavorited
+                                  ? Colors.teal.shade400.withValues(alpha: 0.1)
+                                  : Colors.grey.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isFavorited
-                                ? Colors.teal.shade400
+                            color: !isConnected
+                                ? Colors.grey.withValues(alpha: 0.2)
+                                : isFavorited
+                                    ? Colors.teal.shade400
                                 : Colors.grey,
                             width: 1,
                           ),
@@ -773,17 +782,21 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                                   ? Icons.bookmark
                                   : Icons.bookmark_border,
                               size: 16,
-                              color: isFavorited
-                                  ? Colors.teal.shade400
-                                  : Colors.grey[600],
+                              color: !isConnected
+                                  ? Colors.grey[400]
+                                  : isFavorited
+                                      ? Colors.teal.shade400
+                                      : Colors.grey[600],
                             ),
                             const SizedBox(width: 4),
                             Text(
                               isFavorited ? 'Opgeslagen' : 'Opslaan',
                               style: TextStyle(
-                                color: isFavorited
-                                    ? Colors.teal.shade400
-                                    : Colors.grey[600],
+                                color: !isConnected
+                                    ? Colors.grey[400]
+                                    : isFavorited
+                                        ? Colors.teal.shade400
+                                        : Colors.grey[600],
                                 fontWeight: FontWeight.w500,
                                 fontSize: 12,
                               ),
@@ -1172,41 +1185,76 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         appBar: AppBar(
           title: const Text('Forum Post'),
           actions: [
-            if (_isOfflineMode)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange, width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+            Consumer(
+              builder: (context, ref, child) {
+                final isConnected = ref.watch(isConnectedProvider);
+                final pendingOperations = ref.watch(forumPendingOperationsProvider);
+                final hasPendingOperations = pendingOperations > 0;
+                return Row(
                   children: [
-                    Icon(Icons.cloud_off, size: 16, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Offline',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                    if (!isConnected)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.orange, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.cloud_off, size: 16, color: Colors.orange),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Offline',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    if (hasPendingOperations)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sync, size: 16, color: Colors.blue),
+                            const SizedBox(width: 4),
+                            Text(
+                              '$pendingOperations',
+                              style: const TextStyle(
+                                color: Colors.blue,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: _isLoading ? null : () async {
+                        setState(() {
+                          _isLoading = true;
+                        });
+                        await _loadPost();
+                      },
+                      tooltip: 'Vernieuwen',
                     ),
                   ],
-                ),
-              ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _isLoading ? null : () async {
-                setState(() {
-                  _isLoading = true;
-                  _isOfflineMode = false;
-                });
-                await _loadPost();
+                );
               },
-              tooltip: 'Vernieuwen',
             ),
           ],
         ),
@@ -1237,108 +1285,116 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
             // Fixed comment input at bottom (if not locked)
             if (!_post!.isLocked)
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.90),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
-                      spreadRadius: 1,
-                      blurRadius: 3,
-                      offset: const Offset(0, -1),
+              Consumer(
+                builder: (context, ref, child) {
+                  final isConnected = ref.watch(isConnectedProvider);
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.90),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
+                          spreadRadius: 1,
+                          blurRadius: 3,
+                          offset: const Offset(0, -1),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_isOfflineMode)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!isConnected)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              margin: const EdgeInsets.only(bottom: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Offline: reacties kunnen niet worden geplaatst',
+                                      style: TextStyle(
+                                        color: Colors.orange,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          Row(
                             children: [
-                              const Icon(Icons.info_outline, size: 16, color: Colors.orange),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'Offline: reacties kunnen niet worden geplaatst',
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+                              Expanded(
+                                child: EnhancedAccessibleTextField(
+                                  controller: _commentController,
+                                  focusNode: _commentFocusNode,
+                                  decoration: InputDecoration(
+                                    hintText: !isConnected
+                                        ? 'Offline'
+                                        : _replyingToComment != null
+                                            ? 'Reageer op ${_replyingToComment!.authorName}...'
+                                            : 'Schrijf een reactie...',
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(24),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 10,
+                                    ),
+                                    filled: true,
+                                    fillColor: !isConnected
+                                        ? Colors.grey.withValues(alpha: 0.1)
+                                        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                                    counterText: "",
+                                  ),
+                                  maxLines: 5,
+                                  minLines: 1,
+                                  maxLength: 1000,
+                                  textInputAction: TextInputAction.newline,
+                                  onSubmitted: !isConnected ? null : (_) => _submitComment(),
+                                  customTTSLabel: 'Reactie invoerveld',
+                                  enabled: isConnected,
                                 ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: (_isSubmittingComment || !isConnected)
+                                    ? null
+                                    : _submitComment,
+                                icon: _isSubmittingComment
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.send,
+                                        color: !isConnected
+                                          ? Colors.grey
+                                          : Theme.of(context).colorScheme.primary
+                                      ),
                               ),
                             ],
                           ),
-                        ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: EnhancedAccessibleTextField(
-                              controller: _commentController,
-                              focusNode: _commentFocusNode,
-                              decoration: InputDecoration(
-                                hintText: _isOfflineMode
-                                    ? 'Offline'
-                                    : _replyingToComment != null
-                                        ? 'Reageer op ${_replyingToComment!.authorName}...'
-                                        : 'Schrijf een reactie...',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(24),
-                                  borderSide: BorderSide.none,
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                filled: true,
-                                fillColor: _isOfflineMode
-                                    ? Colors.grey.withValues(alpha: 0.1)
-                                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                                counterText: "",
-                              ),
-                              maxLines: 5,
-                              minLines: 1,
-                              maxLength: 1000,
-                              textInputAction: TextInputAction.newline,
-                              onSubmitted: _isOfflineMode ? null : (_) => _submitComment(),
-                              customTTSLabel: 'Reactie invoerveld',
-                              enabled: !_isOfflineMode,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: (_isSubmittingComment || _isOfflineMode)
-                                ? null
-                                : _submitComment,
-                            icon: _isSubmittingComment
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Icon(
-                                    Icons.send, 
-                                    color: _isOfflineMode 
-                                      ? Colors.grey 
-                                      : Theme.of(context).colorScheme.primary
-                                  ),
-                          ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
           ],
         ),

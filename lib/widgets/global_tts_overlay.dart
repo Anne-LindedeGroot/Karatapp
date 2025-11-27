@@ -30,7 +30,7 @@ class GlobalTTSOverlay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     try {
       final showTTSButton = ref.watch(showTTSButtonProvider);
-      
+
       if (!enabled || !showTTSButton) {
         return child;
       }
@@ -42,11 +42,14 @@ class GlobalTTSOverlay extends ConsumerWidget {
           if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
             return child;
           }
-          
+
           // Calculate safe positioning
           final buttonSize = 56.0;
           final rightMargin = 16.0; // Increased margin for better visibility
-          final bottomMargin = 200.0; // Positioned higher to avoid interfering with user management buttons
+
+          // Check if we're on a screen with a FAB and adjust positioning accordingly
+          // Position higher to avoid FAB conflicts (FAB is typically at bottom: 16-24)
+          final bottomMargin = _hasFloatingActionButton(context) ? 120.0 : 200.0;
           
           // Ensure button fits within available space
           final availableWidth = constraints.maxWidth;
@@ -90,6 +93,18 @@ class GlobalTTSOverlay extends ConsumerWidget {
       // If there's any error in the TTS overlay, just return the child
       debugPrint('Error in GlobalTTSOverlay: $e');
       return child;
+    }
+  }
+
+  /// Check if the current context has a FloatingActionButton that might conflict with TTS button positioning
+  bool _hasFloatingActionButton(BuildContext context) {
+    try {
+      // Try to find a Scaffold ancestor and check if it has a floatingActionButton
+      Scaffold? scaffold = context.findAncestorWidgetOfExactType<Scaffold>();
+      return scaffold?.floatingActionButton != null;
+    } catch (e) {
+      // If we can't determine, assume no FAB to be safe
+      return false;
     }
   }
 }

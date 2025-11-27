@@ -257,7 +257,14 @@ class _UserListItemState extends ConsumerState<UserListItem> {
 
   Future<void> _speakUserContent() async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('UserListItem TTS: TTS is disabled, not speaking user content');
+        return;
+      }
 
       final userName = widget.user['full_name'] as String? ?? widget.user['email']?.split('@')[0] ?? 'Onbekende Gebruiker';
       final userEmail = widget.user['email'] as String? ?? '';

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../models/interaction_models.dart';
+import '../models/forum_models.dart';
 import 'role_service.dart';
 import 'offline_queue_service.dart';
 import 'comment_cache_service.dart';
@@ -252,44 +253,64 @@ class InteractionService {
     }
   }
 
-  // Toggle like for a kata
+  // Toggle like for a kata (offline-first)
   Future<bool> toggleKataLike(int kataId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    debugPrint('🔄 Toggling like for kata $kataId');
+
+    final operationId = _uuid.v4();
+
+    // Create offline operation
+    final operation = OfflineOperation(
+      id: operationId,
+      type: OfflineOperationType.toggleKataLike,
+      status: OfflineOperationStatus.pending,
+      data: {
+        'kata_id': kataId,
+      },
+      createdAt: DateTime.now(),
+      userId: user.id,
+    );
+
+    // Add to offline queue
+    if (_offlineQueueService != null) {
+      await _offlineQueueService!.addOperation(operation);
+    }
+
     try {
-      final user = _client.auth.currentUser;
-      if (user == null) {
-        throw Exception('User not authenticated');
+      // Try to execute immediately
+      final result = await executeToggleKataLike(kataId, user.id);
+      debugPrint('✅ Kata like toggled successfully: $result');
+
+      // Update cache if available
+      if (_commentCacheService != null) {
+        await _updateKataLikeCache(kataId, result);
       }
 
-      // Check if user already liked this kata
-      final existingLike = await _client
-          .from('likes')
-          .select('id')
-          .eq('target_type', 'kata')
-          .eq('target_id', kataId)
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (existingLike != null) {
-        // Unlike - remove the like
-        await _client
-            .from('likes')
-            .delete()
-            .eq('id', existingLike['id']);
-        return false; // Not liked anymore
-      } else {
-        // Like - add the like
-        await _client
-            .from('likes')
-            .insert({
-              'user_id': user.id,
-              'target_type': 'kata',
-              'target_id': kataId,
-              'created_at': DateTime.now().toIso8601String(),
-            });
-        return true; // Now liked
+      // Mark operation as completed
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.removeOperation(operationId);
       }
+
+      return result;
     } catch (e) {
-      throw Exception('Failed to toggle kata like: $e');
+      debugPrint('❌ Error toggling kata like: $e');
+      // If offline, operation stays in queue for later retry
+      // Update operation status
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.markOperationFailed(operationId, e.toString());
+      }
+
+      // For immediate UI feedback, try to update cache optimistically
+      if (_commentCacheService != null) {
+        await _optimisticUpdateKataLikeCache(kataId);
+      }
+
+      rethrow;
     }
   }
 
@@ -774,48 +795,64 @@ class InteractionService {
     }
   }
 
-  // Toggle like on an ohyo
+  // Toggle like on an ohyo (offline-first)
   Future<bool> toggleOhyoLike(int ohyoId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw Exception('User not authenticated');
+    }
+
+    debugPrint('🔄 Toggling like for ohyo $ohyoId');
+
+    final operationId = _uuid.v4();
+
+    // Create offline operation
+    final operation = OfflineOperation(
+      id: operationId,
+      type: OfflineOperationType.toggleOhyoLike,
+      status: OfflineOperationStatus.pending,
+      data: {
+        'ohyo_id': ohyoId,
+      },
+      createdAt: DateTime.now(),
+      userId: user.id,
+    );
+
+    // Add to offline queue
+    if (_offlineQueueService != null) {
+      await _offlineQueueService!.addOperation(operation);
+    }
+
     try {
-      final user = _client.auth.currentUser;
-      if (user == null) {
-        throw Exception('User not authenticated');
+      // Try to execute immediately
+      final result = await executeToggleOhyoLike(ohyoId, user.id);
+      debugPrint('✅ Ohyo like toggled successfully: $result');
+
+      // Update cache if available
+      if (_commentCacheService != null) {
+        await _updateOhyoLikeCache(ohyoId, result);
       }
 
-      // Check if already liked
-      final existingLike = await _client
-          .from('likes')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('target_type', 'ohyo')
-          .eq('target_id', ohyoId)
-          .maybeSingle();
-
-      if (existingLike != null) {
-        // Unlike
-        await _client
-            .from('likes')
-            .delete()
-            .eq('id', existingLike['id']);
-        return false;
-      } else {
-        // Like
-        final userName = user.userMetadata?['full_name'] ?? user.email ?? 'Anonymous';
-        final likeData = {
-          'user_id': user.id,
-          'user_name': userName,
-          'target_type': 'ohyo',
-          'target_id': ohyoId,
-          'created_at': DateTime.now().toIso8601String(),
-        };
-
-        await _client
-            .from('likes')
-            .insert(likeData);
-        return true;
+      // Mark operation as completed
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.removeOperation(operationId);
       }
+
+      return result;
     } catch (e) {
-      throw Exception('Failed to toggle ohyo like: $e');
+      debugPrint('❌ Error toggling ohyo like: $e');
+      // If offline, operation stays in queue for later retry
+      // Update operation status
+      if (_offlineQueueService != null) {
+        await _offlineQueueService!.markOperationFailed(operationId, e.toString());
+      }
+
+      // For immediate UI feedback, try to update cache optimistically
+      if (_commentCacheService != null) {
+        await _optimisticUpdateOhyoLikeCache(ohyoId);
+      }
+
+      rethrow;
     }
   }
 
@@ -1288,6 +1325,197 @@ class InteractionService {
         likeCount: existingState.isLiked ? existingState.likeCount - 1 : existingState.likeCount,
         dislikeCount: existingState.dislikeCount + (newIsDisliked ? 1 : -1),
       );
+    }
+  }
+
+  // Helper method to execute toggle kata like
+  Future<bool> executeToggleKataLike(int kataId, String userId) async {
+    debugPrint('🔍 Checking existing like for kata $kataId');
+
+    // Check if already liked
+    final existingLike = await _client
+        .from('likes')
+        .select('id')
+        .eq('target_type', 'kata')
+        .eq('target_id', kataId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (existingLike != null) {
+      debugPrint('👍 Unlike: removing existing like');
+      // Unlike - remove the like
+      await _client
+          .from('likes')
+          .delete()
+          .eq('id', existingLike['id']);
+      return false; // Not liked anymore
+    } else {
+      debugPrint('❤️ Like: adding new like');
+      // Like - add the like
+      final user = _client.auth.currentUser!;
+      final userName = user.userMetadata?['full_name'] ?? user.email ?? 'Anonymous';
+      final likeData = {
+        'user_id': userId,
+        'user_name': userName,
+        'target_type': 'kata',
+        'target_id': kataId,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await _client
+          .from('likes')
+          .insert(likeData);
+      return true; // Now liked
+    }
+  }
+
+  // Update kata like cache
+  Future<void> _updateKataLikeCache(int kataId, bool isLiked) async {
+    // For kata likes, we need to update the local storage
+    // This would typically be handled by the provider when syncing
+    debugPrint('Kata like cache update: kata $kataId, liked: $isLiked');
+  }
+
+  // Optimistic cache update for kata likes
+  Future<void> _optimisticUpdateKataLikeCache(int kataId) async {
+    // For optimistic updates, we'd update the local state immediately
+    debugPrint('Optimistic kata like cache update: kata $kataId');
+  }
+
+  // Execute toggle ohyo like (actual server operation)
+  Future<bool> executeToggleOhyoLike(int ohyoId, String userId) async {
+    debugPrint('🔍 Checking existing like for ohyo $ohyoId');
+
+    // Check if already liked
+    final existingLike = await _client
+        .from('likes')
+        .select('id')
+        .eq('target_type', 'ohyo')
+        .eq('target_id', ohyoId)
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    if (existingLike != null) {
+      debugPrint('👍 Unlike: removing existing like');
+      // Unlike - remove the like
+      await _client
+          .from('likes')
+          .delete()
+          .eq('id', existingLike['id']);
+      return false; // Not liked anymore
+    } else {
+      debugPrint('❤️ Like: adding new like');
+      // Like - add the like
+      final user = _client.auth.currentUser!;
+      final userName = user.userMetadata?['full_name'] ?? user.email ?? 'Anonymous';
+      final likeData = {
+        'user_id': userId,
+        'user_name': userName,
+        'target_type': 'ohyo',
+        'target_id': ohyoId,
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await _client
+          .from('likes')
+          .insert(likeData);
+      return true; // Now liked
+    }
+  }
+
+  // Update ohyo like cache
+  Future<void> _updateOhyoLikeCache(int ohyoId, bool isLiked) async {
+    // For ohyo likes, we need to update the local storage
+    // This would typically be handled by the provider when syncing
+    debugPrint('Ohyo like cache update: ohyo $ohyoId, liked: $isLiked');
+  }
+
+  // Optimistic cache update for ohyo likes
+  Future<void> _optimisticUpdateOhyoLikeCache(int ohyoId) async {
+    // For optimistic updates, we'd update the local state immediately
+    debugPrint('Optimistic ohyo like cache update: ohyo $ohyoId');
+  }
+
+  // FORUM COMMENTS
+
+  Future<ForumComment> addForumComment({
+    required int postId,
+    required String content,
+    int? parentCommentId,
+  }) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final userName = user.userMetadata?['full_name'] ?? user.email ?? 'Anonymous';
+      final avatarUrl = user.userMetadata?['avatar_url'];
+
+      final commentData = {
+        'post_id': postId,
+        'content': content,
+        'author_id': user.id,
+        'author_name': userName,
+        'author_avatar': avatarUrl,
+        'parent_comment_id': parentCommentId,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      final response = await _client
+          .from('forum_comments')
+          .insert(commentData)
+          .select()
+          .single();
+
+      return ForumComment.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to add forum comment: $e');
+    }
+  }
+
+  Future<ForumComment> updateForumComment({
+    required int commentId,
+    required String content,
+  }) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await _client
+          .from('forum_comments')
+          .update({
+            'content': content,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', commentId)
+          .eq('author_id', user.id) // Ensure user can only update their own comments
+          .select()
+          .single();
+
+      return ForumComment.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to update forum comment: $e');
+    }
+  }
+
+  Future<void> deleteForumComment(int commentId) async {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await _client
+          .from('forum_comments')
+          .delete()
+          .eq('id', commentId)
+          .eq('author_id', user.id); // Ensure user can only delete their own comments
+    } catch (e) {
+      throw Exception('Failed to delete forum comment: $e');
     }
   }
 }

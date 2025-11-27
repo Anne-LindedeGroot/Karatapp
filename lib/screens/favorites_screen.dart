@@ -48,32 +48,40 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
   Future<void> _speakKataContent(Kata kata, int index) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('FavoritesScreen TTS: TTS is disabled, not speaking kata content');
+        return;
+      }
+
       final skipGeneralInfo = ref.read(skipGeneralInfoInTTSKataProvider);
-      
+
       // Build content for TTS based on settings
       final content = StringBuffer();
       content.write('Kata $index: ${kata.name}. ');
-      
+
       // Always include style (this is important kata information)
       if (kata.style.isNotEmpty && kata.style != 'Unknown') {
         content.write('Stijl: ${kata.style}. ');
       }
-      
+
       // Include description only if not skipping general info
       if (!skipGeneralInfo && kata.description.isNotEmpty) {
         content.write('Beschrijving: ${kata.description}. ');
       }
-      
+
       // Always include media information (this is specific content, not general info)
       if (kata.imageUrls?.isNotEmpty == true) {
         content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
       }
-      
+
       if (kata.videoUrls?.isNotEmpty == true) {
         content.write('Deze kata heeft ${kata.videoUrls?.length} video\'s. ');
       }
-      
+
       await accessibilityNotifier.speak(content.toString());
     } catch (e) {
       debugPrint('Error speaking kata content: $e');
@@ -82,7 +90,14 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
   Future<void> _speakForumPostContent(ForumPost post, int index) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('FavoritesScreen TTS: TTS is disabled, not speaking forum post content');
+        return;
+      }
 
       // Build comprehensive content for TTS
       final content = StringBuffer();
@@ -117,7 +132,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
 
   Future<void> _speakOhyoContent(Ohyo ohyo, int index) async {
     try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
       final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      // Only speak if TTS is enabled
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        debugPrint('FavoritesScreen TTS: TTS is disabled, not speaking ohyo content');
+        return;
+      }
+
       final skipGeneralInfo = ref.read(skipGeneralInfoInTTSOhyoProvider);
 
       // Build content for TTS based on settings

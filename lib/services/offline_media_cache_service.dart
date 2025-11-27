@@ -7,16 +7,19 @@ import 'package:crypto/crypto.dart';
 import '../providers/network_provider.dart';
 import '../providers/data_usage_provider.dart';
 
-/// Offline media cache service for images and videos
+/// Offline media cache service for images (videos work online only)
 class OfflineMediaCacheService {
   static const String _cacheDirName = 'media_cache';
   static const String _imagesDirName = 'images';
-  static const String _videosDirName = 'videos';
   static const int _maxCacheSizeMB = 500; // 500MB max cache size
 
   static Directory? _cacheDir;
   static Directory? _imagesDir;
-  static Directory? _videosDir;
+
+  /// Get the cache directory (must call initialize() first)
+  static Directory? getCacheDirectory() {
+    return _cacheDir;
+  }
 
   /// Initialize cache directories
   static Future<void> initialize() async {
@@ -24,26 +27,29 @@ class OfflineMediaCacheService {
       final appDir = await getApplicationDocumentsDirectory();
       _cacheDir = Directory('${appDir.path}/$_cacheDirName');
       _imagesDir = Directory('${_cacheDir!.path}/$_imagesDirName');
-      _videosDir = Directory('${_cacheDir!.path}/$_videosDirName');
 
       // Create directories if they don't exist
       await _cacheDir!.create(recursive: true);
       await _imagesDir!.create(recursive: true);
-      await _videosDir!.create(recursive: true);
 
-      debugPrint('Offline media cache initialized at: ${_cacheDir!.path}');
+      debugPrint('Offline image cache initialized at: ${_cacheDir!.path} (videos work online only)');
     } catch (e) {
-      debugPrint('Failed to initialize offline media cache: $e');
+      debugPrint('Failed to initialize offline image cache: $e');
     }
   }
 
-  /// Get cached file path for a media URL
+  /// Get cached file path for a media URL (images only - videos work online only)
   static String? getCachedFilePath(String url, bool isVideo) {
+    // Videos are not cached - they work online only
+    if (isVideo) {
+      return null;
+    }
+
     if (_cacheDir == null) return null;
 
     final hash = _generateUrlHash(url);
-    final dir = isVideo ? _videosDir! : _imagesDir!;
-    final extension = _getFileExtension(url, isVideo);
+    final dir = _imagesDir!;
+    final extension = _getFileExtension(url, false);
     final fileName = '$hash$extension';
     final file = File('${dir.path}/$fileName');
 
@@ -64,6 +70,16 @@ class OfflineMediaCacheService {
     }
 
     return null;
+  }
+
+  /// Check if a ref is a valid Riverpod ref
+  static bool _isValidRef(dynamic ref) {
+    try {
+      // Check if this is a Riverpod ref by testing if it has the read method
+      return ref != null && ref.read != null;
+    } catch (e) {
+      return false;
+    }
   }
 
   /// Get cached file path for ohyo images using stable key (ohyoId_filename)
@@ -154,26 +170,34 @@ class OfflineMediaCacheService {
     try {
       if (_cacheDir == null) return null;
 
+      // Don't cache streaming video URLs (YouTube, Vimeo, etc.) as they can't be downloaded as files
+      if (_isStreamingVideoUrl(url)) {
+        debugPrint('⚠️ Streaming video URLs cannot be cached for offline use: $url');
+        return null;
+      }
+
       // Try to read network and data usage state, but don't fail if providers aren't available
       bool shouldCache = true;
-      try {
-        final networkState = ref.read(networkProvider);
-        final dataUsageState = ref.read(dataUsageProvider);
+      if (_isValidRef(ref)) {
+        try {
+          final networkState = ref.read(networkProvider);
+          final dataUsageState = ref.read(dataUsageProvider);
 
-        // Don't cache if not connected or data usage not allowed
-        if (!networkState.isConnected || !dataUsageState.shouldAllowDataUsage) {
-          shouldCache = false;
+          // Don't cache if not connected or data usage not allowed
+          if (!networkState.isConnected || !dataUsageState.shouldAllowDataUsage) {
+            shouldCache = false;
+          }
+        } catch (e) {
+          // If providers aren't available, assume we can cache
+          debugPrint('Network/data usage providers not available, proceeding with cache');
         }
-      } catch (e) {
-        // If providers aren't available, assume we can cache
-        debugPrint('Network/data usage providers not available, proceeding with cache');
       }
 
       if (!shouldCache) return null;
 
       final hash = _generateUrlHash(url);
-      final dir = isVideo ? _videosDir! : _imagesDir!;
-      final extension = _getFileExtension(url, isVideo);
+      final dir = _imagesDir!;
+      final extension = _getFileExtension(url, false);
       final fileName = '$hash$extension';
       final file = File('${dir.path}/$fileName');
 
@@ -188,13 +212,15 @@ class OfflineMediaCacheService {
         await file.writeAsBytes(response.bodyBytes);
 
         // Record data usage (if provider is available)
-        try {
-          ref.read(dataUsageProvider.notifier).recordDataUsage(
-            response.bodyBytes.length,
-            type: isVideo ? 'video_cache' : 'image_cache',
-          );
-        } catch (e) {
-          // Data usage provider not available, skip recording
+        if (_isValidRef(ref)) {
+          try {
+            ref.read(dataUsageProvider.notifier).recordDataUsage(
+              response.bodyBytes.length,
+              type: isVideo ? 'video_cache' : 'image_cache',
+            );
+          } catch (e) {
+            // Data usage provider not available, skip recording
+          }
         }
 
         // Clean up old cache if needed
@@ -272,11 +298,17 @@ class OfflineMediaCacheService {
     return null;
   }
 
-  /// Pre-cache multiple media files
+  /// Pre-cache multiple media files (images only - videos work online only)
   static Future<void> preCacheMediaFiles(List<String> urls, bool isVideo, dynamic ref) async {
+    // Only cache images, videos work online only
+    if (isVideo) {
+      debugPrint('⚠️ Videos are not cached for offline use - they work online only');
+      return;
+    }
+
     for (final url in urls) {
       if (url.isNotEmpty) {
-        await cacheMediaFile(url, isVideo, ref);
+        await cacheMediaFile(url, false, ref); // Always pass false for isVideo since we don't cache videos
       }
     }
   }
@@ -293,16 +325,11 @@ class OfflineMediaCacheService {
     return await cacheMediaFile(url, false, ref);
   }
 
-  /// Get cached video path, or download if not cached
+  /// Get video path (videos are not cached - they work online only)
   static Future<String?> getVideoPath(String url, dynamic ref) async {
-    // Check if already cached
-    final cachedPath = getCachedFilePath(url, true);
-    if (cachedPath != null) {
-      return cachedPath;
-    }
-
-    // Cache the video
-    return await cacheMediaFile(url, true, ref);
+    // Videos are not cached - return original URL for online playback
+    debugPrint('📹 Video caching disabled - returning original URL for online playback: $url');
+    return url;
   }
 
   /// Clear all cached media files
@@ -341,6 +368,19 @@ class OfflineMediaCacheService {
     return sha256.convert(utf8.encode(url)).toString().substring(0, 16);
   }
 
+  /// Check if URL is a streaming video service that can't be cached
+  static bool _isStreamingVideoUrl(String url) {
+    final lowerUrl = url.toLowerCase();
+    return lowerUrl.contains('youtube.com') ||
+           lowerUrl.contains('youtu.be') ||
+           lowerUrl.contains('vimeo.com') ||
+           lowerUrl.contains('dailymotion.com') ||
+           lowerUrl.contains('twitch.tv') ||
+           lowerUrl.contains('facebook.com/video') ||
+           lowerUrl.contains('instagram.com') ||
+           lowerUrl.contains('tiktok.com');
+  }
+
   /// Get file extension from URL
   static String _getFileExtension(String url, bool isVideo) {
     try {
@@ -362,9 +402,6 @@ class OfflineMediaCacheService {
     final files = <File>[];
     if (_imagesDir != null && await _imagesDir!.exists()) {
       files.addAll(await _getFilesInDirectory(_imagesDir!));
-    }
-    if (_videosDir != null && await _videosDir!.exists()) {
-      files.addAll(await _getFilesInDirectory(_videosDir!));
     }
     return files;
   }
@@ -417,7 +454,7 @@ class OfflineMediaCacheService {
     }
   }
 
-  /// Update metadata for cached ohyo images
+  /// Update metadata for cached ohyo images (replaces existing entries)
   static Future<void> _updateOhyoMetadata(int ohyoId, String fileName) async {
     if (_imagesDir == null) return;
 
@@ -430,15 +467,8 @@ class OfflineMediaCacheService {
       }
 
       final ohyoKey = ohyoId.toString();
-      if (!metadata.containsKey(ohyoKey)) {
-        metadata[ohyoKey] = <String>[];
-      }
-
-      final fileNames = metadata[ohyoKey] as List<dynamic>;
-      if (!fileNames.contains(fileName)) {
-        fileNames.add(fileName);
-        metadata[ohyoKey] = fileNames;
-      }
+      // Replace the entire list for this ohyo with the new filename
+      metadata[ohyoKey] = [fileName];
 
       await metadataFile.writeAsString(json.encode(metadata));
     } catch (e) {
@@ -446,8 +476,92 @@ class OfflineMediaCacheService {
     }
   }
 
-  /// Update metadata for cached kata images
-  static Future<void> updateKataMetadata(int kataId, String url) async {
+  /// Clear all cached media for a specific kata
+  static Future<void> clearKataCache(int kataId) async {
+    if (_imagesDir == null) return;
+
+    try {
+      debugPrint('Clearing old cache for kata $kataId...');
+
+      // Remove from metadata
+      final metadataFile = File('${_imagesDir!.path}/kata_metadata.json');
+      if (await metadataFile.exists()) {
+        final metadata = json.decode(await metadataFile.readAsString()) as Map<String, dynamic>;
+        if (metadata.containsKey(kataId.toString())) {
+          metadata.remove(kataId.toString());
+          await metadataFile.writeAsString(json.encode(metadata));
+        }
+      }
+
+      // Remove cached files with kata pattern
+      final allFiles = <File>[];
+      if (_imagesDir != null) {
+        allFiles.addAll(await _getFilesInDirectory(_imagesDir!));
+      }
+
+      for (final file in allFiles) {
+        final fileName = file.uri.pathSegments.last;
+        // Check if this file is for this kata (contains kata ID in filename or matches kata pattern)
+        if (fileName.contains('kata_${kataId}_') || fileName.contains('_kata${kataId}_')) {
+          try {
+            await file.delete();
+            debugPrint('Deleted old cached file for kata $kataId: ${file.path}');
+          } catch (e) {
+            debugPrint('Failed to delete old cached file ${file.path}: $e');
+          }
+        }
+      }
+
+      debugPrint('Cleared old cache for kata $kataId');
+    } catch (e) {
+      debugPrint('Failed to clear kata cache for kata $kataId: $e');
+    }
+  }
+
+  /// Clear all cached media for a specific ohyo
+  static Future<void> clearOhyoCache(int ohyoId) async {
+    if (_imagesDir == null) return;
+
+    try {
+      debugPrint('Clearing old cache for ohyo $ohyoId...');
+
+      // Remove from metadata
+      final metadataFile = File('${_imagesDir!.path}/ohyo_metadata.json');
+      if (await metadataFile.exists()) {
+        final metadata = json.decode(await metadataFile.readAsString()) as Map<String, dynamic>;
+        if (metadata.containsKey(ohyoId.toString())) {
+          metadata.remove(ohyoId.toString());
+          await metadataFile.writeAsString(json.encode(metadata));
+        }
+      }
+
+      // Remove cached files with ohyo pattern
+      final allFiles = <File>[];
+      if (_imagesDir != null) {
+        allFiles.addAll(await _getFilesInDirectory(_imagesDir!));
+      }
+
+      for (final file in allFiles) {
+        final fileName = file.uri.pathSegments.last;
+        // Check if this file is for this ohyo (contains ohyo ID in filename)
+        if (fileName.contains('ohyo_${ohyoId}_')) {
+          try {
+            await file.delete();
+            debugPrint('Deleted old cached file for ohyo $ohyoId: ${file.path}');
+          } catch (e) {
+            debugPrint('Failed to delete old cached file ${file.path}: $e');
+          }
+        }
+      }
+
+      debugPrint('Cleared old cache for ohyo $ohyoId');
+    } catch (e) {
+      debugPrint('Failed to clear ohyo cache for ohyo $ohyoId: $e');
+    }
+  }
+
+  /// Update metadata for cached kata images (accumulates URLs)
+  static Future<void> updateKataMetadata(int kataId, dynamic urlsOrUrl) async {
     if (_imagesDir == null) return;
 
     try {
@@ -459,17 +573,30 @@ class OfflineMediaCacheService {
       }
 
       final kataKey = kataId.toString();
-      if (!metadata.containsKey(kataKey)) {
-        metadata[kataKey] = <String>[];
+      List<String> urlsToStore;
+
+      // Handle both single URL and list of URLs
+      if (urlsOrUrl is List<String>) {
+        urlsToStore = urlsOrUrl;
+      } else if (urlsOrUrl is String) {
+        // For single URL, add to existing list or create new list
+        final existingUrls = metadata[kataKey] as List<dynamic>? ?? [];
+        final existingUrlStrings = existingUrls.map((url) => url.toString()).toList();
+        if (!existingUrlStrings.contains(urlsOrUrl)) {
+          urlsToStore = [...existingUrlStrings, urlsOrUrl];
+        } else {
+          urlsToStore = existingUrlStrings;
+        }
+      } else {
+        debugPrint('Invalid parameter type for updateKataMetadata');
+        return;
       }
 
-      final urls = metadata[kataKey] as List<dynamic>;
-      if (!urls.contains(url)) {
-        urls.add(url);
-        metadata[kataKey] = urls;
-      }
+      // Store all URLs for this kata
+      metadata[kataKey] = urlsToStore;
 
       await metadataFile.writeAsString(json.encode(metadata));
+      debugPrint('Updated kata metadata for kata $kataId with ${urlsToStore.length} URLs');
     } catch (e) {
       debugPrint('Failed to update kata metadata: $e');
     }
@@ -481,6 +608,7 @@ class OfflineMediaCacheService {
     if (_imagesDir == null) return urls;
 
     try {
+      // First try to get from metadata (for exact URL matches)
       final metadataFile = File('${_imagesDir!.path}/kata_metadata.json');
       if (await metadataFile.exists()) {
         final metadata = json.decode(await metadataFile.readAsString());
@@ -494,7 +622,30 @@ class OfflineMediaCacheService {
               urls.add(cachedPath);
             }
           }
-          return urls;
+          if (urls.isNotEmpty) {
+            debugPrint('Found ${urls.length} cached images for kata $kataId via metadata');
+            return urls;
+          }
+        }
+      }
+
+      // If no cached images found via metadata, try to scan for files with kata pattern
+      // This handles cases where signed URLs have changed due to token expiration
+      debugPrint('No metadata found for kata $kataId, scanning directory for cached files...');
+      final dir = Directory(_imagesDir!.path);
+      if (await dir.exists()) {
+        final files = dir.listSync().whereType<File>();
+        final kataPattern = RegExp(r'kata_${kataId}_\d+\.jpg$');
+        final foundFiles = files.where((file) {
+          final fileName = file.uri.pathSegments.last;
+          return kataPattern.hasMatch(fileName) && file.lengthSync() > 0;
+        }).toList();
+
+        if (foundFiles.isNotEmpty) {
+          urls.addAll(foundFiles.map((file) => file.path));
+          debugPrint('Found ${urls.length} cached images for kata $kataId via directory scan');
+        } else {
+          debugPrint('Found 0 cached images for kata $kataId via directory scan');
         }
       }
     } catch (e) {
@@ -506,12 +657,109 @@ class OfflineMediaCacheService {
 
   /// Check if media should be loaded from cache (when offline)
   static bool shouldUseCache(dynamic ref) {
+    if (_isValidRef(ref)) {
+      try {
+        final networkState = ref.read(networkProvider);
+        return !networkState.isConnected;
+      } catch (e) {
+        // Network provider not available, check if cached file exists
+        return false; // Default to not using cache if we can't check network status
+      }
+    }
+    return false; // No valid ref, don't use cache
+  }
+
+  /// Clean up orphaned cache files that are no longer referenced in metadata
+  static Future<void> cleanupOrphanedCacheFiles() async {
+    if (_imagesDir == null) return;
+
     try {
-      final networkState = ref.read(networkProvider);
-      return !networkState.isConnected;
+      debugPrint('Starting orphaned cache file cleanup...');
+
+      // Collect all referenced URLs from metadata
+      final referencedUrls = <String>{};
+      final referencedStableKeys = <String>{};
+
+      // Load kata metadata
+      if (_imagesDir != null) {
+        final kataMetadataFile = File('${_imagesDir!.path}/kata_metadata.json');
+        if (await kataMetadataFile.exists()) {
+          final kataMetadata = json.decode(await kataMetadataFile.readAsString()) as Map<String, dynamic>;
+          for (final urls in kataMetadata.values) {
+            if (urls is List) {
+              referencedUrls.addAll(urls.map((url) => url.toString()));
+            }
+          }
+        }
+
+        // Load ohyo metadata
+        final ohyoMetadataFile = File('${_imagesDir!.path}/ohyo_metadata.json');
+        if (await ohyoMetadataFile.exists()) {
+          final ohyoMetadata = json.decode(await ohyoMetadataFile.readAsString()) as Map<String, dynamic>;
+          for (final entry in ohyoMetadata.entries) {
+            final ohyoId = entry.key;
+            final fileNames = entry.value;
+            if (fileNames is List) {
+              for (final fileName in fileNames) {
+                // Construct the stable key used for caching: 'ohyo_${ohyoId}_$fileName'
+                final stableKey = 'ohyo_${ohyoId}_$fileName';
+                referencedStableKeys.add(stableKey);
+              }
+            }
+          }
+        }
+      }
+
+      // Get all cache files
+      final allCacheFiles = await _getAllCacheFiles();
+      int deletedCount = 0;
+
+      for (final file in allCacheFiles) {
+        final fileName = file.uri.pathSegments.last;
+
+        // Skip metadata files
+        if (fileName == 'kata_metadata.json' || fileName == 'ohyo_metadata.json') {
+          continue;
+        }
+
+        bool isReferenced = false;
+
+        // Check if this file is referenced
+        // For URL-based files (katas), check if URL hash matches
+        for (final url in referencedUrls) {
+          final urlHash = _generateUrlHash(url);
+          if (fileName.startsWith(urlHash)) {
+            isReferenced = true;
+            break;
+          }
+        }
+
+        // For stable key-based files (ohyos), check if stable key hash matches
+        if (!isReferenced) {
+          for (final stableKey in referencedStableKeys) {
+            final stableKeyHash = _generateUrlHash(stableKey);
+            if (fileName.startsWith(stableKeyHash)) {
+              isReferenced = true;
+              break;
+            }
+          }
+        }
+
+        // Delete if not referenced
+        if (!isReferenced) {
+          try {
+            await file.delete();
+            deletedCount++;
+            debugPrint('Deleted orphaned cache file: ${file.path}');
+          } catch (e) {
+            debugPrint('Failed to delete orphaned file ${file.path}: $e');
+          }
+        }
+      }
+
+      debugPrint('Orphaned cache cleanup completed: deleted $deletedCount files');
     } catch (e) {
-      // Network provider not available, check if cached file exists
-      return false; // Default to not using cache if we can't check network status
+      debugPrint('Failed to cleanup orphaned cache files: $e');
     }
   }
 
@@ -526,17 +774,25 @@ class OfflineMediaCacheService {
 
     // No cached file available
     // Try to cache in background if network is available
-    try {
-      final networkState = ref.read(networkProvider);
-      if (networkState.isConnected) {
-        cacheMediaFile(originalUrl, isVideo, ref).then((cachedPath) {
-          if (cachedPath != null) {
-            debugPrint('Background cached: $originalUrl');
-          }
+    if (_isValidRef(ref)) {
+      try {
+        final networkState = ref.read(networkProvider);
+        if (networkState.isConnected) {
+          cacheMediaFile(originalUrl, isVideo, ref).then((cachedPath) {
+            if (cachedPath != null) {
+              debugPrint('Background cached: $originalUrl');
+            }
+          });
+        }
+      } catch (e) {
+        // Network provider not available, still try to cache
+        cacheMediaFile(originalUrl, isVideo, ref).catchError((e) {
+          debugPrint('Failed to cache $originalUrl: $e');
+          return null; // Return null to satisfy the return type
         });
       }
-    } catch (e) {
-      // Network provider not available, still try to cache
+    } else {
+      // No valid ref, try to cache anyway
       cacheMediaFile(originalUrl, isVideo, ref).catchError((e) {
         debugPrint('Failed to cache $originalUrl: $e');
         return null; // Return null to satisfy the return type

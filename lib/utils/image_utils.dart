@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -233,7 +234,18 @@ class ImageUtils {
     }
 
     if (!isOnline) {
-      debugPrint('🌐 Offline mode detected, skipping kata image fetch for kata $kataId');
+      debugPrint('🌐 Offline mode detected, trying to load cached kata images for kata $kataId');
+      // Try to return cached images when offline
+      try {
+        final cachedPaths = await OfflineMediaCacheService.getCachedKataImageUrls(kataId);
+        if (cachedPaths.isNotEmpty) {
+          debugPrint('✅ Found ${cachedPaths.length} cached images for kata $kataId');
+          return cachedPaths;
+        }
+      } catch (cacheError) {
+        debugPrint('⚠️ Failed to load cached kata images: $cacheError');
+      }
+      debugPrint('ℹ️ No cached images available for kata $kataId, returning empty list');
       return [];
     }
 
@@ -866,19 +878,55 @@ class ImageUtils {
   static Future<List<String>> fetchOhyoImagesFromBucket(int ohyoId, {dynamic ref}) async {
     // Check network connectivity first to avoid unnecessary network requests
     bool isOnline = true;
+    bool networkCheckFailed = false;
+
     try {
       if (ref != null) {
         final networkState = ref.read(networkProvider);
         isOnline = networkState.isConnected;
+        debugPrint('🌐 Network provider status for ohyo $ohyoId: ${networkState.status}');
+      } else {
+        // Fallback network check if provider not available
+        try {
+          final result = await InternetAddress.lookup('google.com').timeout(
+            const Duration(seconds: 3),
+          );
+          isOnline = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+          debugPrint('🌐 Fallback network check for ohyo $ohyoId: $isOnline');
+        } catch (e) {
+          debugPrint('🌐 Fallback network check failed for ohyo $ohyoId: $e');
+          isOnline = false;
+          networkCheckFailed = true;
+        }
       }
     } catch (e) {
-      // If we can't check network state, assume we're online and try
+      debugPrint('⚠️ Network state check failed for ohyo $ohyoId: $e');
+      // If we can't check network state, assume we're online and try, but be prepared for failure
       isOnline = true;
+      networkCheckFailed = true;
     }
 
-    if (!isOnline) {
-      debugPrint('🌐 Offline mode detected, skipping ohyo image fetch for ohyo $ohyoId');
-      return [];
+    if (!isOnline || networkCheckFailed) {
+      debugPrint('🌐 Offline or network check failed for ohyo $ohyoId, trying cached images first');
+      // Try to return cached images when offline or network check fails
+      try {
+        final cachedPaths = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
+        if (cachedPaths.isNotEmpty) {
+          debugPrint('✅ Found ${cachedPaths.length} cached images for ohyo $ohyoId');
+          return cachedPaths;
+        }
+      } catch (cacheError) {
+        debugPrint('⚠️ Failed to load cached ohyo images: $cacheError');
+      }
+      debugPrint('ℹ️ No cached images available for ohyo $ohyoId, will try online if network available');
+
+      // If network check failed but we might still be online, continue to try online
+      if (networkCheckFailed && isOnline) {
+        debugPrint('🔄 Network check failed but assuming online, proceeding to online fetch');
+      } else {
+        debugPrint('ℹ️ Returning empty list for ohyo $ohyoId (offline mode)');
+        return [];
+      }
     }
 
     return await RetryUtils.executeWithRetry<List<String>>(
@@ -1022,25 +1070,23 @@ class ImageUtils {
         } catch (e) {
           debugPrint('❌ Error fetching ohyo images from bucket: $e');
 
-          // Check if this is a network error or file descriptor error - if so, try to return cached images
-          if (_isNetworkError(e) || _isFileDescriptorError(e)) {
-            debugPrint('🌐 Network/file error detected, checking for cached ohyo images');
+          // Always try to return cached images on any error - be more aggressive about offline fallback
+          debugPrint('🔄 Attempting to load cached images as fallback for ohyo $ohyoId');
 
-            // Try to return cached images if available
-            if (ref != null) {
-              try {
-                final cachedPaths = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
-                if (cachedPaths.isNotEmpty) {
-                  debugPrint('✅ Found ${cachedPaths.length} cached images for ohyo $ohyoId');
-                  return cachedPaths;
-                }
-              } catch (cacheError) {
-                debugPrint('⚠️ Failed to get cached images: $cacheError');
-              }
+          try {
+            final cachedPaths = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
+            if (cachedPaths.isNotEmpty) {
+              debugPrint('✅ Found ${cachedPaths.length} cached images for ohyo $ohyoId as fallback');
+              return cachedPaths;
             }
+          } catch (cacheError) {
+            debugPrint('⚠️ Failed to get cached images: $cacheError');
+          }
 
-            debugPrint('ℹ️ No cached images available for ohyo $ohyoId, returning empty list');
-            return [];
+          // If no cached images available, provide appropriate error handling
+          if (_isNetworkError(e) || _isFileDescriptorError(e)) {
+            debugPrint('🌐 Network/file error detected, no cached images available for ohyo $ohyoId');
+            return []; // Return empty list for network errors
           }
 
           // Provide more specific error messages for non-network errors
@@ -1052,8 +1098,8 @@ class ImageUtils {
             throw Exception('Storage access denied. Please check your storage policies.');
           }
 
-          // For other errors, throw to let retry logic handle it
-          throw Exception('Failed to fetch ohyo images: $e');
+          // Re-throw other errors
+          rethrow;
         }
       },
       maxRetries: 3,
