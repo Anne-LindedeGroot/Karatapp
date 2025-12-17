@@ -5,12 +5,19 @@ import '../models/auth_state.dart';
 import '../models/avatar_model.dart';
 import '../services/auth_service.dart';
 import '../core/initialization/app_initialization.dart';
+import '../supabase_client.dart';
 import 'error_boundary_provider.dart';
 
 // Provider for the AuthService instance - keep alive to maintain session state
 final authServiceProvider = Provider<AuthService>((ref) {
-  // Initialize Supabase immediately when auth service is first accessed
-  ensureSupabaseInitialized();
+  // Note: Supabase is already initialized in main.dart, but we'll handle it gracefully
+  // in case this provider is accessed before main.dart initialization
+  try {
+    SupabaseClientManager().client; // Test if client is available
+  } catch (e) {
+    debugPrint('⚠️ AuthService provider accessed before Supabase init: $e');
+    // Don't throw - let the AuthNotifier handle initialization
+  }
   return AuthService();
 });
 
@@ -34,8 +41,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     
     try {
       // Ensure Supabase is initialized before checking session
-      await ensureSupabaseInitialized();
-      
+      await ensureSupabaseInitialized().timeout(const Duration(seconds: 5)).catchError((e) {
+        debugPrint('⚠️ Supabase initialization timed out or failed: $e');
+        // Continue anyway - Supabase might already be initialized
+      });
+
       if (!mounted) return;
       
       // First check if there's a current user session

@@ -261,7 +261,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
     );
   }
 
-  Color _getStatusColor(networkState, dataUsageState, syncState) {
+  Color _getStatusColor(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) return Colors.orange;
     if (!networkState.isConnected) return Colors.red;
     if (syncState.isSyncing) return Colors.blue;
@@ -269,7 +269,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
     return Colors.green;
   }
 
-  IconData _getStatusIcon(networkState, dataUsageState, syncState) {
+  IconData _getStatusIcon(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) return Icons.offline_bolt;
     if (!networkState.isConnected) return Icons.wifi_off;
     if (syncState.isSyncing) return Icons.sync;
@@ -277,7 +277,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
     return Icons.wifi;
   }
 
-  String _getStatusText(networkState, dataUsageState, syncState) {
+  String _getStatusText(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) return 'Offline';
     if (!networkState.isConnected) {
       // Show "Offline" if truly offline (no WiFi/cellular), "Geen verbinding" if connected but no internet
@@ -292,7 +292,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
     return 'Online';
   }
 
-  String _getStatusTitle(networkState, dataUsageState, syncState) {
+  String _getStatusTitle(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) return 'Offline Mode Active';
     if (!networkState.isConnected) {
       if (dataUsageState.connectionType == ConnectionType.unknown) {
@@ -306,7 +306,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
     return 'Connected';
   }
 
-  String _getStatusDescription(networkState, dataUsageState, syncState) {
+  String _getStatusDescription(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) {
       return 'App is running in offline mode. Some features may be limited.';
     }
@@ -418,7 +418,7 @@ class FloatingOfflineIndicator extends ConsumerWidget {
     );
   }
 
-  Color _getStatusColor(networkState, dataUsageState, syncState) {
+  Color _getStatusColor(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) return Colors.orange;
     if (!networkState.isConnected) return Colors.red;
     if (syncState.isSyncing) return Colors.blue;
@@ -426,7 +426,7 @@ class FloatingOfflineIndicator extends ConsumerWidget {
     return Colors.green;
   }
 
-  IconData _getStatusIcon(networkState, dataUsageState, syncState) {
+  IconData _getStatusIcon(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) return Icons.offline_bolt;
     if (!networkState.isConnected) return Icons.wifi_off;
     if (syncState.isSyncing) return Icons.sync;
@@ -434,7 +434,7 @@ class FloatingOfflineIndicator extends ConsumerWidget {
     return Icons.wifi;
   }
 
-  String _getStatusText(networkState, dataUsageState, syncState) {
+  String _getStatusText(NetworkState networkState, DataUsageState dataUsageState, OfflineSyncState syncState) {
     if (dataUsageState.isOfflineMode) return 'Offline Mode';
     if (!networkState.isConnected) return 'No Connection';
     if (syncState.isSyncing) return 'Syncing...';

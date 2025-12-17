@@ -26,7 +26,7 @@ class PreCachingService {
     if (_isRunning) return;
 
     _isRunning = true;
-    debugPrint('🗄️ Pre-caching service started');
+    // Silent: Pre-caching service start not logged
 
     // Initial cache run
     _performBackgroundCaching();
@@ -48,7 +48,7 @@ class PreCachingService {
   /// Perform background caching of all media
   static Future<void> _performBackgroundCaching() async {
     try {
-      debugPrint('🗄️ Starting background media caching...');
+      // Silent: Background media caching start not logged
 
       // We'll use a callback approach since we can't directly access providers here
       // The actual caching will be triggered from the UI when providers are available
@@ -75,7 +75,7 @@ class PreCachingService {
         return;
       }
 
-      debugPrint('🗄️ Pre-caching kata images...');
+      // Silent: Kata pre-caching info not logged
 
       final currentState = ref.read(kataNotifierProvider);
 
@@ -87,22 +87,17 @@ class PreCachingService {
         return;
       }
 
-      debugPrint('📂 Found ${allKatas.length} katas to check for images');
-
-      int totalImages = 0;
-      int cachedImages = 0;
+      // Silent: Kata count info not logged
 
       // Pre-cache images for each kata
       for (final kata in allKatas) {
         if (kata.imageUrls != null && kata.imageUrls!.isNotEmpty) {
-          debugPrint('📸 Caching images for kata: ${kata.name} (${kata.imageUrls!.length} images)');
+          // Silent: Kata caching info not logged
 
           for (final imageUrl in kata.imageUrls!) {
-            totalImages++;
             try {
               final cachedPath = await OfflineMediaCacheService.cacheMediaFile(imageUrl, false, ref);
               if (cachedPath != null) {
-                cachedImages++;
                 // Update metadata for kata
                 await OfflineMediaCacheService.updateKataMetadata(kata.id, imageUrl);
               }
@@ -113,7 +108,7 @@ class PreCachingService {
         }
       }
 
-      debugPrint('✅ Kata image caching complete: $cachedImages/$totalImages images cached');
+      // Silent: Kata caching completion not logged
 
     } catch (e) {
       debugPrint('❌ Kata pre-caching failed: $e');
@@ -183,12 +178,12 @@ class PreCachingService {
 
   /// Pre-cache all media (kata + ohyo images)
   static Future<void> preCacheAllMedia(dynamic ref) async {
-    debugPrint('🚀 Starting comprehensive media pre-caching...');
+    // Silent: Pre-caching start not logged
 
     await preCacheAllKataImages(ref);
     await preCacheAllOhyoImages(ref);
 
-    debugPrint('🎉 All media pre-caching completed');
+    // Silent: Pre-caching completion not logged
   }
 
   /// Get cache statistics

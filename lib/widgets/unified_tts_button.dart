@@ -493,7 +493,7 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       final favoriteKataIds = favoriteKatasAsync.when(
         data: (ids) => ids,
         loading: () => <String>[],
-        error: (_, __) => <String>[],
+        error: (error, stackTrace) => <String>[],
       );
       
       final favoriteKatas = kataState.katas
@@ -504,7 +504,7 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
       final favoriteForumPostIds = favoriteForumPostsAsync.when(
         data: (ids) => ids,
         loading: () => <String>[],
-        error: (_, __) => <String>[],
+        error: (error, stackTrace) => <String>[],
       );
       
       final favoriteForumPosts = forumState.posts
@@ -921,7 +921,7 @@ class _UnifiedTTSButtonState extends ConsumerState<UnifiedTTSButton>
             contentParts.add('Beschrijving: ${role.description}');
           },
           loading: () => contentParts.add('Rol wordt geladen'),
-          error: (_, __) => contentParts.add('Fout bij laden rol'),
+          error: (error, stackTrace) => contentParts.add('Fout bij laden rol'),
         );
         
         // Add name info

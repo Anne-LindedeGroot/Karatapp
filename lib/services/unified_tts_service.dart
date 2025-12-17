@@ -41,8 +41,7 @@ class UnifiedTTSService {
     // TTS button visibility doesn't affect functionality
     // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      debugPrint('TTS: Text-to-speech is disabled by user, skipping screen reading');
-      print('❌ TTS: Text-to-speech is disabled by user, skipping screen reading');
+      // Silent: TTS disabled status not logged
       return;
     }
 
@@ -1111,8 +1110,7 @@ class UnifiedTTSService {
 
     // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      debugPrint('TTS: Text-to-speech is disabled by user, skipping text reading');
-      print('❌ TTS: Text-to-speech is disabled by user, skipping text reading');
+      // Silent: TTS disabled status not logged
       return;
     }
 
@@ -1154,8 +1152,7 @@ class UnifiedTTSService {
 
     // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      debugPrint('TTS: Text-to-speech is disabled by user, skipping widget reading');
-      print('❌ TTS: Text-to-speech is disabled by user, skipping widget reading');
+      // Silent: TTS disabled status not logged
       return;
     }
 
@@ -1211,8 +1208,7 @@ class UnifiedTTSService {
 
     // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      debugPrint('TTS: Text-to-speech is disabled by user, skipping everything on screen reading');
-      print('❌ TTS: Text-to-speech is disabled by user, skipping everything on screen reading');
+      // Silent: TTS disabled status not logged
       return;
     }
 
@@ -1268,8 +1264,7 @@ class UnifiedTTSService {
 
     // Check if TTS is enabled - don't force enable it
     if (!accessibilityState.isTextToSpeechEnabled) {
-      debugPrint('TTS: Text-to-speech is disabled by user, skipping webpage scanning');
-      print('❌ TTS: Text-to-speech is disabled by user, skipping webpage scanning');
+      // Silent: TTS disabled status not logged
       return;
     }
 

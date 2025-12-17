@@ -711,7 +711,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                             memCacheWidth: 800,
                             memCacheHeight: 600,
                             progressIndicatorBuilder: (context, url, downloadProgress) {
-                              print('🖼️ Loading image: $url - ${(downloadProgress.progress ?? 0) * 100}%');
+                              // Silent: Image loading progress not logged
                               if (downloadProgress.progress == null) {
                                 return Shimmer.fromColors(
                                   baseColor: Colors.grey[300]!,

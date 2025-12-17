@@ -32,6 +32,8 @@ class Kata {
   final List<String>? imageUrls;
   final List<String>? videoUrls;
   final int order;
+  final bool isLiked;
+  final int likeCount;
 
   const Kata({
     required this.id,
@@ -42,6 +44,8 @@ class Kata {
     this.imageUrls,
     this.videoUrls,
     this.order = 0,
+    this.isLiked = false,
+    this.likeCount = 0,
   });
 
   factory Kata.fromMap(Map<String, dynamic> map) {
@@ -58,10 +62,12 @@ class Kata {
       imageUrls: map['image_urls'] != null
           ? List<String>.from(map['image_urls'] as List)
           : null,
-      videoUrls: map['video_urls'] != null 
+      videoUrls: map['video_urls'] != null
           ? List<String>.from(map['video_urls'] as List)
           : null,
       order: map['order'] as int? ?? 0,
+      isLiked: map['is_liked'] as bool? ?? false,
+      likeCount: map['like_count'] as int? ?? 0,
     );
   }
 
@@ -75,6 +81,8 @@ class Kata {
       'image_urls': imageUrls,
       'video_urls': videoUrls,
       'order': order,
+      'is_liked': isLiked,
+      'like_count': likeCount,
     };
   }
 
@@ -87,6 +95,8 @@ class Kata {
     List<String>? imageUrls,
     List<String>? videoUrls,
     int? order,
+    bool? isLiked,
+    int? likeCount,
   }) {
     return Kata(
       id: id ?? this.id,
@@ -97,6 +107,8 @@ class Kata {
       imageUrls: imageUrls ?? this.imageUrls,
       videoUrls: videoUrls ?? this.videoUrls,
       order: order ?? this.order,
+      isLiked: isLiked ?? this.isLiked,
+      likeCount: likeCount ?? this.likeCount,
     );
   }
 

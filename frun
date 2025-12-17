@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# 🚀 FRUN - Fast Flutter Run
+# Simple command: frun [arguments]
+# Drop-in replacement for flutter run with ultra-fast optimizations
+
+# Get the project root (where this script is located)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Execute the ultra-fast flutter run script
+exec "$SCRIPT_DIR/scripts/flutter-run-fast" "$@"

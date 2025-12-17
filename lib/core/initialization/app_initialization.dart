@@ -15,17 +15,20 @@ Future<void> ensureSupabaseInitialized() async {
     try {
       // Try to access the client to check if Supabase is already initialized
       try {
-        final _ = Supabase.instance.client;
+        final testClient = Supabase.instance.client;
+        // Test that the client is actually working by trying to access auth
+        final _ = testClient.auth;
         _supabaseInitialized = true;
         // Initialize the client manager
         SupabaseClientManager().initializeClient();
-        debugPrint('✅ Supabase already initialized');
+        debugPrint('✅ Supabase already initialized and working');
         return;
       } catch (e) {
         // If accessing client fails, Supabase is not initialized yet
-        debugPrint('🔄 Supabase not initialized yet, initializing...');
+        debugPrint('🔄 Supabase not initialized yet, but instance exists. This is normal.');
       }
-      
+
+      // Try to initialize Supabase
       await Supabase.initialize(
         url: Environment.supabaseUrl,
         anonKey: Environment.supabaseAnonKey,
@@ -33,19 +36,27 @@ Future<void> ensureSupabaseInitialized() async {
       _supabaseInitialized = true;
       // Initialize the client manager
       SupabaseClientManager().initializeClient();
-      debugPrint('✅ Supabase initialized successfully');
+      debugPrint('✅ Supabase initialized successfully in ensureSupabaseInitialized');
     } catch (e) {
-      // Check if the error is about double initialization
-      if (e.toString().contains('already initialized')) {
+      // Check if the error is about double initialization or already initialized
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('already initialized') ||
+          errorString.contains('has already been initialized')) {
         _supabaseInitialized = true;
         // Initialize the client manager even if Supabase was already initialized
-        SupabaseClientManager().initializeClient();
-        debugPrint('✅ Supabase was already initialized (caught error)');
+        try {
+          SupabaseClientManager().initializeClient();
+          debugPrint('✅ Supabase was already initialized (handled double init)');
+        } catch (clientError) {
+          debugPrint('⚠️ Client manager init failed after double init: $clientError');
+        }
         return;
       }
-      debugPrint('❌ Supabase initialization error: $e');
-      // Don't throw - let the app continue in offline mode
+
+      debugPrint('❌ Supabase initialization error in ensureSupabaseInitialized: $e');
+      // Don't throw - let the app continue
       // The network provider will handle connection status
+      rethrow; // Re-throw so callers know initialization failed
     }
   }
 }

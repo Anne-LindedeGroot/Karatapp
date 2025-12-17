@@ -79,7 +79,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
 
       // Only speak if TTS is enabled
       if (!accessibilityState.isTextToSpeechEnabled) {
-        debugPrint('ForumScreen TTS: TTS is disabled, not speaking forum post content');
+        // Silent: TTS status not logged
         return;
       }
 
@@ -391,7 +391,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
     final canModerateRole = canModerateAsync.when(
       data: (value) => value,
       loading: () => false,
-      error: (_, __) => false,
+      error: (error, stackTrace) => false,
     );
     final canModerate = canModerateRole || (currentUser != null && post.authorId == currentUser.id);
     final isSelected = context.isDesktop && _selectedPostId == post.id;
@@ -777,31 +777,58 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                             const SizedBox(width: 8),
 
                             // Comment count
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.grey.withValues(alpha: 0.05),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.grey.withValues(alpha: 0.2),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.comment_outlined, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${post.commentCount}',
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
+                            Consumer(
+                              builder: (context, ref, child) {
+                                final textScaler = MediaQuery.of(context).textScaler;
+                                final scaleFactor = textScaler.scale(1.0);
+
+                              // Check if dyslexia font is enabled
+                              final isDyslexiaFriendly = ref.watch(accessibilityNotifierProvider).isDyslexiaFriendly;
+                              final dyslexiaAdjustment = isDyslexiaFriendly ? 1.1 : 1.0;
+
+                                final scaledPadding = 10 * scaleFactor.clamp(1.0, 2.0) * dyslexiaAdjustment;
+                                final scaledIconSize = (14 * scaleFactor).clamp(14.0, 20.0);
+                                final scaledFontSize = (12 * scaleFactor).clamp(12.0, 18.0) * dyslexiaAdjustment;
+
+                                return Container(
+                                  constraints: BoxConstraints(
+                                    minWidth: 50 * scaleFactor.clamp(1.0, 1.8),
+                                    minHeight: 32 + (scaleFactor - 1) * 8,
+                                  ),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: scaledPadding,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.grey.withValues(alpha: 0.2),
+                                      width: 1,
                                     ),
                                   ),
-                                ],
-                              ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.comment_outlined,
+                                        size: scaledIconSize,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                      SizedBox(width: 4 * scaleFactor.clamp(1.0, 1.2)),
+                                      Text(
+                                        '${post.commentCount}',
+                                        style: TextStyle(
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          fontSize: scaledFontSize,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
                             ),
 
                             const Spacer(),

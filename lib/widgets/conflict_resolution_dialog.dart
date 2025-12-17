@@ -264,7 +264,7 @@ class _ConflictResolutionDialogState extends ConsumerState<ConflictResolutionDia
     if (_selectedResolution == null) return;
 
     try {
-      final conflictService = ref.read(conflictResolutionServiceProviderOverride);
+      final conflictService = ref.read(conflictResolutionServiceProvider);
       await conflictService.resolveConflict(widget.conflict.id, _selectedResolution!);
 
       if (mounted) {

@@ -12,18 +12,17 @@ import '../core/storage/local_storage.dart' as app_storage;
 import '../services/offline_media_cache_service.dart';
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
+import 'interaction_provider.dart';
 
-// Provider for offline ohyo service
-final offlineOhyoServiceProvider = Provider<OfflineOhyoService>((ref) {
-  throw UnimplementedError('OfflineOhyoService must be provided by a parent provider');
-});
+// OfflineOhyoService provider is now imported from offline_services_provider.dart
 
 // StateNotifier for ohyo management
 class OhyoNotifier extends StateNotifier<OhyoState> {
   final ErrorBoundaryNotifier _errorBoundary;
+  final Ref _ref;
   OfflineOhyoService? _offlineOhyoService;
 
-  OhyoNotifier(this._errorBoundary) : super(OhyoState.initial()) {
+  OhyoNotifier(this._errorBoundary, this._ref) : super(OhyoState.initial()) {
     // Don't auto-load ohyos on initialization - wait for explicit call
   }
 
@@ -87,8 +86,8 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       // Try to fetch online images
       try {
         imageUrls = await ImageUtils.fetchOhyoImagesFromBucket(ohyoId, ref: ref);
-            debugPrint('✅ Successfully loaded ${imageUrls.length} online images for ohyo $ohyoId');
-            debugPrint('🖼️ Online image URLs for ohyo $ohyoId: ${imageUrls.take(2).join(', ')}${imageUrls.length > 2 ? '...' : ''}');
+            // Silent: Online image loading success not logged
+            // Silent: Online image URLs not logged
       } catch (e) {
         debugPrint('❌ Online image fetch failed for ohyo $ohyoId: $e');
 
@@ -97,7 +96,7 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
           final cachedImageUrls = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
           if (cachedImageUrls.isNotEmpty) {
             debugPrint('🔄 Using ${cachedImageUrls.length} cached images for ohyo $ohyoId as fallback');
-            debugPrint('🖼️ Cached image URLs for ohyo $ohyoId: ${cachedImageUrls.take(2).join(', ')}${cachedImageUrls.length > 2 ? '...' : ''}');
+            // Reduced spam: Cached image loading is now silent
             imageUrls = cachedImageUrls;
           } else {
             debugPrint('ℹ️ No cached images available for ohyo $ohyoId');
@@ -157,12 +156,15 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
           if (cachedOhyos.isNotEmpty) {
             await _preloadInitialOhyoImagesWithCache(cachedOhyos.take(3).toList());
           }
+
+          // Preload likes for all ohyos to ensure offline availability
+          await _preloadOhyoLikes(cachedOhyos);
         } else {
           // If SharedPreferences cache is empty/expired, try Hive storage
           try {
             final hiveCachedOhyos = app_storage.LocalStorage.getAllOhyos();
             if (hiveCachedOhyos.isNotEmpty) {
-              // Convert CachedOhyo to Ohyo
+              // Convert CachedOhyo to Ohyo with likes data
               cachedOhyos = hiveCachedOhyos.map((cachedOhyo) {
                 return Ohyo(
                   id: cachedOhyo.id,
@@ -173,6 +175,8 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
                   imageUrls: cachedOhyo.imageUrls,
                   videoUrls: [], // Not stored in CachedOhyo
                   order: 0, // Not stored in CachedOhyo
+                  isLiked: cachedOhyo.isLiked, // Include cached likes data
+                  likeCount: cachedOhyo.likeCount, // Include cached like count
                 );
               }).toList();
 
@@ -205,7 +209,7 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
         () async {
           final response = await _supabase
               .from("ohyo")
-              .select('id, name, description, style, created_at, image_urls, video_urls, order')
+              .select()
               .order('order', ascending: true);
 
           final onlineOhyos = (response as List)
@@ -230,6 +234,9 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
           if (onlineOhyos.isNotEmpty) {
             await _preloadInitialOhyoImagesWithCache(onlineOhyos.take(3).toList());
           }
+
+          // Preload likes for all ohyos to ensure offline availability
+          await _preloadOhyoLikes(onlineOhyos);
         },
         maxRetries: 3,
         initialDelay: const Duration(seconds: 1),
@@ -466,7 +473,7 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
         initialDelay: const Duration(seconds: 1),
         shouldRetry: RetryUtils.shouldRetryError,
         onRetry: (attempt, error) {
-          debugPrint('🔄 Retry attempt $attempt for creating ohyo: $error');
+          // Silent: Retry attempts are not logged to reduce spam
         },
       );
       debugPrint('🎉 Ohyo creation completed successfully!');
@@ -720,16 +727,94 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       }
     }
   }
+
+  // Preload likes for all ohyos to ensure offline availability
+  Future<void> _preloadOhyoLikes(List<Ohyo> ohyos) async {
+    try {
+      // Load likes for all ohyos in parallel to speed up the process
+      final likeFutures = ohyos.map((ohyo) async {
+        try {
+          final likes = await RetryUtils.executeWithRetry(
+            () async {
+              final interactionService = _ref.read(interactionServiceProvider);
+              return await interactionService.getOhyoLikes(ohyo.id);
+            },
+            maxRetries: 2,
+            initialDelay: const Duration(milliseconds: 100),
+          );
+
+          final isLiked = await RetryUtils.executeWithRetry(
+            () async {
+              final interactionService = _ref.read(interactionServiceProvider);
+              return await interactionService.isOhyoLiked(ohyo.id);
+            },
+            maxRetries: 2,
+            initialDelay: const Duration(milliseconds: 100),
+          );
+
+          return {
+            'ohyoId': ohyo.id,
+            'likes': likes,
+            'isLiked': isLiked,
+          };
+        } catch (e) {
+          // If loading likes fails, return null data
+          return {
+            'ohyoId': ohyo.id,
+            'likes': <dynamic>[],
+            'isLiked': false,
+          };
+        }
+      });
+
+      final likeResults = await Future.wait(likeFutures);
+
+      // Update cached data with likes information
+      for (final result in likeResults) {
+        final ohyoId = result['ohyoId'] as int;
+        final likes = result['likes'] as List;
+        final isLiked = result['isLiked'] as bool;
+
+        // Update the cached ohyo with likes data
+        final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+        if (cachedOhyo != null) {
+          final updatedOhyo = app_storage.CachedOhyo(
+            id: cachedOhyo.id,
+            name: cachedOhyo.name,
+            description: cachedOhyo.description,
+            createdAt: cachedOhyo.createdAt,
+            lastSynced: DateTime.now(),
+            imageUrls: cachedOhyo.imageUrls,
+            style: cachedOhyo.style,
+            isFavorite: cachedOhyo.isFavorite,
+            needsSync: cachedOhyo.needsSync,
+            isLiked: isLiked,
+            likeCount: likes.length,
+          );
+          await app_storage.LocalStorage.saveOhyo(updatedOhyo);
+        }
+      }
+
+      // Reduced spam: Only log if there were errors or significant issues
+    } catch (e) {
+      debugPrint('⚠️ Failed to preload ohyo likes: $e');
+      // Don't throw - likes preloading failure shouldn't break the app
+    }
+  }
 }
 
 // Provider for the OhyoNotifier
 final ohyoNotifierProvider = StateNotifierProvider<OhyoNotifier, OhyoState>((ref) {
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  final notifier = OhyoNotifier(errorBoundary);
+  final notifier = OhyoNotifier(errorBoundary, ref);
 
-  // Initialize offline service if available
-  final offlineOhyoService = ref.watch(offlineOhyoServiceProviderOverride);
-  notifier.initializeOfflineService(offlineOhyoService);
+  // Initialize offline service if available (catch errors if not initialized yet)
+  try {
+    final offlineOhyoService = ref.watch(offlineOhyoServiceProvider);
+    notifier.initializeOfflineService(offlineOhyoService);
+  } catch (e) {
+    // Offline service not available yet, will be initialized later
+  }
 
   return notifier;
 });

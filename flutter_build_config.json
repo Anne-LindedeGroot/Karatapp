@@ -1,0 +1,23 @@
+{
+  "builds": {
+    "debug": {
+      "compression": {
+        "enabled": false
+      },
+      "treeShakeIcons": false,
+      "trackWidgetCreation": false
+    },
+    "profile": {
+      "compression": {
+        "enabled": true
+      },
+      "treeShakeIcons": true
+    },
+    "release": {
+      "compression": {
+        "enabled": true
+      },
+      "treeShakeIcons": true
+    }
+  }
+}

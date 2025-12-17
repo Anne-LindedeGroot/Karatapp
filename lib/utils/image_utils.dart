@@ -287,11 +287,11 @@ class ImageUtils {
               debugPrint('📋 Found stored image order for kata $kataId: ${storedOrder.length} images');
             }
           } catch (e) {
-            debugPrint('⚠️ Could not fetch stored image order: $e');
+            // Silent: Image order fetch failures are not logged
           }
 
           // List all files in the kata's folder with proper error handling
-          debugPrint('🔍 Listing files for kata $kataId...');
+          // Silent: File listing for kata not logged
           List<dynamic> response = [];
 
           try {
@@ -311,7 +311,7 @@ class ImageUtils {
             rethrow;
           }
 
-          debugPrint('📁 Found ${response.length} files in kata $kataId folder');
+          // Silent: File count logging is not shown
 
           if (response.isEmpty) {
             debugPrint('ℹ️ No images found for kata $kataId');
@@ -332,7 +332,7 @@ class ImageUtils {
                   'url': signedUrl,
                   'name': file.name,
                 });
-                debugPrint('✅ Generated signed URL for ${file.name}');
+                // Reduced spam: URL generation is now silent
 
                 // Cache the image for offline access if ref is provided
                 if (ref != null) {
@@ -418,13 +418,13 @@ class ImageUtils {
             return orderedUrls;
           } else {
             // Fall back to sorting by filename (files with order prefix will be sorted correctly)
-            debugPrint('📝 No stored order found, sorting by filename');
+            // Silent: Order sorting is not logged
             imageData.sort((a, b) => a['name']!.compareTo(b['name']!));
 
             // Extract just the URLs in the correct order
             final urls = imageData.map((data) => data['url']!).toList();
-            debugPrint('✅ Successfully fetched ${urls.length} images for kata $kataId');
-            debugPrint('🖼️ Image URLs: ${urls.take(3).join(', ')}${urls.length > 3 ? '...' : ''}');
+            // Silent: Image fetch success is not logged
+            // Silent: Image URLs are not logged to avoid spam
             return urls;
           }
         } catch (e) {
@@ -892,9 +892,9 @@ class ImageUtils {
             const Duration(seconds: 3),
           );
           isOnline = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-          debugPrint('🌐 Fallback network check for ohyo $ohyoId: $isOnline');
+          // Silent: Network check results are not logged
         } catch (e) {
-          debugPrint('🌐 Fallback network check failed for ohyo $ohyoId: $e');
+          // Silent: Network check failures are not logged
           isOnline = false;
           networkCheckFailed = true;
         }
@@ -955,7 +955,7 @@ class ImageUtils {
           }
 
           // List all files in the ohyo's folder with proper error handling
-          debugPrint('🔍 DEBUG: Listing files for ohyo $ohyoId in path: ${ohyoId.toString()}');
+          // Silent: File listing debug is not shown
           List<dynamic> response = [];
 
           try {
@@ -984,7 +984,7 @@ class ImageUtils {
             rethrow;
           }
 
-          debugPrint('📁 Found ${response.length} files in ohyo $ohyoId folder');
+          // Silent: File count logging is not shown
 
           if (response.isEmpty) {
             debugPrint('ℹ️ No images found for ohyo $ohyoId');
@@ -1005,7 +1005,7 @@ class ImageUtils {
                   'url': signedUrl,
                   'name': file.name,
                 });
-                debugPrint('✅ Generated signed URL for ${file.name}');
+                // Reduced spam: URL generation is now silent
 
                 // Cache the image for offline access if ref is provided
                 if (ref != null) {
@@ -1064,8 +1064,8 @@ class ImageUtils {
 
           // Extract just the URLs in the correct order
           final urls = imageData.map((data) => data['url']!).toList();
-          debugPrint('✅ Successfully fetched ${urls.length} images for ohyo $ohyoId');
-          debugPrint('🖼️ Image URLs: ${urls.take(3).join(', ')}${urls.length > 3 ? '...' : ''}');
+          // Silent: Image fetch success is not logged
+          // Silent: Image URLs are not logged to avoid spam
           return urls;
         } catch (e) {
           debugPrint('❌ Error fetching ohyo images from bucket: $e');

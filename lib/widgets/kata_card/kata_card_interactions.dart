@@ -116,7 +116,7 @@ class _KataCardInteractionsState extends State<KataCardInteractions> {
                   ),
                   tooltip: _isCommentsExpanded ? 'Sluit reacties' : 'Open reacties',
                 ),
-                OverflowSafeText('$commentCount'),
+                AccessibleOverflowSafeText('$commentCount'),
 
                 const OverflowSafeSpacer(),
               ],

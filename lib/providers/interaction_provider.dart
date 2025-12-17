@@ -8,24 +8,25 @@ import '../services/conflict_resolution_service.dart';
 import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'auth_provider.dart';
+import 'offline_services_provider.dart';
 
 // Provider for the InteractionService instance
 final interactionServiceProvider = Provider<InteractionService>((ref) {
   return InteractionService();
 });
 
-// Providers for offline services
-final offlineQueueServiceProvider = Provider<OfflineQueueService>((ref) {
-  throw UnimplementedError('OfflineQueueService must be provided by a parent provider');
-});
+// Providers for offline services (imported from offline_services_provider.dart)
+// final offlineQueueServiceProvider = Provider<OfflineQueueService>((ref) {
+//   throw UnimplementedError('OfflineQueueService must be provided by a parent provider');
+// });
 
-final commentCacheServiceProvider = Provider<CommentCacheService>((ref) {
-  throw UnimplementedError('CommentCacheService must be provided by a parent provider');
-});
+// final commentCacheServiceProvider = Provider<CommentCacheService>((ref) {
+//   throw UnimplementedError('CommentCacheService must be provided by a parent provider');
+// });
 
-final conflictResolutionServiceProvider = Provider<ConflictResolutionService>((ref) {
-  throw UnimplementedError('ConflictResolutionService must be provided by a parent provider');
-});
+// final conflictResolutionServiceProvider = Provider<ConflictResolutionService>((ref) {
+//   throw UnimplementedError('ConflictResolutionService must be provided by a parent provider');
+// });
 
 // StateNotifier for kata interactions
 class KataInteractionNotifier extends StateNotifier<KataInteractionState> {

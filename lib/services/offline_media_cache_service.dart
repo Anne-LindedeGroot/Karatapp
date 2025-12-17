@@ -172,7 +172,7 @@ class OfflineMediaCacheService {
 
       // Don't cache streaming video URLs (YouTube, Vimeo, etc.) as they can't be downloaded as files
       if (_isStreamingVideoUrl(url)) {
-        debugPrint('⚠️ Streaming video URLs cannot be cached for offline use: $url');
+        // Silent: Video caching warnings are not logged
         return null;
       }
 
@@ -189,7 +189,7 @@ class OfflineMediaCacheService {
           }
         } catch (e) {
           // If providers aren't available, assume we can cache
-          debugPrint('Network/data usage providers not available, proceeding with cache');
+          // Silent: Network provider status not logged to reduce spam
         }
       }
 
@@ -226,7 +226,7 @@ class OfflineMediaCacheService {
         // Clean up old cache if needed
         await _cleanupCacheIfNeeded();
 
-        debugPrint('Cached ${isVideo ? 'video' : 'image'}: $url -> ${file.path} (${response.bodyBytes.length} bytes)');
+        // Reduced spam: Caching operations are now silent
         return file.path;
       }
     } catch (e) {
@@ -289,7 +289,7 @@ class OfflineMediaCacheService {
         // Clean up old cache if needed
         await _cleanupCacheIfNeeded();
 
-        debugPrint('Cached ohyo image: ohyo_$ohyoId/$fileName -> ${file.path} (${response.bodyBytes.length} bytes)');
+        // Reduced spam: Ohyo image caching is now silent
         return file.path;
       }
     } catch (e) {
@@ -302,7 +302,7 @@ class OfflineMediaCacheService {
   static Future<void> preCacheMediaFiles(List<String> urls, bool isVideo, dynamic ref) async {
     // Only cache images, videos work online only
     if (isVideo) {
-      debugPrint('⚠️ Videos are not cached for offline use - they work online only');
+      // Silent: Video caching info is not logged
       return;
     }
 
@@ -472,7 +472,7 @@ class OfflineMediaCacheService {
 
       await metadataFile.writeAsString(json.encode(metadata));
     } catch (e) {
-      debugPrint('Failed to update ohyo metadata: $e');
+      // Silent: Metadata update failures are not logged to reduce spam
     }
   }
 
@@ -598,7 +598,7 @@ class OfflineMediaCacheService {
       await metadataFile.writeAsString(json.encode(metadata));
       debugPrint('Updated kata metadata for kata $kataId with ${urlsToStore.length} URLs');
     } catch (e) {
-      debugPrint('Failed to update kata metadata: $e');
+      // Silent: Metadata update failures are not logged to reduce spam
     }
   }
 
@@ -768,7 +768,7 @@ class OfflineMediaCacheService {
     // First, check if we have a cached file
     final cachedPath = getCachedFilePath(originalUrl, isVideo);
     if (cachedPath != null) {
-      debugPrint('Using cached file for $originalUrl: $cachedPath');
+      // Reduced spam: Using cached files is now silent
       return cachedPath;
     }
 
@@ -780,7 +780,7 @@ class OfflineMediaCacheService {
         if (networkState.isConnected) {
           cacheMediaFile(originalUrl, isVideo, ref).then((cachedPath) {
             if (cachedPath != null) {
-              debugPrint('Background cached: $originalUrl');
+              // Silent: Background caching not logged
             }
           });
         }

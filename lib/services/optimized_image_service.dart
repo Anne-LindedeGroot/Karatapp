@@ -226,7 +226,7 @@ class OptimizedImageService {
           // Record data usage
           ref.read(dataUsageProvider.notifier).recordDataUsage(totalDataUsage, type: 'image');
           
-          debugPrint('✅ Successfully fetched ${imageUrls.length} images from $bucketName');
+          // Silent: Image fetch success is not logged
           return imageUrls;
         } catch (e) {
           debugPrint('❌ Error fetching images from bucket: $e');

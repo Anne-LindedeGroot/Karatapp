@@ -40,7 +40,7 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
     if (ohyoState.ohyos.isNotEmpty) {
       final preCachingNotifier = ref.read(preCachingProvider.notifier);
       if (preCachingNotifier.shouldTriggerPreCaching(ref)) {
-        debugPrint('🏠 Ohyo list loaded with ${ohyoState.ohyos.length} ohyos, triggering pre-caching');
+        // Silent: Ohyo list loading not logged
         preCachingNotifier.triggerPreCaching(ref);
       }
     }

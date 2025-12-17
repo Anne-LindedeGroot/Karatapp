@@ -8,16 +8,25 @@ import '../services/offline_sync_service.dart';
 import '../services/offline_kata_service.dart';
 import '../services/offline_ohyo_service.dart';
 import '../services/offline_forum_service.dart';
-import 'interaction_provider.dart';
+import '../main.dart' as main_app;
+import 'interaction_provider.dart' show interactionServiceProvider;
 import 'auth_provider.dart';
 import 'network_provider.dart';
 import 'data_usage_provider.dart';
+
+// Provider for SharedPreferences instance
+final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
+  // SharedPreferences is initialized in main.dart, but we provide async access for consistency
+  return await SharedPreferences.getInstance();
+});
 
 // Initialize offline services
 final offlineServicesInitializerProvider = FutureProvider<void>((ref) async {
   // Wait for Supabase to be initialized by ensuring auth service is ready
   final _ = ref.watch(authServiceProvider);
 
+  // Create offline services with a temporary prefs instance
+  // This will be replaced when SharedPreferences is properly available
   final prefs = await SharedPreferences.getInstance();
 
   // Create offline services
@@ -71,89 +80,33 @@ final offlineServicesInitializerProvider = FutureProvider<void>((ref) async {
   await commentCacheService.clearExpiredCache();
 });
 
-// Override providers for offline services
-final offlineQueueServiceProviderOverride = Provider<OfflineQueueService>((ref) {
-  // Wait for initialization to complete
-  final initResult = ref.watch(offlineServicesInitializerProvider);
-  initResult.maybeWhen(
-    data: (_) => null,
-    error: (error, stack) => throw error,
-    orElse: () => throw StateError('Offline services not initialized'),
-  );
-
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return OfflineQueueService(prefs);
+// Override providers for offline services (renamed to match the ones they override)
+final offlineQueueServiceProvider = Provider<OfflineQueueService>((ref) {
+  // Since SharedPreferences is initialized in main.dart, we can access it synchronously
+  return OfflineQueueService(main_app.getSharedPreferences());
 });
 
-final commentCacheServiceProviderOverride = Provider<CommentCacheService>((ref) {
-  // Wait for initialization to complete
-  final initResult = ref.watch(offlineServicesInitializerProvider);
-  initResult.maybeWhen(
-    data: (_) => null,
-    error: (error, stack) => throw error,
-    orElse: () => throw StateError('Offline services not initialized'),
-  );
-
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return CommentCacheService(prefs);
+final commentCacheServiceProvider = Provider<CommentCacheService>((ref) {
+  return CommentCacheService(main_app.getSharedPreferences());
 });
 
-final conflictResolutionServiceProviderOverride = Provider<ConflictResolutionService>((ref) {
-  // Wait for initialization to complete
-  final initResult = ref.watch(offlineServicesInitializerProvider);
-  initResult.maybeWhen(
-    data: (_) => null,
-    error: (error, stack) => throw error,
-    orElse: () => throw StateError('Offline services not initialized'),
-  );
-
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return ConflictResolutionService(prefs);
+final conflictResolutionServiceProvider = Provider<ConflictResolutionService>((ref) {
+  return ConflictResolutionService(main_app.getSharedPreferences());
 });
 
-final offlineKataServiceProviderOverride = Provider<OfflineKataService>((ref) {
-  // Wait for initialization to complete
-  final initResult = ref.watch(offlineServicesInitializerProvider);
-  initResult.maybeWhen(
-    data: (_) => null,
-    error: (error, stack) => throw error,
-    orElse: () => throw StateError('Offline services not initialized'),
-  );
-
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return OfflineKataService(prefs);
+final offlineKataServiceProvider = Provider<OfflineKataService>((ref) {
+  return OfflineKataService(main_app.getSharedPreferences());
 });
 
-final offlineOhyoServiceProviderOverride = Provider<OfflineOhyoService>((ref) {
-  // Wait for initialization to complete
-  final initResult = ref.watch(offlineServicesInitializerProvider);
-  initResult.maybeWhen(
-    data: (_) => null,
-    error: (error, stack) => throw error,
-    orElse: () => throw StateError('Offline services not initialized'),
-  );
-
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return OfflineOhyoService(prefs);
+final offlineOhyoServiceProvider = Provider<OfflineOhyoService>((ref) {
+  return OfflineOhyoService(main_app.getSharedPreferences());
 });
 
-final offlineForumServiceProviderOverride = Provider<OfflineForumService>((ref) {
-  // Wait for initialization to complete
-  final initResult = ref.watch(offlineServicesInitializerProvider);
-  initResult.maybeWhen(
-    data: (_) => null,
-    error: (error, stack) => throw error,
-    orElse: () => throw StateError('Offline services not initialized'),
-  );
-
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return OfflineForumService(prefs);
+final offlineForumServiceProvider = Provider<OfflineForumService>((ref) {
+  return OfflineForumService(main_app.getSharedPreferences());
 });
 
-// Helper provider for SharedPreferences
-final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
-  throw UnimplementedError('SharedPreferences must be initialized');
-});
+// The sharedPreferencesProvider is defined at the top of this file
 
 // Provider that waits for offline services to be initialized
 final offlineServicesReadyProvider = Provider<bool>((ref) {

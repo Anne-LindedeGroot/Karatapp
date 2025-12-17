@@ -274,7 +274,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                           final canDelete = isCommentAuthor || isModeratorAsync.when(
                             data: (isModerator) => isModerator,
                             loading: () => false,
-                            error: (_, __) => false,
+                            error: (error, stackTrace) => false,
                           );
                           return canDelete;
                         },

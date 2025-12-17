@@ -982,13 +982,20 @@ final forumNotifierProvider = StateNotifierProvider<ForumNotifier, ForumState>((
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
   final notifier = ForumNotifier(forumService, errorBoundary, ref);
 
-  // Initialize offline service if available
-  final offlineForumService = ref.watch(offlineForumServiceProviderOverride);
-  notifier.initializeOfflineService(offlineForumService);
+  // Initialize offline services if available (catch errors if not initialized yet)
+  try {
+    final offlineForumService = ref.watch(offlineForumServiceProvider);
+    notifier.initializeOfflineService(offlineForumService);
+  } catch (e) {
+    // Offline service not available yet, will be initialized later
+  }
 
-  // Initialize offline queue service
-  final offlineQueueService = ref.watch(offlineQueueServiceProviderOverride);
-  notifier.initializeOfflineQueueService(offlineQueueService);
+  try {
+    final offlineQueueService = ref.watch(offlineQueueServiceProvider);
+    notifier.initializeOfflineQueueService(offlineQueueService);
+  } catch (e) {
+    // Offline queue service not available yet, will be initialized later
+  }
 
   return notifier;
 });

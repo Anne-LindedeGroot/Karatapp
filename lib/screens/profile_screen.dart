@@ -110,7 +110,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           contentParts.add('Beschrijving: ${role.description}');
         },
         loading: () => contentParts.add('Rol wordt geladen'),
-        error: (_, __) => contentParts.add('Fout bij laden rol'),
+        error: (error, stackTrace) => contentParts.add('Fout bij laden rol'),
       );
       
       // Add name info

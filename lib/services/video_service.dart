@@ -246,7 +246,7 @@ class VideoService {
                   'url': signedUrl,
                   'name': file.name,
                 });
-                debugPrint('✅ Generated signed URL for video ${file.name}');
+                // Reduced spam: Video URL generation is now silent
               } catch (signedUrlError) {
                 debugPrint('⚠️ Failed to create signed URL for ${file.name}, falling back to public URL: $signedUrlError');
                 // Fallback to public URL if signed URL fails

@@ -116,7 +116,7 @@ class _OhyoCardInteractionsState extends State<OhyoCardInteractions> {
                   ),
                   tooltip: _isCommentsExpanded ? 'Sluit reacties' : 'Open reacties',
                 ),
-                OverflowSafeText('$commentCount'),
+                AccessibleOverflowSafeText('$commentCount'),
 
                 const OverflowSafeSpacer(),
               ],

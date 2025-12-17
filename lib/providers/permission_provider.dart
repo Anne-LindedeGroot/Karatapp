@@ -162,7 +162,7 @@ class PermissionUtils {
     return await isHostAsync.when(
       data: (isHost) => isHost,
       loading: () => false,
-      error: (_, __) => false,
+      error: (error, stackTrace) => false,
     );
   }
   
@@ -171,7 +171,7 @@ class PermissionUtils {
     return await canEditAsync.when(
       data: (canEdit) => canEdit,
       loading: () => false,
-      error: (_, __) => false,
+      error: (error, stackTrace) => false,
     );
   }
   
@@ -184,7 +184,7 @@ class PermissionUtils {
     return await canEditAsync.when(
       data: (canEdit) => canEdit,
       loading: () => false,
-      error: (_, __) => false,
+      error: (error, stackTrace) => false,
     );
   }
   
@@ -197,7 +197,7 @@ class PermissionUtils {
     return await canEditAsync.when(
       data: (canEdit) => canEdit,
       loading: () => false,
-      error: (_, __) => false,
+      error: (error, stackTrace) => false,
     );
   }
 }

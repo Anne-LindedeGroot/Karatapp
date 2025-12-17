@@ -363,7 +363,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     final canModerateRole = canModerateAsync.when(
       data: (value) => value,
       loading: () => false,
-      error: (_, __) => false,
+      error: (error, stackTrace) => false,
     );
     final canModerate =
         canModerateRole ||
@@ -643,10 +643,30 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               final isLoading = forumInteraction.isLoading;
               final isConnected = ref.watch(isConnectedProvider);
 
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
+              // Get text scale factor for accessibility
+              final textScaler = MediaQuery.of(context).textScaler;
+              final scaleFactor = textScaler.scale(1.0); // Get the scale factor
+
+              // Check if dyslexia font is enabled to adjust scaling
+              final isDyslexiaFriendly = ref.watch(accessibilityNotifierProvider).isDyslexiaFriendly;
+
+              // Dyslexia fonts need more space due to wider character spacing
+              final dyslexiaAdjustment = isDyslexiaFriendly ? 1.1 : 1.0;
+
+              final scaledPadding = 12 * scaleFactor.clamp(1.0, 2.0) * dyslexiaAdjustment;
+              final scaledFontSize = (12 * scaleFactor).clamp(12.0, 20.0) * dyslexiaAdjustment;
+              final scaledIconSize = (16 * scaleFactor).clamp(16.0, 24.0);
+
+              return SizedBox(
+                height: 44 + (scaleFactor - 1) * 16, // Scale height with text size
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
                     // Like button
                     GestureDetector(
                       onTap: (isLoading || !isConnected)
@@ -672,8 +692,12 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                               }
                             },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
+                        constraints: BoxConstraints(
+                          minWidth: 60 * scaleFactor.clamp(1.0, 1.8),
+                          minHeight: 32 + (scaleFactor - 1) * 8,
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: scaledPadding,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
@@ -695,7 +719,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           children: [
                             Icon(
                               isLiked ? Icons.favorite : Icons.favorite_border,
-                              size: 16,
+                              size: scaledIconSize,
                               color: !isConnected
                                   ? Colors.grey[400]
                                   : isLiked ? Colors.red : Colors.grey[600],
@@ -708,14 +732,14 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                                     ? Colors.grey[400]
                                     : isLiked ? Colors.red : Colors.grey[600],
                                 fontWeight: FontWeight.w500,
-                                fontSize: 12,
+                                fontSize: scaledFontSize,
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8 * scaleFactor.clamp(1.0, 1.2)),
 
                     // Favorite button
                     GestureDetector(
@@ -754,8 +778,12 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                               }
                             },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
+                        constraints: BoxConstraints(
+                          minWidth: 60 * scaleFactor.clamp(1.0, 1.8),
+                          minHeight: 32 + (scaleFactor - 1) * 8,
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: scaledPadding,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
@@ -781,7 +809,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                               isFavorited
                                   ? Icons.bookmark
                                   : Icons.bookmark_border,
-                              size: 16,
+                              size: scaledIconSize,
                               color: !isConnected
                                   ? Colors.grey[400]
                                   : isFavorited
@@ -798,19 +826,21 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                                         ? Colors.teal.shade400
                                         : Colors.grey[600],
                                 fontWeight: FontWeight.w500,
-                                fontSize: 12,
+                                fontSize: scaledFontSize,
                               ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8 * scaleFactor.clamp(1.0, 1.2)),
 
                     // Comment count display
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: scaledPadding,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
@@ -823,7 +853,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         children: [
                           Icon(
                             Icons.comment,
-                            size: 16,
+                            size: scaledIconSize,
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
@@ -832,7 +862,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                             style: TextStyle(
                               color: Theme.of(context).colorScheme.onSurfaceVariant,
                               fontWeight: FontWeight.w500,
-                              fontSize: 12,
+                              fontSize: scaledFontSize,
                             ),
                           ),
                         ],
@@ -840,7 +870,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     ),
                   ],
                 ),
-              );
+              ),
+            );
             },
           ),
         ],
@@ -866,31 +897,51 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
         // Comments header
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            border: Border(
-              top: BorderSide(color: Theme.of(context).colorScheme.outline),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.comment,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${_comments.length} Reactie${_comments.length != 1 ? 's' : ''}',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
+        Consumer(
+          builder: (context, ref, child) {
+            final textScaler = MediaQuery.of(context).textScaler;
+            final scaleFactor = textScaler.scale(1.0);
+
+            // Check if dyslexia font is enabled
+            final isDyslexiaFriendly = ref.watch(accessibilityNotifierProvider).isDyslexiaFriendly;
+            final dyslexiaAdjustment = isDyslexiaFriendly ? 1.1 : 1.0;
+
+            final scaledFontSize = (18 * scaleFactor).clamp(18.0, 28.0) * dyslexiaAdjustment;
+            final scaledIconSize = (24 * scaleFactor).clamp(24.0, 32.0); // Default icon size is 24
+            final scaledPadding = 16 * scaleFactor.clamp(1.0, 1.5);
+
+            return Container(
+              padding: EdgeInsets.all(scaledPadding),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: Border(
+                  top: BorderSide(color: Theme.of(context).colorScheme.outline),
                 ),
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.comment,
+                    size: scaledIconSize,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  SizedBox(width: 8 * scaleFactor.clamp(1.0, 1.2)),
+                  Expanded(
+                    child: Text(
+                      '${_comments.length} Reactie${_comments.length != 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: scaledFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
 
         // Comments list
@@ -913,7 +964,6 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     if (index == threadedComments.length) {
                       return Container(
                         padding: const EdgeInsets.all(16),
-                        alignment: Alignment.center,
                         child: const CircularProgressIndicator(),
                       );
                     }
@@ -930,7 +980,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                           final canModerate = canModerateAsync.when(
                             data: (value) => value,
                             loading: () => false,
-                            error: (_, __) => false,
+                            error: (error, stackTrace) => false,
                           );
                           return isCommentAuthor || isPostAuthor || canModerate;
                         },

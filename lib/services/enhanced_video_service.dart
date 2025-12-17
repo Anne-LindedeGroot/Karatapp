@@ -169,7 +169,7 @@ class EnhancedVideoService {
           // Record data usage
           ref.read(dataUsageProvider.notifier).recordDataUsage(bytes.length, type: 'video');
           
-          debugPrint('✅ Video uploaded successfully: $fileName');
+          // Silent: Video upload success is not logged
           return publicUrl;
         } catch (e) {
           debugPrint('❌ Error uploading video to Supabase: $e');
@@ -213,7 +213,7 @@ class EnhancedVideoService {
           try {
             await supabase.storage.getBucket('kata_videos');
           } catch (e) {
-            debugPrint('⚠️ kata_videos bucket not found or not accessible: $e');
+            // Silent: Bucket access warnings are not logged
             return _getCachedVideos(kataId);
           }
           
@@ -246,7 +246,7 @@ class EnhancedVideoService {
                 // Estimate data usage for URL generation
                 totalDataUsage += 1024; // ~1KB per URL
                 
-                debugPrint('✅ Generated signed URL for video ${file.name}');
+                // Reduced spam: Video URL generation is now silent
               } catch (signedUrlError) {
                 debugPrint('⚠️ Failed to create signed URL for ${file.name}, falling back to public URL: $signedUrlError');
                 // Fallback to public URL if signed URL fails
@@ -332,7 +332,7 @@ class EnhancedVideoService {
           type: 'video'
         );
         
-        debugPrint('✅ Preloaded ${videoUrls.length} videos for kata $kataId');
+          // Silent: Video preloading is not logged
       }
     } catch (e) {
       debugPrint('Error preloading videos for kata $kataId: $e');

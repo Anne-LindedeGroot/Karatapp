@@ -206,7 +206,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                   return 'Kata\'s (${favoriteKatas.length})';
                 },
                 loading: () => 'Kata\'s (...)',
-                error: (_, __) => 'Kata\'s (0)',
+                error: (error, stackTrace) => 'Kata\'s (0)',
               ),
             ),
             Tab(
@@ -219,7 +219,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                   return 'Ohyo\'s (${favoriteOhyos.length})';
                 },
                 loading: () => 'Ohyo\'s (...)',
-                error: (_, __) => 'Ohyo\'s (0)',
+                error: (error, stackTrace) => 'Ohyo\'s (0)',
               ),
             ),
             Tab(
@@ -232,7 +232,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                   return 'Forumberichten (${favoriteForumPosts.length})';
                 },
                 loading: () => 'Forumberichten (...)',
-                error: (_, __) => 'Forumberichten (0)',
+                error: (error, stackTrace) => 'Forumberichten (0)',
               ),
             ),
           ],
@@ -716,11 +716,37 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                           ),
                         ),
                         if (post.commentCount > 0) ...[
-                          Icon(Icons.comment, size: 16, color: Colors.grey[600]),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${post.commentCount}',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final textScaler = MediaQuery.of(context).textScaler;
+                              final scaleFactor = textScaler.scale(1.0);
+
+                              // Check if dyslexia font is enabled
+                              final isDyslexiaFriendly = ref.watch(accessibilityNotifierProvider).isDyslexiaFriendly;
+                              final dyslexiaAdjustment = isDyslexiaFriendly ? 1.1 : 1.0;
+
+                              final scaledIconSize = (16 * scaleFactor).clamp(16.0, 24.0);
+                              final scaledFontSize = (12 * scaleFactor).clamp(12.0, 18.0) * dyslexiaAdjustment;
+
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.comment,
+                                    size: scaledIconSize,
+                                    color: Colors.grey[600],
+                                  ),
+                                  SizedBox(width: 4 * scaleFactor.clamp(1.0, 1.2)),
+                                  Text(
+                                    '${post.commentCount}',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: scaledFontSize,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ],
                       ],

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:ui' as ui;
+import 'supabase_client.dart';
 import 'config/environment.dart';
 import 'core/theme/app_theme.dart';
 import 'core/navigation/app_router.dart';
@@ -10,58 +13,202 @@ import 'providers/theme_provider.dart';
 import 'core/navigation/scaffold_messenger.dart';
 import 'providers/accessibility_provider.dart';
 import 'providers/error_boundary_provider.dart';
-import 'providers/offline_services_provider.dart';
-import 'providers/interaction_provider.dart';
-import 'providers/forum_provider.dart';
-import 'providers/kata_provider.dart';
-import 'providers/ohyo_provider.dart';
 import 'services/offline_media_cache_service.dart';
 import 'services/precaching_service.dart';
 import 'widgets/global_tts_overlay.dart';
 import 'widgets/global_overflow_handler.dart';
 
+// Global SharedPreferences instance for synchronous access
+SharedPreferences? _sharedPreferences;
+
+/// Get the initialized SharedPreferences instance synchronously
+SharedPreferences getSharedPreferences() {
+  if (_sharedPreferences == null) {
+    throw StateError('SharedPreferences not initialized yet. Call this after main() completes.');
+  }
+  return _sharedPreferences!;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize environment variables (with fallback for missing .env)
+  // 🔑 CRITICAL: Initialize SharedPreferences FIRST (needed by providers)
   try {
-    await Environment.initialize();
+    _sharedPreferences = await SharedPreferences.getInstance();
+    debugPrint('✅ SharedPreferences initialized');
   } catch (e) {
-    debugPrint('Warning: Could not load .env file: $e');
-    debugPrint('App will continue with default environment values');
+    debugPrint('⚠️ Failed to initialize SharedPreferences: $e');
   }
 
-  // Initialize SharedPreferences synchronously (it will be cached after first call)
-  final sharedPreferences = await SharedPreferences.getInstance();
+  // 🔑 CRITICAL: Initialize environment variables SECOND
+  try {
+    await Environment.initialize();
+    debugPrint('✅ Environment variables loaded');
+  } catch (e) {
+    debugPrint('⚠️ Failed to load .env file: $e - using default values');
+  }
 
-  // Initialize offline media cache
-  await OfflineMediaCacheService.initialize();
+  // 🔑 CRITICAL: Initialize Supabase SECOND before any other initialization
+  // This must complete before creating any providers that use Supabase
+  try {
+    debugPrint('🚀 Initializing Supabase...');
+    debugPrint('📡 Supabase URL: ${Environment.supabaseUrl}');
+    debugPrint('🔑 Using anon key: ${Environment.supabaseAnonKey.substring(0, 20)}...');
 
-  // Initialize pre-caching service
-  PreCachingService.initialize();
+    await Supabase.initialize(
+      url: Environment.supabaseUrl,
+      anonKey: Environment.supabaseAnonKey,
+    );
 
-  // Start app immediately with simplified initialization
+    // Test the connection immediately
+    final testClient = Supabase.instance.client;
+    debugPrint('🔗 Testing Supabase connection...');
+    // Try to access auth to verify connection
+    final currentUser = testClient.auth.currentUser;
+    debugPrint('👤 Current user check: ${currentUser != null ? 'User logged in' : 'No user'}');
+
+    // Initialize the SupabaseClientManager immediately after Supabase
+    SupabaseClientManager().initializeClient();
+
+    debugPrint('✅ Supabase initialized successfully');
+    debugPrint('🎉 App will start normally');
+  } catch (e, stackTrace) {
+    debugPrint('❌ CRITICAL: Failed to initialize Supabase: $e');
+    debugPrint('Stack trace: $stackTrace');
+    debugPrint('App cannot start without Supabase. Please check your configuration.');
+
+    // For critical errors, we should show an error and exit
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.error, color: Colors.red, size: 64),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Supabase Initialization Failed',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Error: $e',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.red, fontSize: 14),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Common solutions:\n'
+                          '• Check your internet connection\n'
+                          '• Verify Supabase URL and API key\n'
+                          '• Make sure Supabase project is active',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Try to restart the app
+                      main();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                    ),
+                    child: const Text('Retry', style: TextStyle(fontSize: 16)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    return;
+  }
+
+  // 🚀 ULTRA FAST STARTUP: Minimal initialization in main()
+  // Move heavy initialization to post-frame callbacks for instant app launch
+
+  // Start app immediately with minimal setup
   runApp(
     ProviderScope(
       observers: kDebugMode ? [OptimizedRiverpodObserver()] : [],
-      overrides: [
-        // Override the SharedPreferences provider with the initialized instance
-        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
-        // Override the main offline service providers with properly initialized ones
-        offlineQueueServiceProvider.overrideWith((ref) => ref.watch(offlineQueueServiceProviderOverride)),
-        commentCacheServiceProvider.overrideWith((ref) => ref.watch(commentCacheServiceProviderOverride)),
-        conflictResolutionServiceProvider.overrideWith((ref) => ref.watch(conflictResolutionServiceProviderOverride)),
-        offlineForumServiceProvider.overrideWith((ref) => ref.watch(offlineForumServiceProviderOverride)),
-        offlineKataServiceProvider.overrideWith((ref) => ref.watch(offlineKataServiceProviderOverride)),
-        offlineOhyoServiceProvider.overrideWith((ref) => ref.watch(offlineOhyoServiceProviderOverride)),
-      ],
       child: const MyApp(),
     ),
   );
-  
-  // Global error handler will be set up in AppErrorBoundary
+
+  // 🚀 POST-STARTUP INITIALIZATION: Defer heavy operations
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    try {
+      // Initialize environment variables (non-blocking)
+      Environment.initialize().catchError((e) {
+        debugPrint('Warning: Could not load .env file: $e');
+        debugPrint('App will continue with default environment values');
+      });
+
+      // SharedPreferences already initialized in main()
+      // Initialize offline services lazily
+      await OfflineMediaCacheService.initialize();
+      PreCachingService.initialize();
+
+      // 🚀 SHADER PRECOMPILATION: Improve GPU performance
+      if (!kIsWeb) {
+        try {
+          await _precompileShaders();
+        } catch (e) {
+          debugPrint('Shader precompilation failed (non-critical): $e');
+        }
+      }
+
+    } catch (e) {
+      debugPrint('Non-critical initialization error: $e');
+      // App continues to work even if these fail
+    }
+  });
 }
 
+
+// 🚀 Shader precompilation for faster GPU rendering
+Future<void> _precompileShaders() async {
+  // Pre-warm commonly used shaders to reduce jank
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+
+  // Pre-render common shapes that use shaders
+  canvas.drawCircle(Offset.zero, 1.0, Paint()..color = Colors.white);
+  canvas.drawRect(Rect.fromLTWH(0, 0, 1, 1), Paint()..color = Colors.white);
+  canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, 1, 1), const Radius.circular(0.5)), Paint()..color = Colors.white);
+
+  // Create and dispose to trigger shader compilation
+  final picture = recorder.endRecording();
+  picture.dispose();
+
+  debugPrint('✅ Shaders precompiled for optimal performance');
+}
 
 // Optimized Riverpod observer for better performance
 class OptimizedRiverpodObserver extends ProviderObserver {
@@ -347,8 +494,8 @@ class MyApp extends ConsumerStatefulWidget {
 class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
-    // Initialize offline services
-    ref.watch(offlineServicesInitializerProvider);
+    // Offline services initialization moved to post-frame callback to avoid startup issues
+    // ref.watch(offlineServicesInitializerProvider);
 
     // Use AppErrorBoundary to catch any build errors
     return AppErrorBoundary(

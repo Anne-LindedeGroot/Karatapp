@@ -72,7 +72,7 @@ class SmartPreloadService {
   }
   
   /// Check if preloading should occur
-  bool _shouldPreload(dataUsageState, networkState) {
+  bool _shouldPreload(DataUsageState dataUsageState, NetworkState networkState) {
     // Must be connected
     if (!networkState.isConnected) return false;
     
@@ -282,7 +282,7 @@ class SmartPreloadService {
   }
   
   /// Check if preloading should continue
-  bool _shouldContinuePreloading(dataUsageState, int processedItems, int totalItems) {
+  bool _shouldContinuePreloading(DataUsageState dataUsageState, int processedItems, int totalItems) {
     // Don't continue if approaching data limit
     if (dataUsageState.shouldShowDataWarning) return false;
     

@@ -9,18 +9,17 @@ import '../utils/retry_utils.dart';
 import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
+import 'interaction_provider.dart';
 
-// Provider for offline kata service
-final offlineKataServiceProvider = Provider<OfflineKataService>((ref) {
-  throw UnimplementedError('OfflineKataService must be provided by a parent provider');
-});
+// OfflineKataService provider is now imported from offline_services_provider.dart
 
 // StateNotifier for kata management
 class KataNotifier extends StateNotifier<KataState> {
   final ErrorBoundaryNotifier _errorBoundary;
+  final Ref _ref;
   OfflineKataService? _offlineKataService;
 
-  KataNotifier(this._errorBoundary) : super(KataState.initial()) {
+  KataNotifier(this._errorBoundary, this._ref) : super(KataState.initial()) {
     // Don't auto-load katas on initialization - wait for explicit call
   }
 
@@ -66,7 +65,7 @@ class KataNotifier extends StateNotifier<KataState> {
           try {
             final hiveCachedKatas = app_storage.LocalStorage.getAllKatas();
             if (hiveCachedKatas.isNotEmpty) {
-              // Convert CachedKata to Kata
+              // Convert CachedKata to Kata with likes data
               cachedKatas = hiveCachedKatas.map((cachedKata) {
                 return Kata(
                   id: cachedKata.id,
@@ -77,6 +76,8 @@ class KataNotifier extends StateNotifier<KataState> {
                   imageUrls: cachedKata.imageUrls,
                   videoUrls: [], // Not stored in CachedKata
                   order: 0, // Not stored in CachedKata
+                  isLiked: cachedKata.isLiked, // Include cached likes data
+                  likeCount: cachedKata.likeCount, // Include cached like count
                 );
               }).toList();
 
@@ -134,6 +135,9 @@ class KataNotifier extends StateNotifier<KataState> {
           if (onlineKatas.isNotEmpty) {
             _preloadInitialKataImages(onlineKatas.take(3).toList());
           }
+
+          // Preload likes for all katas to ensure offline availability
+          await _preloadKataLikes(onlineKatas);
         },
         maxRetries: 3,
         initialDelay: const Duration(seconds: 1),
@@ -185,6 +189,80 @@ class KataNotifier extends StateNotifier<KataState> {
       if (kata.imageUrls?.isEmpty ?? true) {
         Future.microtask(() => loadKataImages(kata.id));
       }
+    }
+  }
+
+  // Preload likes for all katas to ensure offline availability
+  Future<void> _preloadKataLikes(List<Kata> katas) async {
+    try {
+      // Load likes for all katas in parallel to speed up the process
+      final likeFutures = katas.map((kata) async {
+        try {
+          final likes = await RetryUtils.executeWithRetry(
+            () async {
+              final interactionService = _ref.read(interactionServiceProvider);
+              return await interactionService.getKataLikes(kata.id);
+            },
+            maxRetries: 2,
+            initialDelay: const Duration(milliseconds: 100),
+          );
+
+          final isLiked = await RetryUtils.executeWithRetry(
+            () async {
+              final interactionService = _ref.read(interactionServiceProvider);
+              return await interactionService.isKataLiked(kata.id);
+            },
+            maxRetries: 2,
+            initialDelay: const Duration(milliseconds: 100),
+          );
+
+          return {
+            'kataId': kata.id,
+            'likes': likes,
+            'isLiked': isLiked,
+          };
+        } catch (e) {
+          // If loading likes fails, return null data
+          return {
+            'kataId': kata.id,
+            'likes': <dynamic>[],
+            'isLiked': false,
+          };
+        }
+      });
+
+      final likeResults = await Future.wait(likeFutures);
+
+      // Update cached data with likes information
+      for (final result in likeResults) {
+        final kataId = result['kataId'] as int;
+        final likes = result['likes'] as List;
+        final isLiked = result['isLiked'] as bool;
+
+        // Update the cached kata with likes data
+        final cachedKata = app_storage.LocalStorage.getKata(kataId);
+        if (cachedKata != null) {
+          final updatedKata = app_storage.CachedKata(
+            id: cachedKata.id,
+            name: cachedKata.name,
+            description: cachedKata.description,
+            createdAt: cachedKata.createdAt,
+            lastSynced: DateTime.now(),
+            imageUrls: cachedKata.imageUrls,
+            style: cachedKata.style,
+            isFavorite: cachedKata.isFavorite,
+            needsSync: cachedKata.needsSync,
+            isLiked: isLiked,
+            likeCount: likes.length,
+          );
+          await app_storage.LocalStorage.saveKata(updatedKata);
+        }
+      }
+
+      // Reduced spam: Only log if there were errors or significant issues
+    } catch (e) {
+      debugPrint('⚠️ Failed to preload kata likes: $e');
+      // Don't throw - likes preloading failure shouldn't break the app
     }
   }
 
@@ -636,11 +714,15 @@ class KataNotifier extends StateNotifier<KataState> {
 // Provider for the KataNotifier
 final kataNotifierProvider = StateNotifierProvider<KataNotifier, KataState>((ref) {
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  final notifier = KataNotifier(errorBoundary);
+  final notifier = KataNotifier(errorBoundary, ref);
 
-  // Initialize offline service if available
-  final offlineKataService = ref.watch(offlineKataServiceProviderOverride);
-  notifier.initializeOfflineService(offlineKataService);
+  // Initialize offline service if available (catch errors if not initialized yet)
+  try {
+    final offlineKataService = ref.watch(offlineKataServiceProvider);
+    notifier.initializeOfflineService(offlineKataService);
+  } catch (e) {
+    // Offline service not available yet, will be initialized later
+  }
 
   return notifier;
 });

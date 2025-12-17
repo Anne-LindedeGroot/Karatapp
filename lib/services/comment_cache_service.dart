@@ -40,7 +40,7 @@ class CommentCacheService {
     await _saveCache(cache);
     _cacheController.add(cache);
 
-    debugPrint('Cached comment state: ${state.commentType} ${state.commentId}');
+    // Silent: Comment state caching not logged
   }
 
   /// Get cached comment state

@@ -209,7 +209,7 @@ class _UserListItemState extends ConsumerState<UserListItem> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                          error: (_, __) => const Icon(
+                          error: (error, stackTrace) => const Icon(
                             Icons.error,
                             color: Colors.red,
                             size: 20,

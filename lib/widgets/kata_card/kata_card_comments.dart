@@ -284,7 +284,7 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
                           final canDelete = isCommentAuthor || isModeratorAsync.when(
                             data: (isModerator) => isModerator,
                             loading: () => false,
-                            error: (_, __) => false,
+                            error: (error, stackTrace) => false,
                           );
                           return canDelete;
                         },
