@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/interaction_models.dart';
 import '../utils/comment_threading_utils.dart';
+import '../providers/auth_provider.dart';
 import 'avatar_widget.dart';
 
 /// Generic threaded comment widget that can display nested comments
@@ -19,6 +20,7 @@ class ThreadedCommentWidget<T> extends StatefulWidget {
   final void Function(int) onToggleLike;
   final void Function(int) onToggleDislike;
   final int Function(T) getCommentId;
+  final String Function(T) getAuthorId;
   final String Function(T) getAuthorName;
   final String? Function(T) getAuthorAvatar;
   final String Function(T) getContent;
@@ -41,6 +43,7 @@ class ThreadedCommentWidget<T> extends StatefulWidget {
     required this.onToggleLike,
     required this.onToggleDislike,
     required this.getCommentId,
+    required this.getAuthorId,
     required this.getAuthorName,
     required this.getAuthorAvatar,
     required this.getContent,
@@ -114,6 +117,7 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
                   onToggleLike: widget.onToggleLike,
                   onToggleDislike: widget.onToggleDislike,
                   getCommentId: widget.getCommentId,
+                  getAuthorId: widget.getAuthorId,
                   getAuthorName: widget.getAuthorName,
                   getAuthorAvatar: widget.getAuthorAvatar,
                   getContent: widget.getContent,
@@ -151,13 +155,38 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header with avatar, name, date, and menu
-                Row(
-                  children: [
-                    AvatarWidget(
-                      customAvatarUrl: widget.getAuthorAvatar(comment),
-                      userName: widget.getAuthorName(comment),
-                      size: 20,
-                    ),
+                Consumer(
+                  builder: (context, ref, child) {
+                    // Get current user to check if this comment is by current user
+                    final currentUser = ref.watch(authUserProvider);
+                    final isCurrentUser = currentUser?.id == widget.getAuthorId(comment);
+                    
+                    // If it's the current user, get avatar from their profile metadata
+                    String? avatarUrlToShow = widget.getAuthorAvatar(comment);
+                    String? avatarIdToShow;
+                    
+                    if (isCurrentUser && currentUser != null) {
+                      final metadata = currentUser.userMetadata ?? {};
+                      final avatarType = metadata['avatar_type'] as String?;
+                      
+                      if (avatarType == 'custom') {
+                        avatarUrlToShow = metadata['avatar_url'] as String?;
+                        avatarIdToShow = null;
+                      } else if (avatarType == 'preset' || avatarType == null) {
+                        avatarIdToShow = metadata['avatar_id'] as String? ?? 
+                                       metadata['preset_avatar_id'] as String?;
+                        avatarUrlToShow = null;
+                      }
+                    }
+                    
+                    return Row(
+                      children: [
+                        AvatarWidget(
+                          customAvatarUrl: avatarUrlToShow,
+                          avatarId: avatarIdToShow,
+                          userName: widget.getAuthorName(comment),
+                          size: 20,
+                        ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -250,6 +279,8 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
                       ),
                     ),
                   ],
+                );
+                  },
                 ),
                 const SizedBox(height: 6),
                 // Comment content

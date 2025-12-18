@@ -296,6 +296,7 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
                         onToggleLike: (commentId) => ref.read(kataCommentInteractionProvider(commentId).notifier).toggleLike(),
                         onToggleDislike: (commentId) => ref.read(kataCommentInteractionProvider(commentId).notifier).toggleDislike(),
                         getCommentId: (comment) => comment.id,
+                        getAuthorId: (comment) => comment.authorId,
                         getAuthorName: (comment) => comment.authorName,
                         getAuthorAvatar: (comment) => comment.authorAvatar,
                         getContent: (comment) => comment.content,

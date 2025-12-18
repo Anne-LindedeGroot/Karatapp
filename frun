@@ -9,3 +9,4 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Execute the ultra-fast flutter run script
 exec "$SCRIPT_DIR/scripts/flutter-run-fast" "$@"
+

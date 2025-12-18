@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/ohyo_model.dart';
 import '../../models/interaction_models.dart';
 import '../../providers/interaction_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../overflow_safe_widgets.dart';
 import '../avatar_widget.dart';
 import 'ohyo_card_comments.dart';
@@ -38,6 +39,7 @@ class _OhyoCardInteractionsState extends State<OhyoCardInteractions> {
         final comments = interactionState.comments;
 
         return Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Action buttons row
@@ -173,10 +175,37 @@ class _OhyoCardInteractionsState extends State<OhyoCardInteractions> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AvatarWidget(
-              customAvatarUrl: comment.authorAvatar,
-              userName: comment.authorName,
-              size: 20,
+            Consumer(
+              builder: (context, ref, child) {
+                // Get current user to check if this comment is by current user
+                final currentUser = ref.watch(authUserProvider);
+                final isCurrentUser = currentUser?.id == comment.authorId;
+                
+                // If it's the current user, get avatar from their profile metadata
+                String? avatarUrlToShow = comment.authorAvatar;
+                String? avatarIdToShow;
+                
+                if (isCurrentUser && currentUser != null) {
+                  final metadata = currentUser.userMetadata ?? {};
+                  final avatarType = metadata['avatar_type'] as String?;
+                  
+                  if (avatarType == 'custom') {
+                    avatarUrlToShow = metadata['avatar_url'] as String?;
+                    avatarIdToShow = null;
+                  } else if (avatarType == 'preset' || avatarType == null) {
+                    avatarIdToShow = metadata['avatar_id'] as String? ?? 
+                                   metadata['preset_avatar_id'] as String?;
+                    avatarUrlToShow = null;
+                  }
+                }
+                
+                return AvatarWidget(
+                  customAvatarUrl: avatarUrlToShow,
+                  avatarId: avatarIdToShow,
+                  userName: comment.authorName,
+                  size: 20,
+                );
+              },
             ),
             const SizedBox(width: 8),
             Expanded(

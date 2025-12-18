@@ -74,3 +74,4 @@ else
     echo -e "${YELLOW}💡 Try running: flutter clean && flutter pub get${NC}"
     exit 1
 fi
+

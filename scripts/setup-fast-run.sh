@@ -74,3 +74,4 @@ echo "Usage examples:"
 echo "  $SCRIPT_PATH                    # Default device"
 echo "  $SCRIPT_PATH --device-id=emulator-5554"
 echo "  $SCRIPT_PATH --release"
+

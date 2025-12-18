@@ -113,59 +113,30 @@ class ConnectionStatusIndicator extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final networkStatus = ref.watch(networkStatusProvider);
     final isConnected = ref.watch(isConnectedProvider);
 
-    // Only show indicator when there are connection issues
+    // Only show indicator when offline
     if (isConnected) {
       return const SizedBox.shrink();
     }
 
-    Color indicatorColor;
-    IconData indicatorIcon;
-    String statusText;
-
-    switch (networkStatus) {
-      case NetworkStatus.checking:
-        indicatorColor = Colors.orange;
-        indicatorIcon = Icons.wifi_find;
-        statusText = 'Verbinding controleren...';
-        break;
-      case NetworkStatus.disconnected:
-        indicatorColor = Colors.red;
-        indicatorIcon = Icons.wifi_off;
-        statusText = 'Geen verbinding';
-        break;
-      case NetworkStatus.unknown:
-        indicatorColor = Colors.grey;
-        indicatorIcon = Icons.help_outline;
-        statusText = 'Verbinding onbekend';
-        break;
-      case NetworkStatus.connected:
-        return const SizedBox.shrink();
-    }
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: indicatorColor.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: indicatorColor.withValues(alpha: 0.3)),
+        color: Colors.orange.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            indicatorIcon,
-            size: 16,
-            color: indicatorColor,
-          ),
-          const SizedBox(width: 6),
+          Icon(Icons.wifi_off, size: 14, color: Colors.orange),
+          SizedBox(width: 4),
           Text(
-            statusText,
+            'Offline',
             style: TextStyle(
               fontSize: 12,
-              color: indicatorColor,
+              color: Colors.orange,
               fontWeight: FontWeight.w500,
             ),
           ),

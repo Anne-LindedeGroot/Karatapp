@@ -71,3 +71,4 @@ else
     echo -e "${YELLOW}Try running with sudo if needed${NC}"
     exit 1
 fi
+

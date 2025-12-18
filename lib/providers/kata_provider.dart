@@ -10,6 +10,7 @@ import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 import 'interaction_provider.dart';
+import '../utils/search_utils.dart';
 
 // OfflineKataService provider is now imported from offline_services_provider.dart
 
@@ -477,39 +478,70 @@ class KataNotifier extends StateNotifier<KataState> {
     
     // Then filter by search query
     if (query.isNotEmpty) {
-      final queryLower = query.toLowerCase();
+      final normalizedQuery = SearchUtils.normalizeSearchText(query);
+      final isNumericQuery = RegExp(r'^\d+$').hasMatch(normalizedQuery);
       
       // Filter katas based on name and description
       filtered = filtered.where((kata) {
-        final nameMatch = kata.name.toLowerCase().contains(queryLower);
-        final descMatch = kata.description.toLowerCase().contains(queryLower);
-        return nameMatch || descMatch;
+        final nameNormalized = SearchUtils.normalizeSearchText(kata.name);
+        final descNormalized = SearchUtils.normalizeSearchText(kata.description);
+
+        if (isNumericQuery) {
+          // For numeric queries, use exact number matching (like forum posts)
+          // This prevents "5" from matching "15", "25", "35", etc.
+          final ordinals = _getOrdinalForms(normalizedQuery);
+          return _matchesNumberOrOrdinal(nameNormalized, normalizedQuery, ordinals) ||
+                 _matchesNumberOrOrdinal(descNormalized, normalizedQuery, ordinals);
+        } else {
+          // For text queries, use normalized substring matching
+          // This handles diacritics, whitespace variations, and special characters
+          final nameMatch = nameNormalized.contains(normalizedQuery);
+          final descMatch = descNormalized.contains(normalizedQuery);
+          
+          // Also check word-based matching for better tolerance
+          if (!nameMatch && !descMatch) {
+            final queryWords = SearchUtils.splitIntoWords(query);
+            final nameWords = SearchUtils.splitIntoWords(kata.name);
+            final descWords = SearchUtils.splitIntoWords(kata.description);
+            
+            // Check if all query words appear in name or description
+            final allWordsMatch = queryWords.every((queryWord) {
+              final normalizedQueryWord = SearchUtils.normalizeSearchText(queryWord);
+              return nameWords.any((word) => word.contains(normalizedQueryWord)) ||
+                     descWords.any((word) => word.contains(normalizedQueryWord));
+            });
+            
+            return allWordsMatch;
+          }
+          
+          return nameMatch || descMatch;
+        }
       }).toList();
       
       // Sort results to prioritize exact matches and name matches over description matches
       filtered.sort((a, b) {
-        final aNameLower = a.name.toLowerCase();
-        final bNameLower = b.name.toLowerCase();
-        final aDescLower = a.description.toLowerCase();
-        final bDescLower = b.description.toLowerCase();
+        final aNameNormalized = SearchUtils.normalizeSearchText(a.name);
+        final bNameNormalized = SearchUtils.normalizeSearchText(b.name);
+        final aDescNormalized = SearchUtils.normalizeSearchText(a.description);
+        final bDescNormalized = SearchUtils.normalizeSearchText(b.description);
         
         // Exact name matches first
-        final aExactName = aNameLower == queryLower;
-        final bExactName = bNameLower == queryLower;
+        final aExactName = aNameNormalized == normalizedQuery;
+        final bExactName = bNameNormalized == normalizedQuery;
         if (aExactName && !bExactName) return -1;
         if (!aExactName && bExactName) return 1;
         
         // Name starts with query
-        final aStartsWithName = aNameLower.startsWith(queryLower);
-        final bStartsWithName = bNameLower.startsWith(queryLower);
+        final aStartsWithName = aNameNormalized.startsWith(normalizedQuery);
+        final bStartsWithName = bNameNormalized.startsWith(normalizedQuery);
         if (aStartsWithName && !bStartsWithName) return -1;
         if (!aStartsWithName && bStartsWithName) return 1;
         
         // Name contains query (already filtered, so both contain it)
-        final aNameMatch = aNameLower.contains(queryLower);
-        final bNameMatch = bNameLower.contains(queryLower);
-        final aDescMatch = aDescLower.contains(queryLower);
-        final bDescMatch = bDescLower.contains(queryLower);
+        final aNameMatch = aNameNormalized.contains(normalizedQuery);
+        final bNameMatch = bNameNormalized.contains(normalizedQuery);
+        final aDescMatch = aDescNormalized.contains(normalizedQuery);
+        final bDescMatch = bDescNormalized.contains(normalizedQuery);
         
         // Prioritize name matches over description matches
         if (aNameMatch && !bNameMatch) return -1;
@@ -518,11 +550,70 @@ class KataNotifier extends StateNotifier<KataState> {
         if (!aDescMatch && bDescMatch) return 1;
         
         // Finally, sort alphabetically by name
-        return aNameLower.compareTo(bNameLower);
+        return aNameNormalized.compareTo(bNameNormalized);
       });
     }
     
     return filtered;
+  }
+
+  // Helper function to get ordinal forms of a number (e.g., "5" -> ["fifth", "5th"])
+  List<String> _getOrdinalForms(String number) {
+    final num = int.tryParse(number);
+    if (num == null) return [];
+
+    final ordinals = <String>[];
+
+    // Add the number itself
+    ordinals.add(number);
+
+    // Add ordinal suffixes
+    if (num == 1) {
+      ordinals.add('${number}st');
+      ordinals.add('first');
+    } else if (num == 2) {
+      ordinals.add('${number}nd');
+      ordinals.add('second');
+    } else if (num == 3) {
+      ordinals.add('${number}rd');
+      ordinals.add('third');
+    } else {
+      ordinals.add('${number}th');
+      // Add word form for common numbers
+      const wordOrdinals = {
+        1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth',
+        6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth',
+        11: 'eleventh', 12: 'twelfth', 13: 'thirteenth', 14: 'fourteenth',
+        15: 'fifteenth', 16: 'sixteenth', 17: 'seventeenth', 18: 'eighteenth',
+        19: 'nineteenth', 20: 'twentieth'
+      };
+      if (wordOrdinals.containsKey(num)) {
+        ordinals.add(wordOrdinals[num]!);
+      }
+    }
+
+    return ordinals;
+  }
+
+  // Helper function to check if text matches a number or its ordinal forms
+  bool _matchesNumberOrOrdinal(String text, String number, List<String> ordinals) {
+    final textLower = text.toLowerCase();
+
+    // Check for exact word matches of the number
+    final numberPattern = RegExp(r'\b' + RegExp.escape(number) + r'\b');
+    if (numberPattern.hasMatch(textLower)) {
+      return true;
+    }
+
+    // Check for ordinal forms (word boundaries around ordinals)
+    for (final ordinal in ordinals) {
+      final ordinalPattern = RegExp(r'\b' + RegExp.escape(ordinal) + r'\b');
+      if (ordinalPattern.hasMatch(textLower)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   void clearError() {

@@ -286,6 +286,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                         onToggleLike: (commentId) => ref.read(ohyoCommentInteractionProvider(commentId).notifier).toggleLike(),
                         onToggleDislike: (commentId) => ref.read(ohyoCommentInteractionProvider(commentId).notifier).toggleDislike(),
                         getCommentId: (comment) => comment.id,
+                        getAuthorId: (comment) => comment.authorId,
                         getAuthorName: (comment) => comment.authorName,
                         getAuthorAvatar: (comment) => comment.authorAvatar,
                         getContent: (comment) => comment.content,

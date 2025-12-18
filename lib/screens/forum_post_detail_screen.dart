@@ -383,6 +383,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Category and status indicators
@@ -597,37 +598,104 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           const SizedBox(height: 16),
 
           // Author info
-          Row(
-            children: [
-              AvatarWidget(
-                customAvatarUrl: post.authorAvatar,
-                userName: post.authorName,
-                size: 36,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.authorName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 17,
-                      ),
-                      overflow: TextOverflow.visible,
+          Consumer(
+            builder: (context, ref, child) {
+              // Check if this is a fake account (sensei, student) that should always show initials
+              final authorNameLower = post.authorName.toLowerCase();
+              final isFakeAccount = authorNameLower.contains('sensei') || 
+                                   authorNameLower.contains('student');
+              
+              // Get current user to check if this post is by current user
+              final currentUser = ref.watch(authUserProvider);
+              // Only treat as current user if it's NOT a fake account
+              final isCurrentUser = !isFakeAccount && 
+                                   currentUser?.id == post.authorId;
+              
+              String? avatarUrlToShow;
+              String? avatarIdToShow;
+              
+              // Always show initials for fake accounts (sensei, student)
+              if (isFakeAccount) {
+                avatarIdToShow = null;
+                avatarUrlToShow = null;
+              } else if (isCurrentUser && currentUser != null) {
+                // For current user (Anne-Linde de Groot), get avatar from their profile metadata
+                final metadata = currentUser.userMetadata ?? {};
+                final avatarType = metadata['avatar_type'] as String?;
+                
+                if (avatarType == 'custom') {
+                  avatarUrlToShow = metadata['avatar_url'] as String? ?? 
+                                   metadata['custom_avatar_url'] as String?;
+                  avatarIdToShow = null;
+                } else if (avatarType == 'preset') {
+                  // Only use preset avatar if explicitly set
+                  avatarIdToShow = metadata['preset_avatar_id'] as String? ?? 
+                                 metadata['avatar_id'] as String?;
+                  avatarUrlToShow = null;
+                } else {
+                  // If avatar_type is null or not set, don't use any preset avatar
+                  // This will fall back to initials
+                  avatarIdToShow = null;
+                  avatarUrlToShow = null;
+                }
+              } else {
+                // For other real users (verified accounts), use stored avatar from post
+                // If they have an avatar set, show it; otherwise show initials
+                if (post.authorAvatar != null && post.authorAvatar!.isNotEmpty) {
+                  final isUrl = post.authorAvatar!.startsWith('http://') || 
+                              post.authorAvatar!.startsWith('https://') ||
+                              post.authorAvatar!.startsWith('file://') ||
+                              post.authorAvatar!.startsWith('/');
+                  
+                  if (isUrl) {
+                    avatarUrlToShow = post.authorAvatar;
+                    avatarIdToShow = null;
+                  } else {
+                    // It's an avatar ID
+                    avatarIdToShow = post.authorAvatar;
+                    avatarUrlToShow = null;
+                  }
+                } else {
+                  // No avatar stored - show initials
+                  avatarIdToShow = null;
+                  avatarUrlToShow = null;
+                }
+              }
+              
+              return Row(
+                children: [
+                  AvatarWidget(
+                    customAvatarUrl: avatarUrlToShow,
+                    avatarId: avatarIdToShow,
+                    userName: post.authorName,
+                    size: 36,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          post.authorName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 17,
+                          ),
+                          overflow: TextOverflow.visible,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _formatDate(post.createdAt),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+                          overflow: TextOverflow.visible,
+                          maxLines: 1,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatDate(post.createdAt),
-                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
-                      overflow: TextOverflow.visible,
-                      maxLines: 1,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
 
@@ -657,12 +725,15 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               final scaledFontSize = (12 * scaleFactor).clamp(12.0, 20.0) * dyslexiaAdjustment;
               final scaledIconSize = (16 * scaleFactor).clamp(16.0, 24.0);
 
-              return SizedBox(
-                height: 44 + (scaleFactor - 1) * 16, // Scale height with text size
+              return ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: 44,
+                  maxHeight: double.infinity, // Allow flexible height
+                ),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(),
-                  padding: EdgeInsets.zero,
+                  padding: EdgeInsets.symmetric(vertical: 4), // Add vertical padding for flexibility
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -894,6 +965,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom + (_post!.isLocked ? 0 : 90)),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
         // Comments header
@@ -972,6 +1044,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                     return ThreadedCommentWidget<ForumComment>(
                       threadedComment: threadedComment,
                       isCommentAuthor: (comment) => comment.authorId == ref.watch(authUserProvider)?.id,
+                      getAuthorId: (comment) => comment.authorId,
                       canDeleteComment: () {
                           final currentUser = ref.watch(authUserProvider);
                           final canModerateAsync = ref.watch(canModerateProvider);

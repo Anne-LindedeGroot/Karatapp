@@ -49,6 +49,7 @@ class _CollapsibleOhyoCardState extends ConsumerState<CollapsibleOhyoCard> {
           elevation: AppTheme.getResponsiveElevation(context),
           adaptiveWidth: widget.useAdaptiveWidth,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header section

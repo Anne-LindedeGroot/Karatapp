@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/home_app_bar_actions.dart';
+import '../../providers/accessibility_provider.dart';
 
 class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final VoidCallback? onRefresh;
@@ -21,13 +22,23 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final accessibilityState = ref.watch(accessibilityNotifierProvider);
+    final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
+    final isLarge = accessibilityState.fontSize == AccessibilityFontSize.large;
+    final shouldReduceSize = isLarge || isExtraLarge;
+    
+    // Make logo as small as possible when big/extra big font size is on
+    final logoSize = shouldReduceSize ? 24.0 : 40.0;
+    final textSize = shouldReduceSize ? 14.0 : null;
+    
     return AppBar(
+      titleSpacing: 0,
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: logoSize,
+            height: logoSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Theme.of(context).brightness == Brightness.dark
@@ -36,11 +47,11 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
             child: ClipOval(
               child: Transform.translate(
-                offset: const Offset(1.5, 0), // Move slightly right to center optically
+                offset: Offset(1.5 * (logoSize / 40), 0), // Scale offset proportionally
                 child: Image.asset(
                   'assets/icons/rounded_logo.png',
-                  width: 40,
-                  height: 40,
+                  width: logoSize,
+                  height: logoSize,
                   fit: BoxFit.cover, // Ensures image fills the circle evenly
                   alignment: Alignment.center, // Forces exact center alignment
                   filterQuality: FilterQuality.high,
@@ -48,8 +59,13 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          const Text("Karatapp"),
+          SizedBox(width: shouldReduceSize ? 4 : 8), // Smaller spacing when reduced
+          Text(
+            "Karatapp",
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontSize: textSize,
+            ),
+          ),
         ],
       ),
       actions: [

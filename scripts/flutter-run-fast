@@ -12,3 +12,4 @@ cd "$PROJECT_ROOT"
 
 # Execute the ultra-fast script with all passed arguments
 exec ./scripts/ultra_fast_dev.sh "$@"
+

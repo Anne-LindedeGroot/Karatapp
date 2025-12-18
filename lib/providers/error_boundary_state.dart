@@ -54,3 +54,4 @@ class ErrorBoundaryState {
         isVisible.hashCode;
   }
 }
+

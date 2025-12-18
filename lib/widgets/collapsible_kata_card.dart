@@ -49,6 +49,7 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
           elevation: AppTheme.getResponsiveElevation(context),
           adaptiveWidth: widget.useAdaptiveWidth,
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header section

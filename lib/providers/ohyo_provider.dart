@@ -13,6 +13,7 @@ import '../services/offline_media_cache_service.dart';
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 import 'interaction_provider.dart';
+import '../utils/search_utils.dart';
 
 // OfflineOhyoService provider is now imported from offline_services_provider.dart
 
@@ -296,10 +297,10 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
   }
 
   void searchOhyos(String query) {
-    final trimmedQuery = query.trim().toLowerCase();
+    final normalizedQuery = SearchUtils.normalizeSearchText(query);
     state = state.copyWith(searchQuery: query);
 
-    if (trimmedQuery.isEmpty) {
+    if (normalizedQuery.isEmpty) {
       // If search is empty, show all filtered by category
       if (state.selectedCategory != null && state.selectedCategory != OhyoCategory.all) {
         final filtered = state.ohyos.where((ohyo) {
@@ -314,32 +315,89 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
     }
 
     // Check if query is purely numeric (contains only digits)
-    final isNumericQuery = RegExp(r'^\d+$').hasMatch(trimmedQuery);
+    final isNumericQuery = RegExp(r'^\d+$').hasMatch(normalizedQuery);
+    
+    // Check if query matches patterns like "ohyo5", "ohyo-5", "ohyo.5", "o5", "o-5", "o 5", "05", "0 5", "o7", "o8", etc.
+    // "o" represents the last letter of "ohyo"
+    // Also handle "0" as a shortcut for "o" (since "0" looks like "o" on some keyboards)
+    // Pattern: (ohyo|o|0) followed by optional separator and number
+    // Make sure to match "o7", "o8", "07", "08" correctly
+    String? extractedNumber;
+    
+    // Unified pattern that matches all variations: "ohyo7", "o7", "07", "o 7", "o-7", etc.
+    // The separator [\s\-\._]? is optional, so "o7" matches directly
+    final ohyoNumberPattern = RegExp(r'^(?:ohyo|o|0)[\s\-\._]?(\d+)$', caseSensitive: false);
+    
+    // Try matching on normalized query (handles case variations and whitespace normalization)
+    var match = ohyoNumberPattern.firstMatch(normalizedQuery);
+    extractedNumber = match?.group(1);
+    
+    // If no match on normalized query, try original query (before normalization)
+    // This handles edge cases where normalization might affect the pattern
+    if (extractedNumber == null) {
+      final trimmedQuery = query.trim().toLowerCase();
+      match = ohyoNumberPattern.firstMatch(trimmedQuery);
+      extractedNumber = match?.group(1);
+    }
 
     final filtered = state.ohyos.where((ohyo) {
       bool matchesQuery = false;
+      final nameNormalized = SearchUtils.normalizeSearchText(ohyo.name);
+      final searchNumber = extractedNumber ?? (isNumericQuery ? normalizedQuery : null);
 
-      if (isNumericQuery) {
-        // For numeric queries, match exact order, ID, or exact Ohyo number
-        matchesQuery = ohyo.order.toString() == trimmedQuery ||
-                       ohyo.id.toString() == trimmedQuery ||
-                       ohyo.name.toLowerCase() == 'ohyo $trimmedQuery' ||
-                       ohyo.name.toLowerCase().endsWith(' $trimmedQuery');
+      if (searchNumber != null) {
+        // For numeric queries (either "5" or "ohyo5", "ohyo-5", etc.), use exact number matching
+        // This prevents "5" from matching "6", "15", "25", etc.
+        final ordinals = _getOrdinalForms(searchNumber);
+
+        // Priority 1: Check exact order number match (most reliable)
+        matchesQuery = ohyo.order.toString() == searchNumber;
+
+        // Priority 2: Check if name contains exact number or ordinal forms
+        // Extract all numbers from the name and check for exact match
+        if (!matchesQuery) {
+          matchesQuery = _matchesExactNumber(nameNormalized, searchNumber, ordinals);
+        }
+
+        // Priority 3: Check exact ID match (for direct ID searches)
+        if (!matchesQuery) {
+          matchesQuery = ohyo.id.toString() == searchNumber;
+        }
+
+        // Do NOT check description for numeric queries to prevent false matches
       } else {
-        // For text queries, search in text fields with better matching logic
+        // For text queries, search in text fields with normalized matching
         // Check if name starts with the query
-        matchesQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
+        matchesQuery = nameNormalized.startsWith(normalizedQuery);
 
         // If not, check if any word in the name starts with the query
         if (!matchesQuery) {
-          final nameWords = ohyo.name.toLowerCase().split(' ');
-          matchesQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
+          final nameWords = SearchUtils.splitIntoWords(ohyo.name);
+          matchesQuery = nameWords.any((word) => word.startsWith(normalizedQuery) || normalizedQuery.startsWith(word));
         }
 
-        // Also check description and style with contains (less strict for these)
+        // Also check description and style with normalized contains
         if (!matchesQuery) {
-          matchesQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
-                         ohyo.style.toLowerCase().contains(trimmedQuery);
+          final descNormalized = SearchUtils.normalizeSearchText(ohyo.description);
+          final styleNormalized = SearchUtils.normalizeSearchText(ohyo.style);
+          matchesQuery = descNormalized.contains(normalizedQuery) ||
+                         styleNormalized.contains(normalizedQuery);
+        }
+        
+        // Word-based matching for better tolerance
+        if (!matchesQuery) {
+          final queryWords = SearchUtils.splitIntoWords(query);
+          final nameWords = SearchUtils.splitIntoWords(ohyo.name);
+          final descWords = SearchUtils.splitIntoWords(ohyo.description);
+          final styleWords = SearchUtils.splitIntoWords(ohyo.style);
+          
+          // Check if all query words appear in any field
+          matchesQuery = queryWords.every((queryWord) {
+            final normalizedQueryWord = SearchUtils.normalizeSearchText(queryWord);
+            return nameWords.any((word) => word.contains(normalizedQueryWord)) ||
+                   descWords.any((word) => word.contains(normalizedQueryWord)) ||
+                   styleWords.any((word) => word.contains(normalizedQueryWord));
+          });
         }
       }
 
@@ -351,7 +409,99 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       return matchesQuery;
     }).toList();
 
+    // Sort results: exact order matches first, then by order number
+    if (extractedNumber != null || isNumericQuery) {
+      final searchNum = extractedNumber ?? (isNumericQuery ? normalizedQuery : null);
+      if (searchNum != null) {
+        filtered.sort((a, b) {
+          // Exact order match comes first
+          final aExactMatch = a.order.toString() == searchNum;
+          final bExactMatch = b.order.toString() == searchNum;
+          if (aExactMatch && !bExactMatch) return -1;
+          if (!aExactMatch && bExactMatch) return 1;
+          // Then sort by order number
+          return a.order.compareTo(b.order);
+        });
+      }
+    }
+
     state = state.copyWith(filteredOhyos: filtered);
+  }
+
+  // Helper function to get ordinal forms of a number (e.g., "5" -> ["fifth", "5th"])
+  List<String> _getOrdinalForms(String number) {
+    final num = int.tryParse(number);
+    if (num == null) return [];
+
+    final ordinals = <String>[];
+
+    // Add the number itself
+    ordinals.add(number);
+
+    // Add ordinal suffixes
+    if (num == 1) {
+      ordinals.add('${number}st');
+      ordinals.add('first');
+    } else if (num == 2) {
+      ordinals.add('${number}nd');
+      ordinals.add('second');
+    } else if (num == 3) {
+      ordinals.add('${number}rd');
+      ordinals.add('third');
+    } else {
+      ordinals.add('${number}th');
+      // Add word form for common numbers
+      const wordOrdinals = {
+        1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth',
+        6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth',
+        11: 'eleventh', 12: 'twelfth', 13: 'thirteenth', 14: 'fourteenth',
+        15: 'fifteenth', 16: 'sixteenth', 17: 'seventeenth', 18: 'eighteenth',
+        19: 'nineteenth', 20: 'twentieth'
+      };
+      if (wordOrdinals.containsKey(num)) {
+        ordinals.add(wordOrdinals[num]!);
+      }
+    }
+
+    return ordinals;
+  }
+
+  // Helper function to check if text matches an exact number or its ordinal forms
+  // This ensures "5" matches "ohyo 5" but NOT "ohyo 6", "ohyo 15", "ohyo 50", etc.
+  // Also ensures "7" does NOT match "17", "27", "70", etc.
+  bool _matchesExactNumber(String text, String number, List<String> ordinals) {
+    final textLower = text.toLowerCase();
+    final searchNumber = int.tryParse(number);
+    if (searchNumber == null) return false;
+
+    // Use word boundaries to match exact numbers only
+    // This pattern ensures "7" matches "7" but NOT "17", "27", "70", "71", etc.
+    // The \b word boundary ensures the number is not part of a larger number
+    final exactNumberPattern = RegExp(r'\b' + RegExp.escape(number) + r'\b');
+    if (exactNumberPattern.hasMatch(textLower)) {
+      return true;
+    }
+
+    // Also check for numbers with word boundaries using regex that finds standalone numbers
+    // Extract all numbers from the text and check for exact match with proper boundaries
+    final numberMatches = RegExp(r'\b\d+\b').allMatches(textLower);
+    for (final match in numberMatches) {
+      final matchedNumber = int.tryParse(match.group(0)!);
+      if (matchedNumber == searchNumber) {
+        // Found exact number match - the \b word boundaries ensure it's standalone
+        return true;
+      }
+    }
+
+    // Check for ordinal forms (word boundaries around ordinals)
+    for (final ordinal in ordinals) {
+      final ordinalPattern = RegExp(r'\b' + RegExp.escape(ordinal.toLowerCase()) + r'\b');
+      if (ordinalPattern.hasMatch(textLower)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   void filterByCategory(OhyoCategory? category) {
@@ -373,33 +523,48 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
       // Also apply search filter if present
       if (state.searchQuery.isNotEmpty) {
-        final trimmedQuery = state.searchQuery.toLowerCase().trim();
+        final normalizedQuery = SearchUtils.normalizeSearchText(state.searchQuery);
         // Check if query is purely numeric (contains only digits)
-        final isNumericQuery = RegExp(r'^\d+$').hasMatch(trimmedQuery);
-
+        final isNumericQuery = RegExp(r'^\d+$').hasMatch(normalizedQuery);
+        
+        // Check if query matches patterns like "ohyo5", "ohyo-5", "ohyo.5", "o5", "o-5", "o 5", "05", "0 5", "o7", "o8", etc.
+        // Unified pattern that matches all variations: "ohyo7", "o7", "07", "o 7", "o-7", etc.
+        String? extractedNumber;
+        
+        final ohyoNumberPattern = RegExp(r'^(?:ohyo|o|0)[\s\-\._]?(\d+)$', caseSensitive: false);
+        
+        // Try matching on normalized query first
+        var match = ohyoNumberPattern.firstMatch(normalizedQuery);
+        extractedNumber = match?.group(1);
+        
+        // If no match, try original query (before normalization)
+        if (extractedNumber == null) {
+          final trimmedQuery = state.searchQuery.trim().toLowerCase();
+          match = ohyoNumberPattern.firstMatch(trimmedQuery);
+          extractedNumber = match?.group(1);
+        }
+        
         bool matchesQuery = false;
-        if (isNumericQuery) {
-          // For numeric queries, match exact order, ID, or exact Ohyo number
-          matchesQuery = ohyo.order.toString() == trimmedQuery ||
-                         ohyo.id.toString() == trimmedQuery ||
-                         ohyo.name.toLowerCase() == 'ohyo $trimmedQuery' ||
-                         ohyo.name.toLowerCase().endsWith(' $trimmedQuery');
+        final searchNumber = extractedNumber ?? (isNumericQuery ? normalizedQuery : null);
+        
+        if (searchNumber != null) {
+          // For numeric queries, use exact number matching
+          final ordinals = _getOrdinalForms(searchNumber);
+          final nameNormalized = SearchUtils.normalizeSearchText(ohyo.name);
+          
+          matchesQuery = ohyo.order.toString() == searchNumber ||
+                         ohyo.id.toString() == searchNumber ||
+                         _matchesExactNumber(nameNormalized, searchNumber, ordinals);
         } else {
-          // For text queries, search in text fields with improved logic
-          // Check if name starts with the query
-          matchesQuery = ohyo.name.toLowerCase().startsWith(trimmedQuery);
-
-          // If not, check if any word in the name starts with the query
-          if (!matchesQuery) {
-            final nameWords = ohyo.name.toLowerCase().split(' ');
-            matchesQuery = nameWords.any((word) => word.startsWith(trimmedQuery));
-          }
-
-          // Also check description and style with contains (less strict for these)
-          if (!matchesQuery) {
-            matchesQuery = ohyo.description.toLowerCase().contains(trimmedQuery) ||
-                           ohyo.style.toLowerCase().contains(trimmedQuery);
-          }
+          // For text queries, use normalized matching
+          final nameNormalized = SearchUtils.normalizeSearchText(ohyo.name);
+          final descNormalized = SearchUtils.normalizeSearchText(ohyo.description);
+          final styleNormalized = SearchUtils.normalizeSearchText(ohyo.style);
+          
+          matchesQuery = nameNormalized.startsWith(normalizedQuery) ||
+                         nameNormalized.contains(normalizedQuery) ||
+                         descNormalized.contains(normalizedQuery) ||
+                         styleNormalized.contains(normalizedQuery);
         }
 
         return matchesCategory && matchesQuery;

@@ -33,6 +33,10 @@ class HomeAppBarActions extends ConsumerWidget {
           icon: const Icon(Icons.refresh),
           onPressed: isConnected ? onRefresh : null,
           tooltip: isConnected ? 'Kata\'s verversen' : 'Geen verbinding',
+          constraints: const BoxConstraints(
+            minWidth: 48,
+            minHeight: 48,
+          ),
         ),
 
         // Reset Ohyo tab button (only shown when there are active filters)
@@ -42,6 +46,10 @@ class HomeAppBarActions extends ConsumerWidget {
             onPressed: onResetOhyoTab,
             tooltip: 'Terug naar ohyo hoofdpagina',
             color: Theme.of(context).colorScheme.primary,
+            constraints: const BoxConstraints(
+              minWidth: 48,
+              minHeight: 48,
+            ),
           ),
 
         IconButton(
@@ -50,6 +58,10 @@ class HomeAppBarActions extends ConsumerWidget {
             context.go('/forum');
           },
           tooltip: 'Community Forum',
+          constraints: const BoxConstraints(
+            minWidth: 48,
+            minHeight: 48,
+          ),
         ),
 
         UserMenuPopup(onLogout: onLogout),

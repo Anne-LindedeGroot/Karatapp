@@ -9,6 +9,7 @@ import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 import 'auth_provider.dart';
+import '../utils/search_utils.dart';
 
 // Provider for the ForumService instance
 final forumServiceProvider = Provider<ForumService>((ref) {
@@ -533,6 +534,13 @@ class ForumNotifier extends StateNotifier<ForumState> {
         throw Exception('User not authenticated');
       }
 
+      // Get user avatar from metadata
+      final metadata = authService.currentUser!.userMetadata ?? {};
+      final avatarType = metadata['avatar_type'] as String?;
+      final userAvatar = avatarType == 'custom' 
+          ? metadata['avatar_url'] as String?
+          : (metadata['avatar_id'] as String? ?? metadata['preset_avatar_id'] as String?);
+
       // Create a temporary comment for optimistic UI update
       final tempComment = ForumComment(
         id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
@@ -540,7 +548,7 @@ class ForumNotifier extends StateNotifier<ForumState> {
         content: content,
         authorId: userId,
         authorName: authService.currentUser!.userMetadata?['name'] as String? ?? 'Unknown',
-        authorAvatar: authService.currentUser!.userMetadata?['avatar_url'] as String?,
+        authorAvatar: userAvatar,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         parentCommentId: parentCommentId,
@@ -912,13 +920,19 @@ class ForumNotifier extends StateNotifier<ForumState> {
   }
 
   void searchPosts(String query) {
-    // Store the search query even if posts aren't loaded yet
+    // Store the search query
     state = state.copyWith(searchQuery: query);
 
-    // Only filter if we have posts loaded
+    // Always filter posts if we have them, otherwise show empty list
     if (state.posts.isNotEmpty) {
       final filteredPosts = _filterPosts(state.posts, query, state.selectedCategory);
       state = state.copyWith(filteredPosts: filteredPosts);
+    } else if (query.isNotEmpty) {
+      // If searching but no posts loaded yet, show empty list to indicate search is active
+      state = state.copyWith(filteredPosts: []);
+    } else {
+      // If no search query and no posts, keep current state
+      state = state.copyWith(filteredPosts: []);
     }
   }
 
@@ -940,12 +954,55 @@ class ForumNotifier extends StateNotifier<ForumState> {
 
     // Apply search filter
     if (searchQuery.isNotEmpty) {
-      final queryLower = searchQuery.toLowerCase();
+      final normalizedQuery = SearchUtils.normalizeSearchText(searchQuery);
       filtered = filtered.where((post) {
-        final titleMatch = post.title.toLowerCase().contains(queryLower);
-        final contentMatch = post.content.toLowerCase().contains(queryLower);
-        final authorMatch = post.authorName.toLowerCase().contains(queryLower);
-        return titleMatch || contentMatch || authorMatch;
+        final title = SearchUtils.normalizeSearchText(post.title);
+        final content = SearchUtils.normalizeSearchText(post.content);
+        final author = SearchUtils.normalizeSearchText(post.authorName);
+
+        // Check if query is a number (including single digits)
+        final isNumericQuery = RegExp(r'^\d+$').hasMatch(normalizedQuery);
+
+      if (isNumericQuery) {
+        // For numeric queries, search for exact number matches and ordinal forms
+        // This prevents "5" from matching "15", "25", "35", etc.
+
+        // Convert number to ordinal forms (e.g., "5" -> "fifth", "5th", etc.)
+        final ordinals = _getOrdinalForms(normalizedQuery);
+
+        final titleMatch = _matchesNumberOrOrdinal(title, normalizedQuery, ordinals);
+        final contentMatch = _matchesNumberOrOrdinal(content, normalizedQuery, ordinals);
+        // For numeric searches, don't match author names to avoid false positives
+        // (e.g., searching "5" shouldn't match posts by "User 5")
+
+        return titleMatch || contentMatch;
+      } else {
+          // For non-numeric queries, use normalized substring matching
+          // This handles diacritics, whitespace variations, and special characters
+          final titleMatch = title.contains(normalizedQuery);
+          final contentMatch = content.contains(normalizedQuery);
+          final authorMatch = author.contains(normalizedQuery);
+          
+          // Also check word-based matching for better tolerance
+          if (!titleMatch && !contentMatch && !authorMatch) {
+            final queryWords = SearchUtils.splitIntoWords(searchQuery);
+            final titleWords = SearchUtils.splitIntoWords(post.title);
+            final contentWords = SearchUtils.splitIntoWords(post.content);
+            final authorWords = SearchUtils.splitIntoWords(post.authorName);
+            
+            // Check if all query words appear in any of the fields
+            final allWordsMatch = queryWords.every((queryWord) {
+              final normalizedQueryWord = SearchUtils.normalizeSearchText(queryWord);
+              return titleWords.any((word) => word.contains(normalizedQueryWord)) ||
+                     contentWords.any((word) => word.contains(normalizedQueryWord)) ||
+                     authorWords.any((word) => word.contains(normalizedQueryWord));
+            });
+            
+            return allWordsMatch;
+          }
+          
+          return titleMatch || contentMatch || authorMatch;
+        }
       }).toList();
     }
 
@@ -973,6 +1030,65 @@ class ForumNotifier extends StateNotifier<ForumState> {
   // Check if current user is the app host
   Future<bool> isCurrentUserHost() async {
     return await _forumService.isAppHost(); // The service will check the current user
+  }
+
+  // Helper function to get ordinal forms of a number (e.g., "5" -> ["fifth", "5th"])
+  List<String> _getOrdinalForms(String number) {
+    final num = int.tryParse(number);
+    if (num == null) return [];
+
+    final ordinals = <String>[];
+
+    // Add the number itself
+    ordinals.add(number);
+
+    // Add ordinal suffixes
+    if (num == 1) {
+      ordinals.add('${number}st');
+      ordinals.add('first');
+    } else if (num == 2) {
+      ordinals.add('${number}nd');
+      ordinals.add('second');
+    } else if (num == 3) {
+      ordinals.add('${number}rd');
+      ordinals.add('third');
+    } else {
+      ordinals.add('${number}th');
+      // Add word form for common numbers
+      const wordOrdinals = {
+        1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth',
+        6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth',
+        11: 'eleventh', 12: 'twelfth', 13: 'thirteenth', 14: 'fourteenth',
+        15: 'fifteenth', 16: 'sixteenth', 17: 'seventeenth', 18: 'eighteenth',
+        19: 'nineteenth', 20: 'twentieth'
+      };
+      if (wordOrdinals.containsKey(num)) {
+        ordinals.add(wordOrdinals[num]!);
+      }
+    }
+
+    return ordinals;
+  }
+
+  // Helper function to check if text matches a number or its ordinal forms
+  bool _matchesNumberOrOrdinal(String text, String number, List<String> ordinals) {
+    final textLower = text.toLowerCase();
+
+    // Check for exact word matches of the number
+    final numberPattern = RegExp(r'\b' + RegExp.escape(number) + r'\b');
+    if (numberPattern.hasMatch(textLower)) {
+      return true;
+    }
+
+    // Check for ordinal forms (word boundaries around ordinals)
+    for (final ordinal in ordinals) {
+      final ordinalPattern = RegExp(r'\b' + RegExp.escape(ordinal) + r'\b');
+      if (ordinalPattern.hasMatch(textLower)) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
 

@@ -1144,106 +1144,146 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            const Text('Forum'),
-            Consumer(
-              builder: (context, ref, child) {
-                final isConnected = ref.watch(isConnectedProvider);
-                final pendingOperations = ref.watch(forumPendingOperationsProvider);
-                final hasPendingOperations = pendingOperations > 0;
-
-                return Row(
-                  children: [
-                    if (!isConnected) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Icons.wifi_off, size: 14, color: Colors.orange),
-                            SizedBox(width: 4),
-                            Text(
-                              'Offline',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.orange,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    if (hasPendingOperations) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.sync, size: 14, color: Colors.blue),
-                            const SizedBox(width: 4),
-                            Text(
-                              '$pendingOperations',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.blue,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ],
+        title: Consumer(
+          builder: (context, ref, child) {
+            final accessibilityState = ref.watch(accessibilityNotifierProvider);
+            final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
+            final isDyslexiaFriendly = accessibilityState.isDyslexiaFriendly;
+            final shouldReduceSize = isExtraLarge && isDyslexiaFriendly;
+            
+            // Fixed font size when both extra large and dyslexia are on
+            final fontSize = shouldReduceSize ? 14.0 : null;
+            
+            return Flexible(
+              child: Text(
+                'Forum',
+                style: TextStyle(
+                  fontSize: fontSize,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          },
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goBackOrHome(),
         ),
         actions: [
+          // Status indicators (moved from title to actions)
+          Consumer(
+            builder: (context, ref, child) {
+              final isConnected = ref.watch(isConnectedProvider);
+              final pendingOperations = ref.watch(forumPendingOperationsProvider);
+              final hasPendingOperations = pendingOperations > 0;
+              final accessibilityState = ref.watch(accessibilityNotifierProvider);
+              final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
+              final isDyslexiaFriendly = accessibilityState.isDyslexiaFriendly;
+              final shouldReduceSize = isExtraLarge && isDyslexiaFriendly;
+              
+              // Reduce sizes when both extra large and dyslexia are on
+              final scaleFactor = shouldReduceSize ? 0.55 : 0.75;
+              final iconSize = (10 * scaleFactor).clamp(7.0, 10.0);
+              final fontSize = (9 * scaleFactor).clamp(8.0, 9.0);
+              final padding = EdgeInsets.symmetric(
+                horizontal: (3 * scaleFactor).clamp(2.0, 3.0),
+                vertical: (1 * scaleFactor).clamp(0.5, 1.0),
+              );
+
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isConnected) ...[
+                    Container(
+                      padding: padding,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.wifi_off, size: iconSize, color: Colors.orange),
+                          SizedBox(width: 2 * scaleFactor),
+                          Text(
+                            'Offline',
+                            style: TextStyle(
+                              fontSize: fontSize,
+                              color: Colors.orange,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (hasPendingOperations) ...[
+                    SizedBox(width: !isConnected ? 2 : 0),
+                    Container(
+                      padding: padding,
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.sync, size: iconSize, color: Colors.blue),
+                          SizedBox(width: 2 * scaleFactor),
+                          Text(
+                            '$pendingOperations',
+                            style: TextStyle(
+                              fontSize: fontSize,
+                              color: Colors.blue,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
           // Accessibility quick actions in app bar
           Consumer(
             builder: (context, ref, child) {
               final accessibilityState = ref.watch(accessibilityNotifierProvider);
               final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+              final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
+              final isDyslexiaFriendly = accessibilityState.isDyslexiaFriendly;
+              final shouldReduceSize = isExtraLarge && isDyslexiaFriendly;
+              
+              // Reduce icon sizes when both extra large and dyslexia are on
+              final iconSize = shouldReduceSize ? 20.0 : 24.0;
 
-              return ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-
-                    // Combined accessibility settings popup
-                    PopupMenuButton<String>(
-                      icon: Icon(
-                        Icons.text_fields,
-                        color: (accessibilityState.fontSize != AccessibilityFontSize.normal ||
-                               accessibilityState.isDyslexiaFriendly)
-                            ? Theme.of(context).colorScheme.primary
-                            : null,
-                      ),
-                      tooltip: 'Tekst instellingen',
-                      constraints: BoxConstraints(
-                        minWidth: accessibilityState.fontSize == AccessibilityFontSize.extraLarge ||
-                                 accessibilityState.isDyslexiaFriendly
-                            ? 320
-                            : 280,
-                      ),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Combined accessibility settings popup
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.text_fields,
+                      size: iconSize,
+                      color: (accessibilityState.fontSize != AccessibilityFontSize.normal ||
+                             accessibilityState.isDyslexiaFriendly)
+                          ? Theme.of(context).colorScheme.primary
+                          : null,
+                    ),
+                    tooltip: 'Tekst instellingen',
+                    padding: EdgeInsets.zero,
+                    iconSize: iconSize,
+                    constraints: BoxConstraints(
+                      minWidth: shouldReduceSize
+                          ? 280
+                          : (accessibilityState.fontSize == AccessibilityFontSize.extraLarge ||
+                             accessibilityState.isDyslexiaFriendly
+                              ? 320
+                              : 280),
+                    ),
                     itemBuilder: (context) => [
                       // Font size section
                       PopupMenuItem<String>(
@@ -1341,15 +1381,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       }
                     },
                   ),
-
-                  // Refresh button
-                  IconButton(
-                    icon: const Icon(Icons.refresh),
-                    onPressed: _refreshPosts,
-                    tooltip: 'Berichten verversen',
-                  ),
-                  ],
-                ),
+                ],
               );
             },
           ),

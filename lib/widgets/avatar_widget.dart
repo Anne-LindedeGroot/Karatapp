@@ -72,11 +72,34 @@ class AvatarWidget extends ConsumerWidget {
 
   Widget _buildAvatarContent(BuildContext context, WidgetRef ref) {
     // Priority: Custom avatar URL > Preset avatar > Initials fallback
+    
+    // Check if customAvatarUrl is actually a URL or an avatar ID
+    String? actualAvatarId;
+    String? actualCustomAvatarUrl;
+    
     if (customAvatarUrl != null && customAvatarUrl!.isNotEmpty) {
+      // Check if it looks like a URL (starts with http/https/file:// or is a local path)
+      final isUrl = customAvatarUrl!.startsWith('http://') || 
+                    customAvatarUrl!.startsWith('https://') ||
+                    customAvatarUrl!.startsWith('file://') ||
+                    customAvatarUrl!.startsWith('/');
+      
+      if (isUrl) {
+        actualCustomAvatarUrl = customAvatarUrl;
+      } else {
+        // It's an avatar ID, not a URL
+        actualAvatarId = customAvatarUrl;
+      }
+    }
+    
+    // Use explicit avatarId if provided, otherwise use the one we detected
+    final finalAvatarId = avatarId ?? actualAvatarId;
+    
+    if (actualCustomAvatarUrl != null && actualCustomAvatarUrl.isNotEmpty) {
       return FutureBuilder<String>(
-        future: OfflineMediaCacheService.getMediaUrl(customAvatarUrl!, false, ref),
+        future: OfflineMediaCacheService.getMediaUrl(actualCustomAvatarUrl, false, ref),
         builder: (context, snapshot) {
-          final resolvedUrl = snapshot.data ?? customAvatarUrl!;
+          final resolvedUrl = snapshot.data ?? actualCustomAvatarUrl!;
           final isLocalFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
 
           if (isLocalFile) {
@@ -121,7 +144,7 @@ class AvatarWidget extends ConsumerWidget {
       );
     }
 
-    if (avatarId != null && avatarId!.isNotEmpty) {
+    if (finalAvatarId != null && finalAvatarId.isNotEmpty) {
       final avatar = AvatarData.getAvatarById(avatarId!);
       if (avatar != null) {
         return Image.asset(

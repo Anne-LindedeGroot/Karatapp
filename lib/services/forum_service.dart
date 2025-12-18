@@ -5,6 +5,28 @@ import '../models/forum_models.dart';
 class ForumService {
   final SupabaseClient _client = Supabase.instance.client;
 
+  // Helper function to get user avatar from metadata
+  // Returns avatar URL for custom avatars, or avatar ID for preset avatars
+  String? _getUserAvatarFromMetadata(Map<String, dynamic>? metadata) {
+    if (metadata == null) return null;
+    
+    final avatarType = metadata['avatar_type'] as String?;
+    
+    // For custom avatars, return the URL
+    if (avatarType == 'custom') {
+      return metadata['avatar_url'] as String?;
+    }
+    
+    // For preset avatars, return the ID (check both avatar_id and preset_avatar_id for compatibility)
+    if (avatarType == 'preset' || avatarType == null) {
+      return metadata['avatar_id'] as String? ?? 
+             metadata['preset_avatar_id'] as String?;
+    }
+    
+    // Fallback: check if avatar_url exists (for backward compatibility)
+    return metadata['avatar_url'] as String?;
+  }
+
   // Check if user is the app host using the user_roles table
   Future<bool> isAppHost([String? userId]) async {
     try {
@@ -145,7 +167,7 @@ class ForumService {
       }
 
       final userName = user.userMetadata?['full_name'] ?? user.email ?? 'Anonymous';
-      final userAvatar = user.userMetadata?['avatar_url'] as String?;
+      final userAvatar = _getUserAvatarFromMetadata(user.userMetadata);
 
       final postData = {
         'title': title,
@@ -317,7 +339,7 @@ class ForumService {
         userName = 'Anonymous User';
       }
 
-      final userAvatar = user.userMetadata?['avatar_url'] as String?;
+      final userAvatar = _getUserAvatarFromMetadata(user.userMetadata);
 
       final commentData = {
         'post_id': postId,

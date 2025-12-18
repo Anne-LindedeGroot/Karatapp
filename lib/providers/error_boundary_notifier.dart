@@ -247,3 +247,4 @@ class ErrorBoundaryNotifier extends StateNotifier<ErrorBoundaryState> {
     reportError(getUnknownErrorMessage(details));
   }
 }
+
