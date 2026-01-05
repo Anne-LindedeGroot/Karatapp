@@ -514,7 +514,7 @@ class KataNotifier extends StateNotifier<KataState> {
             return allWordsMatch;
           }
           
-          return nameMatch || descMatch;
+        return nameMatch || descMatch;
         }
       }).toList();
       

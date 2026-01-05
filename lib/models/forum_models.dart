@@ -23,6 +23,7 @@ class ForumPost {
   final bool isPinned;
   final bool isLocked;
   final int commentCount;
+  final int? likesCount;
   final List<ForumComment> comments;
 
   const ForumPost({
@@ -38,6 +39,7 @@ class ForumPost {
     this.isPinned = false,
     this.isLocked = false,
     this.commentCount = 0,
+    this.likesCount,
     this.comments = const [],
   });
 
@@ -58,6 +60,7 @@ class ForumPost {
       isPinned: json['is_pinned'] as bool? ?? false,
       isLocked: json['is_locked'] as bool? ?? false,
       commentCount: json['comment_count'] as int? ?? 0,
+      likesCount: json['likes_count'] as int?,
       comments: (json['comments'] as List<dynamic>?)
               ?.map((comment) => ForumComment.fromJson(comment))
               .toList() ??
@@ -79,6 +82,7 @@ class ForumPost {
       'is_pinned': isPinned,
       'is_locked': isLocked,
       'comment_count': commentCount,
+      'likes_count': likesCount,
     };
   }
 
@@ -95,6 +99,7 @@ class ForumPost {
     bool? isPinned,
     bool? isLocked,
     int? commentCount,
+    int? likesCount,
     List<ForumComment>? comments,
   }) {
     return ForumPost(
@@ -110,6 +115,7 @@ class ForumPost {
       isPinned: isPinned ?? this.isPinned,
       isLocked: isLocked ?? this.isLocked,
       commentCount: commentCount ?? this.commentCount,
+      likesCount: likesCount ?? this.likesCount,
       comments: comments ?? this.comments,
     );
   }

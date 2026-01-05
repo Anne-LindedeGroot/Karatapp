@@ -155,13 +155,14 @@ class CachedForumPostAdapter extends TypeAdapter<CachedForumPost> {
       likesCount: fields[7] as int,
       commentsCount: fields[8] as int,
       needsSync: fields[9] as bool,
+      category: fields[10] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, CachedForumPost obj) {
     writer
-      ..writeByte(10)
+      ..writeByte(11)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -181,7 +182,9 @@ class CachedForumPostAdapter extends TypeAdapter<CachedForumPost> {
       ..writeByte(8)
       ..write(obj.commentsCount)
       ..writeByte(9)
-      ..write(obj.needsSync);
+      ..write(obj.needsSync)
+      ..writeByte(10)
+      ..write(obj.category);
   }
 
   @override

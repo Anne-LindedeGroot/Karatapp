@@ -543,7 +543,7 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
           match = ohyoNumberPattern.firstMatch(trimmedQuery);
           extractedNumber = match?.group(1);
         }
-        
+
         bool matchesQuery = false;
         final searchNumber = extractedNumber ?? (isNumericQuery ? normalizedQuery : null);
         

@@ -663,37 +663,37 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               }
               
               return Row(
-                children: [
-                  AvatarWidget(
+            children: [
+              AvatarWidget(
                     customAvatarUrl: avatarUrlToShow,
                     avatarId: avatarIdToShow,
-                    userName: post.authorName,
-                    size: 36,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          post.authorName,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 17,
-                          ),
-                          overflow: TextOverflow.visible,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatDate(post.createdAt),
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
-                          overflow: TextOverflow.visible,
-                          maxLines: 1,
-                        ),
-                      ],
+                userName: post.authorName,
+                size: 36,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      post.authorName,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                      ),
+                      overflow: TextOverflow.visible,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatDate(post.createdAt),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
+                      overflow: TextOverflow.visible,
+                      maxLines: 1,
+                    ),
+                  ],
+                ),
+              ),
+            ],
               );
             },
           ),

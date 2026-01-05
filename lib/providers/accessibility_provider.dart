@@ -7,10 +7,13 @@ import 'theme_provider.dart';
 
 /// Font size options for accessibility
 enum AccessibilityFontSize {
-  small,
-  normal,
-  large,
-  extraLarge,
+  small('Klein'),
+  normal('Normaal'),
+  large('Groot'),
+  extraLarge('Extra Groot');
+
+  const AccessibilityFontSize(this.displayName);
+  final String displayName;
 }
 
 

@@ -180,13 +180,13 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
                     }
                     
                     return Row(
-                      children: [
-                        AvatarWidget(
+                  children: [
+                    AvatarWidget(
                           customAvatarUrl: avatarUrlToShow,
                           avatarId: avatarIdToShow,
-                          userName: widget.getAuthorName(comment),
-                          size: 20,
-                        ),
+                      userName: widget.getAuthorName(comment),
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(

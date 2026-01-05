@@ -69,7 +69,8 @@ class OhyoCardMedia extends StatelessWidget {
           }
         }
 
-        // If no images and no videos, show placeholder (loading or no media)
+        // Always show image gallery, even if only videos are available (since videos can be viewed offline)
+        // Only show loading placeholder if no media at all
         if (!hasImages && !hasVideos) {
           return Container(
             height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
@@ -104,10 +105,11 @@ class OhyoCardMedia extends StatelessWidget {
 
     return Column(
       children: [
-        // Main media display - show images first, then videos if no images
+        // Main media display - always prioritize images over videos for better offline experience
         if (hasImages || hasVideos)
           GestureDetector(
             onTap: () {
+              // Always open image gallery if images are available, otherwise videos
               if (hasImages) {
                 Navigator.push(
                   context,
@@ -124,15 +126,15 @@ class OhyoCardMedia extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => VideoGallery(
-                videoUrls: videoUrls,
-                          title: '${ohyo.name} - Videos',
-                          kataId: ohyo.id,
+                      videoUrls: videoUrls,
+                      title: '${ohyo.name} - Videos',
+                      kataId: ohyo.id,
                     ),
                   ),
                 );
               }
             },
-                child: _buildMainMediaDisplay(context, hasImages, hasVideos, ohyoImages, videoUrls),
+            child: _buildMainMediaDisplay(context, hasImages, hasVideos, ohyoImages, videoUrls),
           ),
 
         // Navigation buttons - stacked vertically for full width

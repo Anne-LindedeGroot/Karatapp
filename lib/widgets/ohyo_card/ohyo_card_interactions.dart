@@ -202,8 +202,8 @@ class _OhyoCardInteractionsState extends State<OhyoCardInteractions> {
                 return AvatarWidget(
                   customAvatarUrl: avatarUrlToShow,
                   avatarId: avatarIdToShow,
-                  userName: comment.authorName,
-                  size: 20,
+              userName: comment.authorName,
+              size: 20,
                 );
               },
             ),

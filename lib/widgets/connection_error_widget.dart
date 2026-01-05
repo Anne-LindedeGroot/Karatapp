@@ -117,7 +117,7 @@ class ConnectionStatusIndicator extends ConsumerWidget {
 
     // Only show indicator when offline
     if (isConnected) {
-      return const SizedBox.shrink();
+        return const SizedBox.shrink();
     }
 
     return Container(

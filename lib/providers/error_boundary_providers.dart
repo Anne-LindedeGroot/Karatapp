@@ -21,3 +21,4 @@ final errorTimestampProvider = Provider<DateTime?>((ref) {
   return ref.watch(errorBoundaryProvider).timestamp;
 });
 
+

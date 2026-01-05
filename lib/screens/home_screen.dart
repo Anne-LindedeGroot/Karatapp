@@ -311,82 +311,82 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             builder: (context, constraints) {
               return Column(
                 mainAxisSize: MainAxisSize.max,
-                children: [
-                  // Enhanced responsive search bar
-                  ResponsiveContainer(
-                    padding: context.responsivePadding,
-                    child: _buildSearchSection(isConnected),
-                  ),
-                  // Centralized connection error widget
-                  const ConnectionErrorWidget(),
-                  // Local error display (for non-network errors only)
-                  HomeScreenErrorDisplay(
-                    error: _tabController.index == 0 ? kataError : ohyoError,
-                    onClearError: () {
-                      if (_tabController.index == 0) {
-                        ref.read(kataNotifierProvider.notifier).clearError();
-                      } else {
-                        ref.read(ohyoNotifierProvider.notifier).clearError();
-                      }
-                    },
-                  ),
-                  // Tab bar
-                  TabBar(
-                    controller: _tabController,
-                    tabs: const [
-                      Tab(
-                        icon: Icon(Icons.self_improvement),
-                        text: 'Kata',
-                      ),
-                      Tab(
-                        icon: Icon(Icons.sports_martial_arts),
-                        text: 'Ohyo',
-                      ),
-                    ],
-                    labelColor: Theme.of(context).colorScheme.primary,
-                    unselectedLabelColor: Colors.grey[600],
-                    indicatorColor: Theme.of(context).colorScheme.primary,
+            children: [
+              // Enhanced responsive search bar
+              ResponsiveContainer(
+                padding: context.responsivePadding,
+                child: _buildSearchSection(isConnected),
+              ),
+            // Centralized connection error widget
+            const ConnectionErrorWidget(),
+            // Local error display (for non-network errors only)
+            HomeScreenErrorDisplay(
+              error: _tabController.index == 0 ? kataError : ohyoError,
+              onClearError: () {
+                if (_tabController.index == 0) {
+                  ref.read(kataNotifierProvider.notifier).clearError();
+                } else {
+                  ref.read(ohyoNotifierProvider.notifier).clearError();
+                }
+              },
+            ),
+            // Tab bar
+            TabBar(
+              controller: _tabController,
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.self_improvement),
+                  text: 'Kata',
+                ),
+                Tab(
+                  icon: Icon(Icons.sports_martial_arts),
+                  text: 'Ohyo',
+                ),
+              ],
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Colors.grey[600],
+              indicatorColor: Theme.of(context).colorScheme.primary,
                     isScrollable: false,
-                  ),
+            ),
                   // Tab content - Expanded to take remaining space
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        // Kata tab
-                        isKataLoading
-                            ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
-                            : RefreshIndicator(
-                                onRefresh: _refreshKatas,
-                                child: katas.isEmpty
-                                    ? Center(
-                                        child: OverflowSafeText(
-                                          'Geen kata\'s gevonden',
-                                          style: Theme.of(context).textTheme.headlineSmall
-                                              ?.copyWith(color: Colors.grey),
-                                        ),
-                                      )
-                                    : _buildKataList(katas),
-                              ),
-                        // Ohyo tab
-                        isOhyoLoading
-                            ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
-                            : RefreshIndicator(
-                                onRefresh: _refreshOhyos,
-                                child: ohyos.isEmpty
-                                    ? Center(
-                                        child: OverflowSafeText(
-                                          'Geen ohyo\'s gevonden',
-                                          style: Theme.of(context).textTheme.headlineSmall
-                                              ?.copyWith(color: Colors.grey),
-                                        ),
-                                      )
-                                    : _buildOhyoList(ohyos),
-                              ),
-                      ],
-                    ),
-                  ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Kata tab
+                  isKataLoading
+                      ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
+                      : RefreshIndicator(
+                          onRefresh: _refreshKatas,
+                          child: katas.isEmpty
+                              ? Center(
+                                  child: OverflowSafeText(
+                                    'Geen kata\'s gevonden',
+                                    style: Theme.of(context).textTheme.headlineSmall
+                                        ?.copyWith(color: Colors.grey),
+                                  ),
+                                )
+                              : _buildKataList(katas),
+                        ),
+                  // Ohyo tab
+                  isOhyoLoading
+                      ? const ModernKataLoadingList(itemCount: 3, useGrid: true)
+                      : RefreshIndicator(
+                          onRefresh: _refreshOhyos,
+                          child: ohyos.isEmpty
+                              ? Center(
+                                  child: OverflowSafeText(
+                                    'Geen ohyo\'s gevonden',
+                                    style: Theme.of(context).textTheme.headlineSmall
+                                        ?.copyWith(color: Colors.grey),
+                                  ),
+                                )
+                              : _buildOhyoList(ohyos),
+                        ),
                 ],
+              ),
+            ),
+          ],
               );
             },
           ),

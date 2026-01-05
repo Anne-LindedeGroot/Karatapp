@@ -611,20 +611,36 @@ class OfflineMediaCacheService {
       // First try to get from metadata (for exact URL matches)
       final metadataFile = File('${_imagesDir!.path}/kata_metadata.json');
       if (await metadataFile.exists()) {
-        final metadata = json.decode(await metadataFile.readAsString());
-        final kataKey = kataId.toString();
-        if (metadata.containsKey(kataKey)) {
-          final storedUrls = metadata[kataKey] as List<dynamic>;
-          for (final url in storedUrls) {
-            // Check if this URL is cached locally
-            final cachedPath = getCachedFilePath(url, false);
-            if (cachedPath != null) {
-              urls.add(cachedPath);
+        try {
+          final content = await metadataFile.readAsString();
+          if (content.trim().isEmpty) {
+            debugPrint('Metadata file is empty, skipping metadata lookup');
+          } else {
+            final metadata = json.decode(content);
+            final kataKey = kataId.toString();
+            if (metadata.containsKey(kataKey)) {
+              final storedUrls = metadata[kataKey] as List<dynamic>;
+              for (final url in storedUrls) {
+                // Check if this URL is cached locally
+                final cachedPath = getCachedFilePath(url, false);
+                if (cachedPath != null) {
+                  urls.add(cachedPath);
+                }
+              }
+              if (urls.isNotEmpty) {
+                debugPrint('Found ${urls.length} cached images for kata $kataId via metadata');
+                return urls;
+              }
             }
           }
-          if (urls.isNotEmpty) {
-            debugPrint('Found ${urls.length} cached images for kata $kataId via metadata');
-            return urls;
+        } catch (e) {
+          debugPrint('Metadata file is corrupted, attempting to repair: $e');
+          // Try to repair the corrupted file by recreating it
+          try {
+            await metadataFile.writeAsString('{}');
+            debugPrint('Successfully repaired corrupted metadata file');
+          } catch (repairError) {
+            debugPrint('Failed to repair metadata file: $repairError');
           }
         }
       }

@@ -134,6 +134,9 @@ class CachedForumPost extends HiveObject {
   @HiveField(9)
   final bool needsSync;
 
+  @HiveField(10)
+  final String category; // Store category as string (ForumCategory.name)
+
   CachedForumPost({
     required this.id,
     required this.title,
@@ -145,6 +148,7 @@ class CachedForumPost extends HiveObject {
     this.likesCount = 0,
     this.commentsCount = 0,
     this.needsSync = false,
+    required this.category,
   });
 }
 

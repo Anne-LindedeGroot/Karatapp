@@ -64,7 +64,7 @@ class _HomeScreenSearchSectionState extends ConsumerState<HomeScreenSearchSectio
 
   Widget _buildSearchBar(BuildContext context) {
     final isKataTab = widget.currentTabIndex == 0;
-    final hintText = isKataTab ? 'Zoek kata\'s...' : 'Zoek ohyo\'s...';
+    final hintText = isKataTab ? 'Kata\'s...' : 'Ohyo\'s...';
     final ttsLabel = isKataTab ? 'Zoek kata\'s invoerveld' : 'Zoek ohyo\'s invoerveld';
 
     final textScaler = MediaQuery.of(context).textScaler;
@@ -75,11 +75,11 @@ class _HomeScreenSearchSectionState extends ConsumerState<HomeScreenSearchSectio
     final fontSizeMultiplier = (isDyslexiaFriendly || isExtraLarge) ? 1.1 : 1.0;
     
     // Increase horizontal padding to ensure full text visibility
-    final horizontalPadding = 32.0 * scaleFactor.clamp(1.0, 1.5) * fontSizeMultiplier;
-    
+    final horizontalPadding = 40.0 * scaleFactor.clamp(1.0, 1.8) * fontSizeMultiplier;
+
     return SizedBox(
       width: double.infinity,
-      child: EnhancedAccessibleTextField(
+        child: EnhancedAccessibleTextField(
         controller: widget.searchController,
         focusNode: widget.searchFocusNode,
         maxLines: 1, // Ensure single line for search
