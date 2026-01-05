@@ -287,6 +287,14 @@ class ForumNotifier extends StateNotifier<ForumState> {
     required String content,
     required ForumCategory category,
   }) async {
+    // Check if we're online
+    final isOnline = await _isOnline();
+
+    if (!isOnline) {
+      // Offline mode - block posting
+      throw Exception('Je kunt geen berichten plaatsen zonder internetverbinding');
+    }
+
     state = state.copyWith(isLoading: true, error: null);
 
     try {
@@ -543,79 +551,22 @@ class ForumNotifier extends StateNotifier<ForumState> {
     // Check if we're online
     final isOnline = await _isOnline();
 
-    if (isOnline) {
-      // Online mode - try to add comment directly
-      try {
-        final comment = await _forumService.addComment(
-          postId: postId,
-          content: content,
-          parentCommentId: parentCommentId,
-        );
+    if (!isOnline) {
+      // Offline mode - block commenting
+      throw Exception('Je kunt geen reacties plaatsen zonder internetverbinding');
+    }
 
-        // If we have the selected post loaded, update its comments
-        if (state.selectedPost != null && state.selectedPost!.id == postId) {
-          final updatedComments = [...state.selectedPost!.comments, comment];
-          final updatedPost = state.selectedPost!.copyWith(
-            comments: updatedComments,
-            commentCount: updatedComments.length,
-          );
-          state = state.copyWith(selectedPost: updatedPost);
-        }
-
-        // Update the comment count in the posts list
-        final updatedPosts = state.posts.map((post) {
-          if (post.id == postId) {
-            return post.copyWith(commentCount: post.commentCount + 1);
-          }
-          return post;
-        }).toList();
-
-        final filteredPosts = _filterPosts(updatedPosts, state.searchQuery, state.selectedCategory);
-
-        state = state.copyWith(
-          posts: updatedPosts,
-          filteredPosts: filteredPosts,
-        );
-
-        return comment;
-      } catch (e) {
-        final errorMessage = 'Failed to add comment: ${e.toString()}';
-        state = state.copyWith(error: errorMessage);
-
-        // Report to global error boundary
-        _errorBoundary.reportNetworkError(errorMessage);
-        rethrow;
-      }
-    } else {
-      // Offline mode - queue the operation
-      if (_offlineQueueService == null) {
-        throw Exception('Offline queue service not available');
-      }
-
-      // Get current user ID from auth service
-      final authService = _ref.read(authServiceProvider);
-      final userId = authService.currentUser?.id;
-
-      if (userId == null) {
-        throw Exception('User not authenticated');
-      }
-
-      // Create a temporary comment for optimistic UI update
-      final tempComment = ForumComment(
-        id: DateTime.now().millisecondsSinceEpoch, // Temporary ID
+    // Online mode - try to add comment directly
+    try {
+      final comment = await _forumService.addComment(
         postId: postId,
         content: content,
-        authorId: userId,
-        authorName: authService.currentUser!.userMetadata?['name'] as String? ?? 'Unknown',
-        authorAvatar: authService.currentUser!.userMetadata?['avatar_url'] as String?,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
         parentCommentId: parentCommentId,
       );
 
-      // Optimistically update UI
+      // If we have the selected post loaded, update its comments
       if (state.selectedPost != null && state.selectedPost!.id == postId) {
-        final updatedComments = [...state.selectedPost!.comments, tempComment];
+        final updatedComments = [...state.selectedPost!.comments, comment];
         final updatedPost = state.selectedPost!.copyWith(
           comments: updatedComments,
           commentCount: updatedComments.length,
@@ -638,24 +589,14 @@ class ForumNotifier extends StateNotifier<ForumState> {
         filteredPosts: filteredPosts,
       );
 
-      // Queue the operation
-      final operation = OfflineOperation(
-        id: 'forum_comment_${tempComment.id}',
-        type: OfflineOperationType.addForumComment,
-        status: OfflineOperationStatus.pending,
-        data: {
-          'post_id': postId,
-          'content': content,
-          'parent_comment_id': parentCommentId,
-          'temp_comment_id': tempComment.id,
-        },
-        createdAt: DateTime.now(),
-        userId: userId,
-      );
+      return comment;
+    } catch (e) {
+      final errorMessage = 'Failed to add comment: ${e.toString()}';
+      state = state.copyWith(error: errorMessage);
 
-      await _offlineQueueService!.addOperation(operation);
-
-      return tempComment;
+      // Report to global error boundary
+      _errorBoundary.reportNetworkError(errorMessage);
+      rethrow;
     }
   }
 

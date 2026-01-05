@@ -1164,7 +1164,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               fontSize = null; // Use default
             }
             
-            return Expanded(
+            return Flexible(
               child: Text(
                 'Forum',
                 style: TextStyle(

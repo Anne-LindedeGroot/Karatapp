@@ -233,7 +233,7 @@ class OfflineIndicatorWidget extends ConsumerWidget {
                           return ElevatedButton.icon(
                             onPressed: isCompleted
                                 ? null
-                                : () => ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref as Ref),
+                                : () => ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref),
                             icon: Icon(
                               isCompleted ? Icons.check_circle : Icons.cloud_download,
                               size: 16,

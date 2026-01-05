@@ -13,6 +13,7 @@ import 'interaction_provider.dart' show interactionServiceProvider;
 import 'auth_provider.dart';
 import 'network_provider.dart';
 import 'data_usage_provider.dart';
+import 'forum_provider.dart';
 
 // Provider for SharedPreferences instance
 final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
@@ -41,12 +42,16 @@ final offlineServicesInitializerProvider = FutureProvider<void>((ref) async {
     commentCacheService,
   );
 
+  // Get forum service
+  final forumService = ref.read(forumServiceProvider);
+
   // Initialize offline sync notifier with all services
   ref.read(offlineSyncProvider.notifier).initializeServices(
     offlineQueueService,
     commentCacheService,
     conflictResolutionService,
     interactionService,
+    forumService,
   );
 
   // Start background sync automatically

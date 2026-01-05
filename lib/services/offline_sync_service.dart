@@ -11,6 +11,7 @@ import 'offline_queue_service.dart';
 import 'comment_cache_service.dart';
 import 'conflict_resolution_service.dart';
 import 'interaction_service.dart';
+import 'forum_service.dart';
 import 'offline_media_cache_service.dart';
 import '../models/interaction_models.dart';
 import '../models/forum_models.dart';
@@ -1147,6 +1148,8 @@ class OfflineSyncService {
 class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
   final OfflineSyncService _syncService = OfflineSyncService();
   OfflineQueueService? _offlineQueueService;
+  InteractionService? _interactionService;
+  ForumService? _forumService;
 
   void initializeOfflineQueueService(OfflineQueueService queueService) {
     _offlineQueueService = queueService;
@@ -1165,8 +1168,11 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
     CommentCacheService cacheService,
     ConflictResolutionService conflictResolutionService,
     InteractionService interactionService,
+    ForumService forumService,
   ) {
     _offlineQueueService = queueService;
+    _interactionService = interactionService;
+    _forumService = forumService;
     _syncService.initializeOfflineServices(
       queueService,
       cacheService,
@@ -1253,7 +1259,7 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
   }
 
   /// Comprehensive cache - cache everything for offline use
-  Future<void> comprehensiveCache(Ref ref) async {
+  Future<void> comprehensiveCache(dynamic ref) async {
     // Update status to syncing
     state = state.copyWith(
       status: SyncStatus.syncing,
@@ -1390,21 +1396,36 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
       }
 
       // Sync forum posts
+      final List<app_storage.CachedForumPost> postsToCache = [];
       try {
         final forumResponse = await Supabase.instance.client.from('forum_posts').select().order('created_at', ascending: false);
-        final List<app_storage.CachedForumPost> postsToCache = [];
 
         for (final postData in forumResponse) {
           final categoryString = postData['category'] ?? 'general';
+          final postId = postData['id'] as int;
+
+          // Fetch likes for this forum post
+          int likesCount = 0;
+          try {
+            final likesResponse = await Supabase.instance.client
+                .from('likes')
+                .select('id')
+                .eq('target_type', 'forum_post')
+                .eq('target_id', postId);
+            likesCount = likesResponse.length;
+          } catch (likeError) {
+            debugPrint('⚠️ Error fetching likes for forum post $postId: $likeError');
+          }
+
           final post = app_storage.CachedForumPost(
-            id: postData['id'].toString(),
+            id: postId.toString(),
             title: postData['title'],
             content: postData['content'],
             authorId: postData['author_id'].toString(),
             authorName: postData['author_name'] ?? 'Unknown',
             createdAt: DateTime.parse(postData['created_at']),
             lastSynced: DateTime.now(),
-            likesCount: postData['likes'] ?? 0,
+            likesCount: likesCount,
             commentsCount: postData['replies'] ?? 0,
             needsSync: false,
             category: categoryString,
@@ -1428,6 +1449,57 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
       } catch (e) {
         failed++;
         debugPrint('❌ Error syncing forum posts: $e');
+      }
+
+      // Cache comments for all katas, ohyos, and forum posts
+      try {
+        debugPrint('💬 Starting comprehensive comment cache...');
+
+        // Get offline services
+        final offlineKataService = ref.read(offlineKataServiceProvider);
+        final offlineOhyoService = ref.read(offlineOhyoServiceProvider);
+        final offlineForumService = ref.read(offlineForumServiceProvider);
+
+        // Cache comments for all katas
+        for (final kata in katasToCache) {
+          try {
+            final comments = await _interactionService!.getKataComments(kata.id);
+            await offlineKataService.cacheKataComments(kata.id, comments);
+            debugPrint('✅ Cached ${comments.length} comments for kata ${kata.id}');
+          } catch (e) {
+            debugPrint('⚠️ Failed to cache comments for kata ${kata.id}: $e');
+            // Continue with other katas
+          }
+        }
+
+        // Cache comments for all ohyos
+        for (final ohyo in ohyosToCache) {
+          try {
+            final comments = await _interactionService!.getOhyoComments(ohyo.id);
+            await offlineOhyoService.cacheOhyoComments(ohyo.id, comments);
+            debugPrint('✅ Cached ${comments.length} comments for ohyo ${ohyo.id}');
+          } catch (e) {
+            debugPrint('⚠️ Failed to cache comments for ohyo ${ohyo.id}: $e');
+            // Continue with other ohyos
+          }
+        }
+
+        // Cache comments for all forum posts
+        for (final post in postsToCache) {
+          try {
+            final comments = await _forumService!.getComments(int.parse(post.id));
+            await offlineForumService.cachePostComments(post.id, comments);
+            debugPrint('✅ Cached ${comments.length} comments for forum post ${post.id}');
+          } catch (e) {
+            debugPrint('⚠️ Failed to cache comments for forum post ${post.id}: $e');
+            // Continue with other posts
+          }
+        }
+
+        debugPrint('✅ Comprehensive comment caching completed');
+      } catch (e) {
+        debugPrint('❌ Error in comprehensive comment cache: $e');
+        // Don't fail the entire sync for comment caching errors
       }
 
       // Clean up orphaned cache files before caching new content
@@ -1503,12 +1575,24 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
-      // Cache images for all ohyos
+      // Cache images for all ohyos using stable key system
       for (final ohyo in ohyosToCache) {
         debugPrint('📹 Ohyo ${ohyo.id}: ${ohyo.name} with ${ohyo.imageUrls.length} images');
         if (ohyo.imageUrls.isNotEmpty) {
           debugPrint('📹 Caching ${ohyo.imageUrls.length} images for ohyo ${ohyo.id}');
-          await OfflineMediaCacheService.preCacheMediaFiles(ohyo.imageUrls, false, ref);
+          // Use cacheOhyoImage for stable key-based caching
+          for (final imageUrl in ohyo.imageUrls) {
+            try {
+              // Extract filename from URL for stable key
+              final uri = Uri.parse(imageUrl);
+              final filename = uri.pathSegments.isNotEmpty 
+                  ? uri.pathSegments.last 
+                  : 'image_${ohyo.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+              await OfflineMediaCacheService.cacheOhyoImage(ohyo.id, filename, imageUrl, ref);
+            } catch (e) {
+              debugPrint('⚠️ Failed to cache ohyo image $imageUrl: $e');
+            }
+          }
         }
         await Future.delayed(const Duration(milliseconds: 100));
       }
@@ -1521,10 +1605,17 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
 
 
   /// Cache individual forum posts for offline viewing
-  Future<void> _cacheIndividualForumPosts(List<app_storage.CachedForumPost> cachedPosts, Ref ref) async {
+  Future<void> _cacheIndividualForumPosts(List<app_storage.CachedForumPost> cachedPosts, dynamic ref) async {
     try {
-      // Get the offline forum service from the ref
-      final offlineForumService = ref.read(offlineForumServiceProvider);
+      // Get the offline forum service from the ref (if ref is valid)
+      // Skip if ref is not a valid Ref type (WidgetRef extends Ref, so it's fine)
+      dynamic offlineForumService;
+      try {
+        offlineForumService = ref.read(offlineForumServiceProvider);
+      } catch (e) {
+        debugPrint('⚠️ Skipping individual forum post caching: ref is not valid ($e)');
+        return;
+      }
 
       for (final cachedPost in cachedPosts) {
         try {

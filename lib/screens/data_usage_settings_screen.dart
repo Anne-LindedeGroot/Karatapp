@@ -97,21 +97,27 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Status:',
-                  style: theme.textTheme.bodyMedium,
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: networkState.isConnected ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                Flexible(
                   child: Text(
-                    networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: networkState.isConnected ? Colors.green : Colors.red,
-                      fontWeight: FontWeight.bold,
+                    'Status:',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: networkState.isConnected ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: networkState.isConnected ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.visible,
+                      maxLines: 2,
                     ),
                   ),
                 ),
@@ -121,14 +127,21 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Type:',
-                  style: theme.textTheme.bodyMedium,
+                Flexible(
+                  child: Text(
+                    'Type:',
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
-                Text(
-                  _getConnectionTypeText(dataUsageState.connectionType),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
+                Flexible(
+                  child: Text(
+                    _getConnectionTypeText(dataUsageState.connectionType),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.visible,
+                    maxLines: 2,
+                    textAlign: TextAlign.end,
                   ),
                 ),
               ],
@@ -220,26 +233,48 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              constraints: const BoxConstraints(maxWidth: double.infinity),
+            SizedBox(
+              width: double.infinity,
               child: DropdownButtonFormField<DataUsageQuality>(
                 isExpanded: true,
                 initialValue: dataUsageState.videoQuality,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 24),
                 ),
                 items: DataUsageQuality.values.map((quality) => DropdownMenuItem(
                   value: quality,
-                  child: Text(
-                    _getQualityTitle(quality),
-                    overflow: TextOverflow.ellipsis,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 300, minHeight: 60),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    child: Text(
+                      _getQualityTitle(quality),
+                      overflow: TextOverflow.visible,
+                      maxLines: 3,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(height: 1.3, fontSize: 14),
+                    ),
                   ),
                 )).toList(),
                 onChanged: (value) {
                   if (value != null) {
                     ref.read(dataUsageProvider.notifier).setVideoQuality(value);
                   }
+                },
+                selectedItemBuilder: (BuildContext context) {
+                  return DataUsageQuality.values.map((quality) {
+                    return Container(
+                      constraints: const BoxConstraints(minHeight: 24),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _getQualityTitle(quality),
+                        overflow: TextOverflow.visible,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(height: 1.2, fontSize: 14),
+                      ),
+                    );
+                  }).toList();
                 },
               ),
             ),
@@ -254,26 +289,48 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              constraints: const BoxConstraints(maxWidth: double.infinity),
+            SizedBox(
+              width: double.infinity,
               child: DropdownButtonFormField<DataUsageQuality>(
                 isExpanded: true,
                 initialValue: dataUsageState.imageQuality,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 24),
                 ),
                 items: DataUsageQuality.values.map((quality) => DropdownMenuItem(
                   value: quality,
-                  child: Text(
-                    _getQualityTitle(quality),
-                    overflow: TextOverflow.ellipsis,
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 300, minHeight: 60),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                    child: Text(
+                      _getQualityTitle(quality),
+                      overflow: TextOverflow.visible,
+                      maxLines: 3,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(height: 1.3, fontSize: 14),
+                    ),
                   ),
                 )).toList(),
                 onChanged: (value) {
                   if (value != null) {
                     ref.read(dataUsageProvider.notifier).setImageQuality(value);
                   }
+                },
+                selectedItemBuilder: (BuildContext context) {
+                  return DataUsageQuality.values.map((quality) {
+                    return Container(
+                      constraints: const BoxConstraints(minHeight: 24),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _getQualityTitle(quality),
+                        overflow: TextOverflow.visible,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(height: 1.2, fontSize: 14),
+                      ),
+                    );
+                  }).toList();
                 },
               ),
             ),
@@ -303,15 +360,20 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Maandelijkse Limiet:',
-                  style: theme.textTheme.bodyMedium,
+                Flexible(
+                  child: Text(
+                    'Maandelijkse Limiet:',
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
                 Text(
                   '${dataUsageState.monthlyDataLimit} MB',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.visible,
+                  maxLines: 2,
+                  textAlign: TextAlign.end,
                 ),
               ],
             ),
@@ -426,13 +488,14 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
 
                         return SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton.icon(
+                          child: ElevatedButton(
                             onPressed: (!networkState.isConnected || syncState.isSyncing)
                                 ? null
                                 : () async {
                                     try {
                                       // Call comprehensive cache with ref for proper media caching
-                                      await ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref as Ref);
+                                      // WidgetRef extends Ref, so we can pass it directly
+                                      await ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref);
                                       if (!mounted) return;
                                       // ignore: use_build_context_synchronously
                                       ScaffoldMessenger.of(context).showSnackBar(
@@ -452,19 +515,6 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
                                       );
                                     }
                                   },
-                            icon: Icon(
-                              isCompleted ? Icons.check_circle : Icons.cloud_download,
-                              size: 20,
-                            ),
-                            label: Text(
-                              syncState.isSyncing
-                                  ? 'Bezig met cachen...'
-                                  : isCompleted
-                                      ? 'Alles is gecached'
-                                      : networkState.isConnected
-                                          ? 'Cache alles voor offline'
-                                          : 'Verbinding vereist',
-                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isCompleted
                                   ? Colors.green
@@ -472,7 +522,31 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
                                       ? theme.colorScheme.primary
                                       : Colors.grey,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  isCompleted ? Icons.check_circle : Icons.cloud_download,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    syncState.isSyncing
+                                        ? 'Bezig met cachen...'
+                                        : isCompleted
+                                            ? 'Alles is gecached'
+                                            : networkState.isConnected
+                                                ? 'Cache alles voor offline'
+                                                : 'Verbinding vereist',
+                                    overflow: TextOverflow.visible,
+                                    maxLines: 2,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -537,15 +611,22 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium,
+          Expanded(
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium,
+              overflow: TextOverflow.visible,
+              maxLines: 2,
+            ),
           ),
           Text(
             value,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w500,
             ),
+            overflow: TextOverflow.visible,
+            maxLines: 2,
+            textAlign: TextAlign.end,
           ),
         ],
       ),

@@ -729,6 +729,8 @@ class OfflineMediaCacheService {
       // Get all cache files
       final allCacheFiles = await _getAllCacheFiles();
       int deletedCount = 0;
+      int failedCount = 0;
+      final failedFiles = <String>[];
 
       for (final file in allCacheFiles) {
         final fileName = file.uri.pathSegments.last;
@@ -766,14 +768,27 @@ class OfflineMediaCacheService {
           try {
             await file.delete();
             deletedCount++;
-            debugPrint('Deleted orphaned cache file: ${file.path}');
+            // Removed per-file logging to reduce spam - only log summary at end
           } catch (e) {
-            debugPrint('Failed to delete orphaned file ${file.path}: $e');
+            failedCount++;
+            // Only keep first 5 failed files for logging to avoid spam
+            if (failedFiles.length < 5) {
+              failedFiles.add(fileName);
+            }
           }
         }
       }
 
-      debugPrint('Orphaned cache cleanup completed: deleted $deletedCount files');
+      // Log summary instead of per-file logs
+      final totalChecked = allCacheFiles.length;
+      if (deletedCount > 0 || failedCount > 0) {
+        debugPrint('🧹 Cache cleanup: checked $totalChecked files, deleted $deletedCount orphaned files${failedCount > 0 ? ', $failedCount failed' : ''}');
+        if (failedFiles.isNotEmpty) {
+          debugPrint('   Failed files: ${failedFiles.join(', ')}${failedCount > failedFiles.length ? ' (+${failedCount - failedFiles.length} more)' : ''}');
+        }
+      } else {
+        debugPrint('🧹 Cache cleanup: checked $totalChecked files, no orphaned files found');
+      }
     } catch (e) {
       debugPrint('Failed to cleanup orphaned cache files: $e');
     }

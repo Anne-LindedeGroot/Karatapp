@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/interaction_models.dart';
@@ -33,29 +34,78 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
   final InteractionService _interactionService;
   final ErrorBoundaryNotifier _errorBoundary;
   final int kataId;
+  final dynamic _ref;
 
   KataInteractionNotifier(
     this._interactionService,
     this._errorBoundary,
     this.kataId,
+    this._ref,
   ) : super(const KataInteractionState()) {
     loadKataInteractions();
+  }
+
+  Future<bool> _isOnline() async {
+    try {
+      // Use a simple connectivity check by trying to resolve a hostname
+      final result = await InternetAddress.lookup('google.com').timeout(
+        const Duration(seconds: 3),
+      );
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> loadKataInteractions() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    try {
-      // First, try to load from cache for immediate UI feedback
-      final cachedKata = app_storage.LocalStorage.getKata(kataId);
+    // First, try to load from cache for immediate UI feedback
+    final cachedKata = app_storage.LocalStorage.getKata(kataId);
+    if (cachedKata != null) {
+      state = state.copyWith(
+        isLiked: cachedKata.isLiked,
+        likeCount: cachedKata.likeCount,
+        isFavorited: cachedKata.isFavorite,
+        isOffline: true,
+      );
+    }
+
+    // Check if we're online before trying to fetch
+    final isOnline = await _isOnline();
+    
+    if (!isOnline) {
+      // Offline mode - use cached data if available
+      final offlineKataService = _ref.read(offlineKataServiceProvider);
+      final cachedComments = await offlineKataService.getCachedKataComments(kataId);
+
       if (cachedKata != null) {
         state = state.copyWith(
+          comments: cachedComments ?? [],
           isLiked: cachedKata.isLiked,
           likeCount: cachedKata.likeCount,
           isFavorited: cachedKata.isFavorite,
+          commentCount: (cachedComments ?? []).length,
+          isLoading: false,
+          error: null,
+          isOffline: true,
+        );
+      } else {
+        state = state.copyWith(
+          comments: cachedComments ?? [],
+          commentCount: (cachedComments ?? []).length,
+          isLoading: false,
+          error: null,
           isOffline: true,
         );
       }
+      return;
+    }
+
+    // Online mode - try to fetch fresh data
+    try {
+      // First, try to load cached comments for immediate UI feedback
+      final offlineKataService = _ref.read(offlineKataServiceProvider);
 
       // Load comments, likes, and favorites from server
       final results = await Future.wait([
@@ -69,6 +119,11 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
       final likes = results[1] as List<Like>;
       final isLiked = results[2] as bool;
       final isFavorited = results[3] as bool;
+
+      // Cache the fresh comments for offline use
+      if (comments.isNotEmpty) {
+        await offlineKataService.cacheKataComments(kataId, comments);
+      }
 
       state = state.copyWith(
         comments: comments,
@@ -84,25 +139,15 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
     } catch (e) {
       final errorMessage = 'Failed to load kata interactions: ${e.toString()}';
       // If we have cached data, keep it but mark as offline
-      final cachedKata = app_storage.LocalStorage.getKata(kataId);
       if (cachedKata != null) {
-        // Update state with cached data if not already loaded
-        if (state.likeCount == 0) {
-          state = state.copyWith(
-            isLiked: cachedKata.isLiked,
-            likeCount: cachedKata.likeCount,
-            isFavorited: cachedKata.isFavorite,
-            isLoading: false,
-            error: null,
-            isOffline: true,
-          );
-        } else {
-          state = state.copyWith(
-            isLoading: false,
-            error: null,
-            isOffline: true,
-          );
-        }
+        state = state.copyWith(
+          isLiked: cachedKata.isLiked,
+          likeCount: cachedKata.likeCount,
+          isFavorited: cachedKata.isFavorite,
+          isLoading: false,
+          error: null,
+          isOffline: true,
+        );
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -490,7 +535,7 @@ class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
 final kataInteractionProvider = StateNotifierProvider.family<KataInteractionNotifier, KataInteractionState, int>((ref, kataId) {
   final interactionService = ref.watch(interactionServiceProvider);
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  return KataInteractionNotifier(interactionService, errorBoundary, kataId);
+  return KataInteractionNotifier(interactionService, errorBoundary, kataId, ref);
 });
 
 // StateNotifier for ohyo interactions
@@ -498,29 +543,78 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
   final InteractionService _interactionService;
   final ErrorBoundaryNotifier _errorBoundary;
   final int ohyoId;
+  final dynamic _ref;
 
   OhyoInteractionNotifier(
     this._interactionService,
     this._errorBoundary,
     this.ohyoId,
+    this._ref,
   ) : super(const OhyoInteractionState()) {
     loadOhyoInteractions();
+  }
+
+  Future<bool> _isOnline() async {
+    try {
+      // Use a simple connectivity check by trying to resolve a hostname
+      final result = await InternetAddress.lookup('google.com').timeout(
+        const Duration(seconds: 3),
+      );
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> loadOhyoInteractions() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    try {
-      // First, try to load from cache for immediate UI feedback
-      final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+    // First, try to load from cache for immediate UI feedback
+    final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+    if (cachedOhyo != null) {
+      state = state.copyWith(
+        isLiked: cachedOhyo.isLiked,
+        likeCount: cachedOhyo.likeCount,
+        isFavorited: cachedOhyo.isFavorite,
+        isOffline: true,
+      );
+    }
+
+    // Check if we're online before trying to fetch
+    final isOnline = await _isOnline();
+    
+    if (!isOnline) {
+      // Offline mode - use cached data if available
+      final offlineOhyoService = _ref.read(offlineOhyoServiceProvider);
+      final cachedComments = await offlineOhyoService.getCachedOhyoComments(ohyoId);
+
       if (cachedOhyo != null) {
         state = state.copyWith(
+          comments: cachedComments ?? [],
           isLiked: cachedOhyo.isLiked,
           likeCount: cachedOhyo.likeCount,
           isFavorited: cachedOhyo.isFavorite,
+          commentCount: (cachedComments ?? []).length,
+          isLoading: false,
+          error: null,
+          isOffline: true,
+        );
+      } else {
+        state = state.copyWith(
+          comments: cachedComments ?? [],
+          commentCount: (cachedComments ?? []).length,
+          isLoading: false,
+          error: null,
           isOffline: true,
         );
       }
+      return;
+    }
+
+    // Online mode - try to fetch fresh data
+    try {
+      // First, try to load cached comments for immediate UI feedback
+      final offlineOhyoService = _ref.read(offlineOhyoServiceProvider);
 
       // Load comments, likes, and favorites from server
       final results = await Future.wait([
@@ -534,6 +628,11 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
       final likes = results[1] as List<Like>;
       final isLiked = results[2] as bool;
       final isFavorited = results[3] as bool;
+
+      // Cache the fresh comments for offline use
+      if (comments.isNotEmpty) {
+        await offlineOhyoService.cacheOhyoComments(ohyoId, comments);
+      }
 
       state = state.copyWith(
         comments: comments,
@@ -549,25 +648,15 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
     } catch (e) {
       final errorMessage = 'Failed to load ohyo interactions: ${e.toString()}';
       // If we have cached data, keep it but mark as offline
-      final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
       if (cachedOhyo != null) {
-        // Update state with cached data if not already loaded
-        if (state.likeCount == 0) {
-          state = state.copyWith(
-            isLiked: cachedOhyo.isLiked,
-            likeCount: cachedOhyo.likeCount,
-            isFavorited: cachedOhyo.isFavorite,
-            isLoading: false,
-            error: null,
-            isOffline: true,
-          );
-        } else {
-          state = state.copyWith(
-            isLoading: false,
-            error: null,
-            isOffline: true,
-          );
-        }
+        state = state.copyWith(
+          isLiked: cachedOhyo.isLiked,
+          likeCount: cachedOhyo.likeCount,
+          isFavorited: cachedOhyo.isFavorite,
+          isLoading: false,
+          error: null,
+          isOffline: true,
+        );
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -779,7 +868,7 @@ final forumInteractionProvider = StateNotifierProvider.family<ForumInteractionNo
 final ohyoInteractionProvider = StateNotifierProvider.family<OhyoInteractionNotifier, OhyoInteractionState, int>((ref, ohyoId) {
   final interactionService = ref.watch(interactionServiceProvider);
   final errorBoundary = ref.watch(errorBoundaryProvider.notifier);
-  return OhyoInteractionNotifier(interactionService, errorBoundary, ohyoId);
+  return OhyoInteractionNotifier(interactionService, errorBoundary, ohyoId, ref);
 });
 
 // Convenience providers for specific interaction properties
