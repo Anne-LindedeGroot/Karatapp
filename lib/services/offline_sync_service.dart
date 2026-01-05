@@ -471,12 +471,7 @@ class OfflineSyncService {
       // Fetch all forum posts for comprehensive offline access
       final response = await _supabase
           .from('forum_posts')
-          .select('''
-            *,
-            forum_post_categories (
-              category
-            )
-          ''')
+          .select()
           .order('created_at', ascending: false);
 
       if (response.isEmpty) {
@@ -495,37 +490,21 @@ class OfflineSyncService {
       for (int i = 0; i < response.length; i++) {
         try {
           final postData = response[i];
-          final categoryString = postData['forum_post_categories']?['category'] ?? 'general';
-          final postId = postData['id'];
-
-          // Get like information for this forum post
-          int likeCount = 0;
-          try {
-            final likesResponse = await _supabase
-                .from('likes')
-                .select('id')
-                .eq('target_type', 'forum_post')
-                .eq('target_id', postId);
-
-            likeCount = likesResponse.length;
-          } catch (likeError) {
-            debugPrint('Error fetching likes for forum post $postId: $likeError');
-          }
-
+          final categoryString = postData['category'] ?? 'general';
           final post = app_storage.CachedForumPost(
-            id: postId,
+            id: postData['id'].toString(),
             title: postData['title'],
             content: postData['content'],
-            authorId: postData['author_id'],
+            authorId: postData['author_id'].toString(),
             authorName: postData['author_name'] ?? 'Unknown',
             createdAt: DateTime.parse(postData['created_at']),
             lastSynced: DateTime.now(),
-            likesCount: likeCount,
+            likesCount: postData['likes'] ?? 0,
             commentsCount: postData['replies'] ?? 0,
             needsSync: false,
             category: categoryString,
           );
-
+          
           postsToCache.add(post);
           processed++;
 
@@ -1282,9 +1261,6 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
       progress: 0.0,
     );
 
-    // Create a safe ref wrapper to handle disposal gracefully
-    bool isRefValid = true;
-
     try {
       int processed = 0;
       int failed = 0;
@@ -1415,19 +1391,11 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
 
       // Sync forum posts
       try {
-        final forumResponse = await Supabase.instance.client
-            .from('forum_posts')
-            .select('''
-              *,
-              forum_post_categories (
-                category
-              )
-            ''')
-            .order('created_at', ascending: false);
+        final forumResponse = await Supabase.instance.client.from('forum_posts').select().order('created_at', ascending: false);
         final List<app_storage.CachedForumPost> postsToCache = [];
 
         for (final postData in forumResponse) {
-          final categoryString = postData['forum_post_categories']?['category'] ?? 'general';
+          final categoryString = postData['category'] ?? 'general';
           final post = app_storage.CachedForumPost(
             id: postData['id'].toString(),
             title: postData['title'],
@@ -1468,7 +1436,7 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
 
       // Cache media for all items
       debugPrint('💾 Starting comprehensive media cache...');
-      await _cacheAllMedia(ref, katasToCache, ohyosToCache, () => isRefValid);
+      await _cacheAllMedia(ref, katasToCache, ohyosToCache);
 
       final result = SyncResult(
         operation: SyncOperation.comprehensiveCache,
@@ -1521,48 +1489,26 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
   }
 
   /// Cache media for all katas and ohyos (images only - videos work online only)
-  Future<void> _cacheAllMedia(dynamic ref, List<app_storage.CachedKata> katasToCache, List<app_storage.CachedOhyo> ohyosToCache, bool Function()? isRefValid) async {
+  Future<void> _cacheAllMedia(dynamic ref, List<app_storage.CachedKata> katasToCache, List<app_storage.CachedOhyo> ohyosToCache) async {
     try {
       debugPrint('📹 Starting image caching for ${katasToCache.length} katas and ${ohyosToCache.length} ohyos...');
 
       // Cache images for all katas
       for (final kata in katasToCache) {
-        // Check if ref is still valid
-        if (isRefValid != null && !isRefValid()) {
-          debugPrint('⚠️ Ref invalidated during kata image caching, stopping gracefully');
-          return;
-        }
-
         debugPrint('📹 Kata ${kata.id}: ${kata.name} with ${kata.imageUrls.length} images');
         if (kata.imageUrls.isNotEmpty) {
           debugPrint('📹 Caching ${kata.imageUrls.length} images for kata ${kata.id}');
-          try {
-            await OfflineMediaCacheService.preCacheMediaFiles(kata.imageUrls, false, ref);
-          } catch (e) {
-            debugPrint('❌ Failed to cache images for kata ${kata.id}: $e');
-            // Continue with other katas even if one fails
-          }
+          await OfflineMediaCacheService.preCacheMediaFiles(kata.imageUrls, false, ref);
         }
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
       // Cache images for all ohyos
       for (final ohyo in ohyosToCache) {
-        // Check if ref is still valid
-        if (isRefValid != null && !isRefValid()) {
-          debugPrint('⚠️ Ref invalidated during ohyo image caching, stopping gracefully');
-          return;
-        }
-
         debugPrint('📹 Ohyo ${ohyo.id}: ${ohyo.name} with ${ohyo.imageUrls.length} images');
         if (ohyo.imageUrls.isNotEmpty) {
           debugPrint('📹 Caching ${ohyo.imageUrls.length} images for ohyo ${ohyo.id}');
-          try {
-            await OfflineMediaCacheService.preCacheMediaFiles(ohyo.imageUrls, false, ref);
-          } catch (e) {
-            debugPrint('❌ Failed to cache images for ohyo ${ohyo.id}: $e');
-            // Continue with other ohyos even if one fails
-          }
+          await OfflineMediaCacheService.preCacheMediaFiles(ohyo.imageUrls, false, ref);
         }
         await Future.delayed(const Duration(milliseconds: 100));
       }

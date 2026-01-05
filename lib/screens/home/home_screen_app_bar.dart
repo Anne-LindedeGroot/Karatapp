@@ -50,24 +50,24 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
         logoSpacing = 6.0;
       }
     } else {
-      // Regular font: maximize space utilization
+      // Regular font: optimize sizes to fit "Karatapp" fully without overlap
       if (isExtraLarge) {
-        logoSize = 32.0; // Smaller logo for more title space
-        titleFontSize = 24.0; // Large font to fill space
-        logoSpacing = 8.0;
+        logoSize = 28.0; // Smaller logo to make room for full text
+        titleFontSize = 21.0; // Reduced to fit fully
+        logoSpacing = 5.0; // Minimal spacing
       } else if (isLarge) {
-        logoSize = 36.0; // Medium logo
-        titleFontSize = 22.0; // Large font to fill space
-        logoSpacing = 8.0;
+        logoSize = 32.0; // Smaller logo
+        titleFontSize = 19.0; // Good size to fit fully
+        logoSpacing = 5.0;
       } else if (isSmall) {
-        logoSize = 40.0; // Full size logo
-        titleFontSize = 18.0; // Good size for small
-        logoSpacing = 8.0;
+        logoSize = 36.0; // Medium logo
+        titleFontSize = 17.0; // Good size for small
+        logoSpacing = 5.0;
       } else {
-        // Normal size: maximize space
-        logoSize = 38.0; // Slightly smaller logo
-        titleFontSize = 20.0; // Larger font to fill space
-        logoSpacing = 8.0;
+        // Normal size: optimize to fit "Karatapp" fully
+        logoSize = 34.0; // Smaller logo to make room
+        titleFontSize = 18.0; // Optimized size to fit fully
+        logoSpacing = 5.0; // Minimal spacing
       }
     }
     
@@ -100,15 +100,15 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
           ),
           SizedBox(width: logoSpacing),
-          // Expanded to fill remaining space
-          Expanded(
+          // Flexible instead of Expanded to prevent overlap with actions
+          Flexible(
             child: Text(
               "Karatapp",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: titleFontSize,
                 fontWeight: FontWeight.w500,
               ),
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible, // Show full word, no ellipsis
               maxLines: 1,
             ),
           ),

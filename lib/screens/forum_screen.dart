@@ -1149,18 +1149,29 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
             final accessibilityState = ref.watch(accessibilityNotifierProvider);
             final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
             final isDyslexiaFriendly = accessibilityState.isDyslexiaFriendly;
-            final shouldReduceSize = isExtraLarge && isDyslexiaFriendly;
             
-            // Fixed font size when both extra large and dyslexia are on
-            final fontSize = shouldReduceSize ? 14.0 : null;
+            // For dyslexia + extra large: keep Forum text large (don't reduce)
+            // For other cases: use default or larger sizes
+            double? fontSize;
+            if (isDyslexiaFriendly && isExtraLarge) {
+              // Keep it large even with dyslexia + extra large
+              fontSize = 22.0; // Large font size
+            } else if (isExtraLarge) {
+              fontSize = 24.0; // Extra large for regular font
+            } else if (accessibilityState.fontSize == AccessibilityFontSize.large) {
+              fontSize = 22.0; // Large size
+            } else {
+              fontSize = null; // Use default
+            }
             
-            return Flexible(
+            return Expanded(
               child: Text(
                 'Forum',
                 style: TextStyle(
                   fontSize: fontSize,
                 ),
-                overflow: TextOverflow.ellipsis,
+                overflow: TextOverflow.visible, // Show full word, no dots
+                maxLines: 1,
               ),
             );
           },
