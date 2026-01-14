@@ -312,21 +312,25 @@ class AvatarPreview extends StatelessWidget {
             ConstrainedBox(
               constraints: BoxConstraints(
                 minWidth: size + 100,
-                maxWidth: size + 100,
+                maxWidth: size + 150, // Increased maxWidth significantly to fit longer names like "Toernooi Deelnemer"
+                maxHeight: 50, // Increased maxHeight to accommodate 2-line text
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(
                   avatar.name,
                   style: TextStyle(
-                    fontSize: 10, // Smaller font for better fit
+                    fontSize: 11, // Slightly increased font size for better readability
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     color: isSelected
                         ? Colors.green
                         : Colors.grey.shade700,
+                    height: 1.2, // Better line height for 2-line text
                   ),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.visible,
+                  maxLines: 3, // Allow up to 3 lines for very long names if needed
+                  softWrap: true, // Enable soft wrapping
                 ),
               ),
             ),

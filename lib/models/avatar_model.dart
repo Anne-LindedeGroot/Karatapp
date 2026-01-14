@@ -80,7 +80,7 @@ class AvatarData {
     // Karate Men Photos
     Avatar(
       id: 'karate_man_white_gi',
-      name: 'Karateka\nWitte Gi',
+      name: 'Karateka Witte Gi',
       assetPath: 'assets/avatars/photos/karate_men/white_gi.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -88,7 +88,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_man_black_gi',
-      name: 'Karateka\nZwarte Gi',
+      name: 'Karateka Zwarte Gi',
       assetPath: 'assets/avatars/photos/karate_men/black_gi.jpg',
       category: AvatarCategory.karateMan,
       type: AvatarType.preset,
@@ -130,7 +130,7 @@ class AvatarData {
     //Karate Women Photos
     Avatar(
       id: 'karate_woman_white_gi',
-      name: 'Karateka\nWitte Gi',
+      name: 'Karateka Witte Gi',
       assetPath: 'assets/avatars/photos/karate_women/white_gi.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -138,7 +138,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'karate_woman_black_gi',
-      name: 'Karateka\nZwarte Gi',
+      name: 'Karateka Zwarte Gi',
       assetPath: 'assets/avatars/photos/karate_women/black_gi.jpg',
       category: AvatarCategory.karateWoman,
       type: AvatarType.preset,
@@ -180,7 +180,7 @@ class AvatarData {
     // Martial Arts Characters Photos
     Avatar(
       id: 'samurai_warrior',
-      name: 'Traditionele\nSamurai',
+      name: 'Traditionele Samurai',
       assetPath: 'assets/avatars/photos/characters/samurai_traditional.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -188,7 +188,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'ninja',
-      name: 'Moderne Ninja',
+      name: 'Traditionele Ninja',
       assetPath: 'assets/avatars/photos/characters/ninja_modern.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,
@@ -212,7 +212,7 @@ class AvatarData {
     ),
     Avatar(
       id: 'judo_fighter',
-      name: 'Judo\nKampioen',
+      name: 'Judo Kampioen',
       assetPath: 'assets/avatars/photos/characters/judo_champion.jpg',
       category: AvatarCategory.martialArtsCharacters,
       type: AvatarType.preset,

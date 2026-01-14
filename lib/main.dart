@@ -262,14 +262,28 @@ class _AppErrorBoundaryState extends ConsumerState<AppErrorBoundary> {
     final originalErrorHandler = FlutterError.onError;
     
     FlutterError.onError = (FlutterErrorDetails details) {
+      final errorString = details.exception.toString();
+
       // Check if this is an overflow error - suppress it
-      if (_isOverflowError(details.exception.toString())) {
+      if (_isOverflowError(errorString)) {
         debugPrint('🎨 Overflow Error Suppressed: ${details.exception}');
         return;
       }
-      
+
+      // Check for Supabase connection errors - suppress them to avoid spam
+      if (_isSupabaseConnectionError(errorString)) {
+        debugPrint('🌐 Supabase Connection Error Suppressed (non-critical): ${details.exception}');
+        return;
+      }
+
+      // Check for graphics/system errors - suppress them to avoid spam
+      if (_isGraphicsError(errorString)) {
+        debugPrint('🎨 Graphics System Error Suppressed (non-critical): ${details.exception}');
+        return;
+      }
+
       // Check for framework assertion errors and handle them gracefully
-      if (_isFrameworkAssertionError(details.exception.toString())) {
+      if (_isFrameworkAssertionError(errorString)) {
         debugPrint('🔧 Framework Assertion Error: ${details.exception}');
         // Don't show these to users, just log them
         return;
@@ -302,9 +316,9 @@ class _AppErrorBoundaryState extends ConsumerState<AppErrorBoundary> {
 
   bool _isOverflowError(String error) {
     final errorLower = error.toLowerCase();
-    return (errorLower.contains('renderflex') && 
+    return (errorLower.contains('renderflex') &&
            errorLower.contains('overflow')) ||
-           (errorLower.contains('overflow') && 
+           (errorLower.contains('overflow') &&
             (errorLower.contains('pixels') || errorLower.contains('bottom'))) ||
            errorLower.contains('cannot hit test a render box with no size') ||
            (errorLower.contains('renderbox') && errorLower.contains('size')) ||
@@ -330,6 +344,18 @@ class _AppErrorBoundaryState extends ConsumerState<AppErrorBoundary> {
            errorLower.contains('bad state: cannot use "ref"');
   }
 
+  bool _isGraphicsError(String error) {
+    final errorLower = error.toLowerCase();
+    return errorLower.contains('graphicbufferallocator') ||
+           errorLower.contains('failed to allocate') ||
+           errorLower.contains('format allocation info not found') ||
+           errorLower.contains('unrecognized and/or unsupported format') ||
+           errorLower.contains('gralloc4') ||
+           errorLower.contains('blastbufferqueue') ||
+           (errorLower.contains('error') && errorLower.contains('buffer')) ||
+           errorLower.contains('surfaceview') && errorLower.contains('error');
+  }
+
   bool _isFrameworkAssertionError(String error) {
     final errorLower = error.toLowerCase();
     return errorLower.contains('assertion failed') ||
@@ -344,6 +370,18 @@ class _AppErrorBoundaryState extends ConsumerState<AppErrorBoundary> {
            errorLower.contains('setstate() or markneedsbuild() called during build') ||
            errorLower.contains('widget cannot be marked as needing to build') ||
            errorLower.contains('framework is already in the process of building');
+  }
+
+  bool _isSupabaseConnectionError(String error) {
+    final errorLower = error.toLowerCase();
+    return errorLower.contains('authretryablefetchexception') ||
+           errorLower.contains('connection timed out') ||
+           errorLower.contains('connection timeout') ||
+           errorLower.contains('failed host lookup') ||
+           errorLower.contains('no address associated with hostname') ||
+           errorLower.contains('socketexception') ||
+           errorLower.contains('network is unreachable') ||
+           (errorLower.contains('supabase') && errorLower.contains('connection'));
   }
 
   @override

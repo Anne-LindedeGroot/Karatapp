@@ -712,7 +712,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
-                            overflow: TextOverflow.visible,
                           ),
                         ),
                         if (post.commentCount > 0) ...[

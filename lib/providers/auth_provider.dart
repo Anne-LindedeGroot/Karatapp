@@ -115,7 +115,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _authService.authStateChanges.listen((authState) {
       final user = authState.session?.user;
       final isAuthenticated = user != null;
-      
+
       // Only update if the authentication status actually changed
       if (state.isAuthenticated != isAuthenticated) {
         print('🔄 AuthNotifier: Auth state changed - authenticated: $isAuthenticated');
@@ -126,6 +126,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
           error: null,
         );
       }
+    }, onError: (error) {
+      // Handle auth state change errors gracefully
+      debugPrint('⚠️ AuthNotifier: Auth state change error (non-critical): $error');
+      // Don't update state for auth listener errors - let the connection issues be handled elsewhere
     });
   }
 

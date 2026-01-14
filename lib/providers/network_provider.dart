@@ -91,6 +91,7 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
       final httpClient = HttpClient();
       httpClient.connectionTimeout = const Duration(seconds: 5);
 
+      bool basicConnectivity = false;
       try {
         final request = await httpClient.headUrl(Uri.parse('https://www.google.com'));
         final response = await request.close();
@@ -98,13 +99,7 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
 
         if (response.statusCode == 200) {
           // Basic HTTP connectivity works
-          state = state.copyWith(
-            status: NetworkStatus.connected,
-            lastError: null,
-            lastChecked: DateTime.now(),
-          );
-          httpClient.close();
-          return;
+          basicConnectivity = true;
         }
       } catch (httpError) {
         debugPrint('HTTP connectivity check failed: $httpError');
@@ -112,21 +107,38 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
         httpClient.close();
       }
 
-      // If HTTP check fails, try Supabase as fallback
+      if (!basicConnectivity) {
+        throw Exception('Basic internet connectivity failed');
+      }
+
+      // Only try Supabase if basic connectivity works
       final client = Supabase.instance.client;
 
       // Simple health check - try to get auth user (lightweight operation)
-      await client.auth.getUser().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw TimeoutException('Connection timeout'),
-      );
+      // But be more lenient - if Supabase fails but basic internet works,
+      // consider it partially connected
+      try {
+        await client.auth.getUser().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => throw TimeoutException('Supabase connection timeout'),
+        );
 
-      // If we get here, connection is working
-      state = state.copyWith(
-        status: NetworkStatus.connected,
-        lastError: null,
-        lastChecked: DateTime.now(),
-      );
+        // If we get here, full connection is working
+        state = state.copyWith(
+          status: NetworkStatus.connected,
+          lastError: null,
+          lastChecked: DateTime.now(),
+        );
+      } catch (supabaseError) {
+        debugPrint('Supabase connectivity check failed, but basic internet works: $supabaseError');
+        // Basic internet works, but Supabase doesn't - consider it connected for now
+        // This prevents auth refresh loops when Supabase is temporarily down
+        state = state.copyWith(
+          status: NetworkStatus.connected,
+          lastError: 'Supabase server temporarily unavailable',
+          lastChecked: DateTime.now(),
+        );
+      }
     } catch (e) {
       final errorMessage = _getConnectionErrorMessage(e);
 

@@ -198,6 +198,9 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
+                            maxLines: 2, // Allow up to 2 lines for long names
+                            overflow: TextOverflow.visible, // Show full text without truncation
+                            softWrap: true, // Enable text wrapping
                           ),
                           Text(
                             _formatDate(widget.getCreatedAt(comment)),
