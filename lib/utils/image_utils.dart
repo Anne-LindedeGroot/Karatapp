@@ -399,10 +399,15 @@ class ImageUtils {
 
             // Sort images according to stored order
             final orderedUrls = <String>[];
+            debugPrint('🔍 Stored order has ${storedOrder.length} URLs');
             for (final storedUrl in storedOrder) {
               final storedFileName = extractFileNameFromUrl(storedUrl);
+              debugPrint('🔍 Looking for stored filename: $storedFileName');
               if (storedFileName != null && fileNameToData.containsKey(storedFileName)) {
                 orderedUrls.add(fileNameToData[storedFileName]!['url']!);
+                debugPrint('✅ Found match for $storedFileName');
+              } else {
+                debugPrint('❌ No match found for $storedFileName');
               }
             }
 
@@ -410,21 +415,31 @@ class ImageUtils {
             for (final data in imageData) {
               if (!orderedUrls.contains(data['url'])) {
                 orderedUrls.add(data['url']!);
+                debugPrint('➕ Added remaining image: ${data['name']}');
               }
             }
 
             debugPrint('✅ Successfully ordered ${orderedUrls.length} images using stored order');
-            debugPrint('🖼️ Ordered image URLs: ${orderedUrls.take(3).join(', ')}${orderedUrls.length > 3 ? '...' : ''}');
+            debugPrint('🖼️ Ordered image URLs: ${orderedUrls.map(extractFileNameFromUrl).take(3).join(', ')}${orderedUrls.length > 3 ? '...' : ''}');
             return orderedUrls;
           } else {
-            // Fall back to sorting by filename (files with order prefix will be sorted correctly)
-            // Silent: Order sorting is not logged
-            imageData.sort((a, b) => a['name']!.compareTo(b['name']!));
+            // Fall back to sorting by filename numerically (kata_1_0, kata_1_1, kata_1_2, etc.)
+            imageData.sort((a, b) {
+              final nameA = a['name']!;
+              final nameB = b['name']!;
+
+              // Extract the order number from filenames like "kata_1_0_timestamp.jpg"
+              final orderA = _extractOrderNumber(nameA);
+              final orderB = _extractOrderNumber(nameB);
+
+              return orderA.compareTo(orderB);
+            });
+
+            debugPrint('📋 Fallback numerical sorting for kata $kataId: ${imageData.map((d) => d['name']).take(5).join(', ')}${imageData.length > 5 ? '...' : ''}');
+            debugPrint('🔗 Final URLs order: ${imageData.map((d) => d['url']!).map(extractFileNameFromUrl).take(5).join(', ')}${imageData.length > 5 ? '...' : ''}');
 
             // Extract just the URLs in the correct order
             final urls = imageData.map((data) => data['url']!).toList();
-            // Silent: Image fetch success is not logged
-            // Silent: Image URLs are not logged to avoid spam
             return urls;
           }
         } catch (e) {
@@ -769,6 +784,25 @@ class ImageUtils {
       debugPrint('Error extracting file name from URL: $e');
       return null;
     }
+  }
+
+  /// Extract the order number from a filename like "kata_1_0_timestamp.jpg"
+  /// Returns the order number (0, 1, 2, etc.) for proper numerical sorting
+  static int _extractOrderNumber(String filename) {
+    try {
+      // Pattern: kata_X_Y_timestamp.jpg where Y is the order number
+      final parts = filename.split('_');
+      if (parts.length >= 3) {
+        // The order number is the third part (index 2)
+        final orderPart = parts[2];
+        // Remove any non-numeric suffix (like timestamp)
+        final orderStr = orderPart.split('.').first.split('_').first;
+        return int.tryParse(orderStr) ?? 0;
+      }
+    } catch (e) {
+      debugPrint('Error extracting order number from $filename: $e');
+    }
+    return 0; // Default to 0 if extraction fails
   }
 
   /// Check if an error is a network-related error

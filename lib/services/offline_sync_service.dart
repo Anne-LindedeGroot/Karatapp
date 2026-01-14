@@ -6,6 +6,7 @@ import '../core/storage/local_storage.dart' as app_storage;
 import '../providers/data_usage_provider.dart';
 import '../providers/network_provider.dart';
 import '../providers/forum_provider.dart';
+import '../providers/interaction_provider.dart';
 import '../providers/offline_services_provider.dart';
 import 'offline_queue_service.dart';
 import 'comment_cache_service.dart';
@@ -15,6 +16,7 @@ import 'forum_service.dart';
 import 'offline_media_cache_service.dart';
 import '../models/interaction_models.dart';
 import '../models/forum_models.dart';
+import '../utils/image_utils.dart';
 
 /// Offline sync status
 enum SyncStatus {
@@ -1143,8 +1145,6 @@ class OfflineSyncService {
 class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
   final OfflineSyncService _syncService = OfflineSyncService();
   OfflineQueueService? _offlineQueueService;
-  InteractionService? _interactionService;
-  ForumService? _forumService;
 
   void initializeOfflineQueueService(OfflineQueueService queueService) {
     _offlineQueueService = queueService;
@@ -1166,8 +1166,7 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
     ForumService forumService,
   ) {
     _offlineQueueService = queueService;
-    _interactionService = interactionService;
-    _forumService = forumService;
+    // Note: forumService is accessed via provider in comment caching
     _syncService.initializeOfflineServices(
       queueService,
       cacheService,
@@ -1300,13 +1299,16 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
             debugPrint('Error fetching likes for kata $kataId: $likeError');
           }
 
+          // Fetch actual image URLs from Supabase Storage bucket
+          final imageUrls = await ImageUtils.fetchKataImagesFromBucket(kataId, ref: ref);
+
           final kata = app_storage.CachedKata(
             id: kataId,
             name: kataData['name'],
             description: kataData['description'] ?? '',
             createdAt: DateTime.tryParse(kataData['created_at'] ?? '') ?? DateTime.now(),
             lastSynced: DateTime.now(),
-            imageUrls: List<String>.from(kataData['image_urls'] ?? []),
+            imageUrls: imageUrls,
             style: kataData['style'] ?? '',
             isFavorite: kataData['is_favorite'] ?? false,
             needsSync: false,
@@ -1357,13 +1359,16 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
             debugPrint('Error fetching likes for ohyo $ohyoId: $likeError');
           }
 
+          // Fetch actual image URLs from Supabase Storage bucket
+          final imageUrls = await ImageUtils.fetchOhyoImagesFromBucket(ohyoId, ref: ref);
+
           final ohyo = app_storage.CachedOhyo(
             id: ohyoId,
             name: ohyoData['name'],
             description: ohyoData['description'] ?? '',
             createdAt: DateTime.tryParse(ohyoData['created_at'] ?? '') ?? DateTime.now(),
             lastSynced: DateTime.now(),
-            imageUrls: List<String>.from(ohyoData['image_urls'] ?? []),
+            imageUrls: imageUrls,
             style: ohyoData['style'] ?? '',
             isFavorite: ohyoData['is_favorite'] ?? false,
             needsSync: false,
@@ -1455,10 +1460,14 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
         final offlineOhyoService = ref.read(offlineOhyoServiceProvider);
         final offlineForumService = ref.read(offlineForumServiceProvider);
 
+        // Get services from ref to ensure they're available
+        final interactionService = ref.read(interactionServiceProvider);
+        final forumService = ref.read(forumServiceProvider);
+
         // Cache comments for all katas
         for (final kata in katasToCache) {
           try {
-            final comments = await _interactionService!.getKataComments(kata.id);
+            final comments = await interactionService.getKataComments(kata.id);
             await offlineKataService.cacheKataComments(kata.id, comments);
             debugPrint('✅ Cached ${comments.length} comments for kata ${kata.id}');
           } catch (e) {
@@ -1470,7 +1479,7 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
         // Cache comments for all ohyos
         for (final ohyo in ohyosToCache) {
           try {
-            final comments = await _interactionService!.getOhyoComments(ohyo.id);
+            final comments = await interactionService.getOhyoComments(ohyo.id);
             await offlineOhyoService.cacheOhyoComments(ohyo.id, comments);
             debugPrint('✅ Cached ${comments.length} comments for ohyo ${ohyo.id}');
           } catch (e) {
@@ -1482,7 +1491,7 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
         // Cache comments for all forum posts
         for (final post in postsToCache) {
           try {
-            final comments = await _forumService!.getComments(int.parse(post.id));
+            final comments = await forumService.getComments(int.parse(post.id));
             await offlineForumService.cachePostComments(post.id, comments);
             debugPrint('✅ Cached ${comments.length} comments for forum post ${post.id}');
           } catch (e) {
@@ -1616,17 +1625,13 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
           // Fetch full post data from server
           final fullPostResponse = await Supabase.instance.client
               .from('forum_posts')
-              .select('''
-                *,
-                forum_post_categories (
-                  category
-                )
-              ''')
+              .select()
               .eq('id', cachedPost.id)
               .single();
 
           // Convert to ForumPost model
-          final categoryString = fullPostResponse['forum_post_categories']?['category'] ?? 'general';
+          // Try to get category from the post data directly, fallback to cached category
+          final categoryString = fullPostResponse['category'] ?? cachedPost.category;
           final category = ForumCategory.values.firstWhere(
             (cat) => cat.name == categoryString,
             orElse: () => ForumCategory.general,

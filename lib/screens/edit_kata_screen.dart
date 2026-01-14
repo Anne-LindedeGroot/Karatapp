@@ -80,14 +80,77 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     try {
       final imageUrls = await ImageUtils.fetchKataImagesFromBucket(widget.kata.id);
       setState(() {
-        _currentImageUrls = _sortImagesByChoInSequence(imageUrls);
+        // For Cho-in kata, only auto-sort if this is the VERY FIRST time loading images
+        // and there are no stored URLs in the database yet
+        final isChoinKata = widget.kata.name.toLowerCase().contains('choin') ||
+                           widget.kata.name.toLowerCase().contains('cho-in');
+        final hasStoredOrder = widget.kata.imageUrls != null && widget.kata.imageUrls!.isNotEmpty;
+
+        if (isChoinKata && !hasStoredOrder && imageUrls.isNotEmpty) {
+          // First time EVER loading Cho-in images - apply traditional sequence
+          _currentImageUrls = _sortImagesByChoInSequence(imageUrls);
+          debugPrint('🆕 First time loading Cho-in kata images - applied traditional sequence');
+        } else {
+          // Use the order from storage/database, or let user manually reorder
+          _currentImageUrls = imageUrls;
+          if (isChoinKata && hasStoredOrder) {
+            debugPrint('📋 Cho-in kata with stored order - preserving user-defined sequence');
+          }
+        }
         _originalImageUrls = List.from(_currentImageUrls); // Store original URLs
       });
     } catch (e) {
       setState(() {
-        _currentImageUrls = _sortImagesByChoInSequence(widget.kata.imageUrls ?? []);
+        // Fallback to kata's stored imageUrls
+        final isChoinKata = widget.kata.name.toLowerCase().contains('choin') ||
+                           widget.kata.name.toLowerCase().contains('cho-in');
+        final storedUrls = widget.kata.imageUrls ?? [];
+
+        if (isChoinKata && storedUrls.isEmpty && storedUrls.isNotEmpty) {
+          // First time loading Cho-in images from fallback - apply sequence
+          _currentImageUrls = _sortImagesByChoInSequence(storedUrls);
+        } else {
+          // Use stored URLs as-is (preserves user's manual ordering)
+          _currentImageUrls = storedUrls;
+        }
         _originalImageUrls = List.from(_currentImageUrls); // Store original URLs
       });
+    }
+  }
+
+  /// Apply Cho-in sequence sorting to current images
+  Future<void> _applyChoInSequence() async {
+    if (_currentImageUrls.isEmpty) return;
+
+    setState(() {
+      _currentImageUrls = _sortImagesByChoInSequence(_currentImageUrls);
+    });
+
+    // Save the new order immediately
+    try {
+      await ref.read(kataNotifierProvider.notifier).updateKataImageUrls(
+        kataId: widget.kata.id,
+        imageUrls: _currentImageUrls,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Afbeeldingen gesorteerd volgens Cho-in volgorde'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to save Cho-in sequence: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Fout bij opslaan van volgorde'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -263,6 +326,12 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
       // Update the kata model with the new image order
       ref.read(kataNotifierProvider.notifier).updateKataImages(widget.kata.id, _currentImageUrls);
 
+      // Also update the database immediately when reordering
+      await ref.read(kataNotifierProvider.notifier).updateKataImageUrls(
+        kataId: widget.kata.id,
+        imageUrls: _currentImageUrls,
+      );
+
       // Show success feedback
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -276,17 +345,18 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     } catch (e) {
       debugPrint('Failed to save image order: $e');
       // Revert the local change if save failed
-      setState(() {
-        if (newIndex > oldIndex) {
-          newIndex += 1;
-        }
-        final item = _currentImageUrls.removeAt(newIndex);
-        _currentImageUrls.insert(oldIndex, item);
-        // Mark as having changes so user can save manually
-        _hasChanges = true;
-      });
-
       if (mounted) {
+        setState(() {
+          // Revert the reorder operation
+          if (newIndex > oldIndex) {
+            newIndex -= 1;
+          }
+          final item = _currentImageUrls.removeAt(newIndex);
+          _currentImageUrls.insert(oldIndex, item);
+          // Mark as having changes so user can save manually
+          _hasChanges = true;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Automatisch opslaan mislukt. Gebruik de Opslaan knop: $e'),
@@ -586,15 +656,27 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
           widget.kata.id,
         );
         debugPrint('📥 Upload completed. Got ${newImageUrls.length} URLs: $newImageUrls');
+
+        // Add new images to current list (they will be in upload order)
         _currentImageUrls.addAll(newImageUrls);
+        debugPrint('📋 After adding new images, current order: ${_currentImageUrls.map(ImageUtils.extractFileNameFromUrl).toList()}');
       }
 
-      // Update image order if needed
+      // Update the kata's image_urls field in the database with the new image URLs
       if (_currentImageUrls.isNotEmpty && mounted) {
+        debugPrint('💾 Saving image order to database: ${_currentImageUrls.map(ImageUtils.extractFileNameFromUrl).toList()}');
+        await ref.read(kataNotifierProvider.notifier).updateKataImageUrls(
+          kataId: widget.kata.id,
+          imageUrls: _currentImageUrls,
+        );
+        debugPrint('✅ Database updated with new image URLs');
+
+        // Also update image order if needed
         await ref.read(imageNotifierProvider.notifier).reorderImages(
           widget.kata.id,
           _currentImageUrls,
         );
+        debugPrint('✅ Image reordering completed');
       }
 
       // Refresh kata data
@@ -863,7 +945,7 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // New Images Section
+                        // New Images Section
                 if (_newSelectedImages.isNotEmpty) ...[
                   Card(
                     child: Padding(
@@ -878,6 +960,42 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                               color: Colors.green,
                             ),
                           ),
+                           const SizedBox(height: 12),
+                           Container(
+                             padding: const EdgeInsets.all(12),
+                             decoration: BoxDecoration(
+                               color: Colors.red[50],
+                               border: Border.all(color: Colors.red[300]!, width: 2),
+                               borderRadius: BorderRadius.circular(8),
+                             ),
+                             child: Column(
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                 Row(
+                                   children: [
+                                     Icon(Icons.warning, color: Colors.red[700], size: 20),
+                                     const SizedBox(width: 8),
+                                     Text(
+                                       'BELANGRIJK: Controleer de volgorde!',
+                                       style: TextStyle(
+                                         fontSize: 14,
+                                         color: Colors.red[800],
+                                         fontWeight: FontWeight.bold,
+                                       ),
+                                     ),
+                                   ],
+                                 ),
+                                 const SizedBox(height: 8),
+                                 Text(
+                                   'De galerij-app bewaart mogelijk niet de volgorde waarin je de foto\'s selecteerde. Als de volgorde niet klopt, houd dan een afbeelding ingedrukt om te slepen en de juiste volgorde in te stellen voordat je opslaat.',
+                                   style: TextStyle(
+                                     fontSize: 12,
+                                     color: Colors.red[700],
+                                   ),
+                                 ),
+                               ],
+                             ),
+                           ),
                            const SizedBox(height: 12),
                            Text(
                              'Houd een afbeelding ingedrukt om te slepen en te herordenen',
@@ -1046,9 +1164,27 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 _buildSimpleVideoUrlSection(),
                 const SizedBox(height: 16),
 
+                // Sort by Cho-in Sequence Button (only for Cho-in katas)
+                if ((widget.kata.name.toLowerCase().contains('choin') ||
+                     widget.kata.name.toLowerCase().contains('cho-in')) &&
+                    _currentImageUrls.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _applyChoInSequence,
+                      icon: const Icon(Icons.sort),
+                      label: const Text('Sorteer volgens Cho-in volgorde'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+
                 // Save Button
                 if (_hasChanges) ...[
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

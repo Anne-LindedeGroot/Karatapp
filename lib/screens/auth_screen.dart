@@ -61,28 +61,58 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _readPageContent();
     });
+
+    // Also listen to accessibility state changes and retry autoread if needed
+    ref.listen<AccessibilityState>(accessibilityNotifierProvider, (previous, next) {
+      // If TTS was just enabled and we're on this screen, try autoread again
+      if (previous != null &&
+          !previous.isTextToSpeechEnabled &&
+          next.isTextToSpeechEnabled &&
+          mounted) {
+        debugPrint('AuthScreen TTS: TTS was just enabled, retrying autoread');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _retryAutoReadIfNeeded();
+          }
+        });
+      }
+    });
   }
   
   /// Read the current page content using TTS
   Future<void> _readPageContent() async {
     try {
       // Add a small delay to ensure the screen is fully rendered
-      await Future.delayed(const Duration(milliseconds: 500));
-      
+      await Future.delayed(const Duration(milliseconds: 1000)); // Increased delay
+
       final accessibilityState = ref.read(accessibilityNotifierProvider);
-      
+
+      // Debug: Check TTS state
+      debugPrint('AuthScreen TTS: isTextToSpeechEnabled = ${accessibilityState.isTextToSpeechEnabled}');
+      debugPrint('AuthScreen TTS: showTTSButton = ${accessibilityState.showTTSButton}');
+
       // Only proceed if TTS is enabled
       if (!accessibilityState.isTextToSpeechEnabled) {
         debugPrint('AuthScreen TTS: TTS is not enabled, skipping auto-read');
         return;
       }
-      
+
       // Read only the relevant auth screen content, not the entire screen
       await readAuthScreenContent();
-      
+
     } catch (e) {
       debugPrint('AuthScreen TTS Error: $e');
       // Don't rethrow the error to prevent screen from crashing
+    }
+  }
+
+  /// Retry autoread if TTS becomes enabled later
+  Future<void> _retryAutoReadIfNeeded() async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+
+    if (accessibilityState.isTextToSpeechEnabled) {
+      debugPrint('AuthScreen TTS: Retrying autoread as TTS is now enabled');
+      await _readPageContent();
     }
   }
 

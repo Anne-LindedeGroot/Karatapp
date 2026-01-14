@@ -90,16 +90,21 @@ class PreCachingService {
         if (kata.imageUrls != null && kata.imageUrls!.isNotEmpty) {
           // Silent: Kata caching info not logged
 
+          final successfullyCachedUrls = <String>[];
           for (final imageUrl in kata.imageUrls!) {
             try {
               final cachedPath = await OfflineMediaCacheService.cacheMediaFile(imageUrl, false, ref);
               if (cachedPath != null) {
-                // Update metadata for kata
-                await OfflineMediaCacheService.updateKataMetadata(kata.id, imageUrl);
+                successfullyCachedUrls.add(imageUrl);
               }
             } catch (e) {
               debugPrint('❌ Failed to cache image $imageUrl: $e');
             }
+          }
+
+          // Update metadata once with all successfully cached URLs
+          if (successfullyCachedUrls.isNotEmpty) {
+            await OfflineMediaCacheService.updateKataMetadata(kata.id, successfullyCachedUrls);
           }
         }
       }

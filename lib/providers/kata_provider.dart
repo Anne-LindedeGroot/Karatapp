@@ -696,6 +696,38 @@ class KataNotifier extends StateNotifier<KataState> {
     );
   }
 
+  /// Update the kata's image_urls field in the database
+  Future<void> updateKataImageUrls({
+    required int kataId,
+    required List<String> imageUrls,
+  }) async {
+    try {
+      debugPrint('🔄 Updating kata $kataId image_urls in database with ${imageUrls.length} URLs');
+      debugPrint('📋 Image URLs to save: ${imageUrls.map(ImageUtils.extractFileNameFromUrl).toList()}');
+
+      await RetryUtils.executeWithRetry(
+        () async {
+          await _supabase.from("katas").update({
+            'image_urls': imageUrls.isEmpty ? null : imageUrls,
+          }).eq('id', kataId);
+        },
+      );
+
+      // Also update local state
+      updateKataImages(kataId, imageUrls);
+
+      debugPrint('✅ Successfully updated kata $kataId image_urls in database');
+    } catch (e) {
+      debugPrint('❌ Failed to update kata image_urls in database: $e');
+      debugPrint('⚠️ Continuing without database update - images will be sorted by filename order');
+
+      // Still update local state even if database update fails
+      updateKataImages(kataId, imageUrls);
+
+      // Don't rethrow - let the app continue working with filename-based ordering
+    }
+  }
+
 
   Future<void> reorderKatas(int oldIndex, int newIndex) async {
     // Don't reorder if search is active

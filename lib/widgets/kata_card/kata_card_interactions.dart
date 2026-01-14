@@ -4,6 +4,7 @@ import '../../models/kata_model.dart';
 import '../../models/interaction_models.dart';
 import '../../providers/interaction_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/network_provider.dart';
 import '../overflow_safe_widgets.dart';
 import '../avatar_widget.dart';
 import 'kata_card_comments.dart';
@@ -32,6 +33,7 @@ class _KataCardInteractionsState extends State<KataCardInteractions> {
     return Consumer(
       builder: (context, ref, child) {
         final interactionState = ref.watch(kataInteractionProvider(widget.kata.id));
+        final isConnected = ref.watch(isConnectedProvider);
         final isLiked = interactionState.isLiked;
         final isFavorited = interactionState.isFavorited;
         final likeCount = interactionState.likeCount;
@@ -47,7 +49,7 @@ class _KataCardInteractionsState extends State<KataCardInteractions> {
               children: [
                 // Like button
                 IconButton(
-                  onPressed: () async {
+                  onPressed: (!isConnected) ? null : () async {
                     try {
                       await ref.read(kataInteractionProvider(widget.kata.id).notifier).toggleLike();
                     } catch (e) {

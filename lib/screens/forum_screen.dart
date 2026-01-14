@@ -587,30 +587,30 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                 children: [
                   // Author info row
                   Row(
-                    children: [
-                      Semantics(
-                        label: 'Auteur avatar voor ${post.authorName}',
-                        child: AvatarWidget(
+                        children: [
+                          Semantics(
+                            label: 'Auteur avatar voor ${post.authorName}',
+                            child: AvatarWidget(
                           customAvatarUrl: post.authorAvatar,
-                          userName: post.authorName,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Semantics(
-                              label: 'Auteur: ${post.authorName}',
-                              child: Text(
-                                post.authorName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                ),
-                              ),
+                              userName: post.authorName,
+                              size: 28,
                             ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Semantics(
+                                  label: 'Auteur: ${post.authorName}',
+                                  child: Text(
+                                    post.authorName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
                             const SizedBox(height: 2),
                             Semantics(
                               label: 'Geplaatst op: ${_formatDate(post.createdAt)}',
@@ -1178,7 +1178,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.goBackOrHome(),
+              onPressed: () => context.goBackOrHome(),
         ),
         actions: [
           // Status indicators (moved from title to actions)

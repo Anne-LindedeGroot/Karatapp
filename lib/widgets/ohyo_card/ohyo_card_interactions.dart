@@ -4,6 +4,7 @@ import '../../models/ohyo_model.dart';
 import '../../models/interaction_models.dart';
 import '../../providers/interaction_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/network_provider.dart';
 import '../overflow_safe_widgets.dart';
 import '../avatar_widget.dart';
 import 'ohyo_card_comments.dart';
@@ -32,6 +33,7 @@ class _OhyoCardInteractionsState extends State<OhyoCardInteractions> {
     return Consumer(
       builder: (context, ref, child) {
         final interactionState = ref.watch(ohyoInteractionProvider(widget.ohyo.id));
+        final isConnected = ref.watch(isConnectedProvider);
         final isLiked = interactionState.isLiked;
         final isFavorited = interactionState.isFavorited;
         final likeCount = interactionState.likeCount;
@@ -47,7 +49,7 @@ class _OhyoCardInteractionsState extends State<OhyoCardInteractions> {
               children: [
                 // Like button
                 IconButton(
-                  onPressed: () async {
+                  onPressed: (!isConnected) ? null : () async {
                     try {
                       await ref.read(ohyoInteractionProvider(widget.ohyo.id).notifier).toggleLike();
                     } catch (e) {

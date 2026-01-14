@@ -9,7 +9,9 @@ import '../services/offline_kata_service.dart';
 import '../services/offline_ohyo_service.dart';
 import '../services/offline_forum_service.dart';
 import '../main.dart' as main_app;
+import '../core/storage/local_storage.dart' as app_storage;
 import 'interaction_provider.dart' show interactionServiceProvider;
+import 'forum_provider.dart' show forumServiceProvider;
 import 'auth_provider.dart';
 import 'network_provider.dart';
 import 'data_usage_provider.dart';
@@ -81,9 +83,77 @@ final offlineServicesInitializerProvider = FutureProvider<void>((ref) async {
     // Ignore errors during sync startup
   }
 
-  // Clear expired cache on startup
-  await commentCacheService.clearExpiredCache();
+    // Clear expired cache on startup
+    await commentCacheService.clearExpiredCache();
+
+  // Listen for network connectivity changes to refresh comment caches when coming back online
+  ref.listen<NetworkState>(networkProvider, (previous, next) async {
+    final dataUsageState = ref.read(dataUsageProvider);
+    // If we just came back online, refresh comment caches for recently viewed content
+    if (previous != null && !previous.isConnected && next.isConnected && dataUsageState.shouldAllowDataUsage) {
+      debugPrint('🌐 Came back online - refreshing comment caches for recently viewed content...');
+
+      try {
+        // Get recently viewed content from local storage
+        final recentlyViewedKatas = app_storage.LocalStorage.getAllKatas().take(5); // Top 5 recently viewed
+        final recentlyViewedOhyos = app_storage.LocalStorage.getAllOhyos().take(5); // Top 5 recently viewed
+        final recentlyViewedForumPosts = app_storage.LocalStorage.getAllForumPosts().take(5); // Top 5 recently viewed
+
+        final offlineKataService = ref.read(offlineKataServiceProvider);
+        final offlineOhyoService = ref.read(offlineOhyoServiceProvider);
+        final offlineForumService = ref.read(offlineForumServiceProvider);
+        final interactionService = ref.read(interactionServiceProvider);
+        final forumService = ref.read(forumServiceProvider);
+
+        // Refresh comments for recently viewed katas
+        for (final kata in recentlyViewedKatas) {
+          try {
+            final comments = await interactionService.getKataComments(kata.id);
+            if (comments.isNotEmpty) {
+              await offlineKataService.cacheKataComments(kata.id, comments);
+              debugPrint('✅ Refreshed comment cache for recently viewed kata ${kata.id} (${comments.length} comments)');
+            }
+          } catch (e) {
+            debugPrint('⚠️ Failed to refresh kata comments for ${kata.id}: $e');
+          }
+        }
+
+        // Refresh comments for recently viewed ohyos
+        for (final ohyo in recentlyViewedOhyos) {
+          try {
+            final comments = await interactionService.getOhyoComments(ohyo.id);
+            if (comments.isNotEmpty) {
+              await offlineOhyoService.cacheOhyoComments(ohyo.id, comments);
+              debugPrint('✅ Refreshed comment cache for recently viewed ohyo ${ohyo.id} (${comments.length} comments)');
+            }
+          } catch (e) {
+            debugPrint('⚠️ Failed to refresh ohyo comments for ${ohyo.id}: $e');
+          }
+        }
+
+        // Refresh comments for recently viewed forum posts
+        for (final post in recentlyViewedForumPosts) {
+          try {
+            final comments = await forumService.getComments(int.parse(post.id));
+            if (comments.isNotEmpty) {
+              await offlineForumService.cachePostComments(int.parse(post.id), comments);
+              debugPrint('✅ Refreshed comment cache for recently viewed forum post ${post.id} (${comments.length} comments)');
+            }
+          } catch (e) {
+            debugPrint('⚠️ Failed to refresh forum comments for ${post.id}: $e');
+          }
+        }
+
+        if (recentlyViewedKatas.isNotEmpty || recentlyViewedOhyos.isNotEmpty || recentlyViewedForumPosts.isNotEmpty) {
+          debugPrint('🎉 Comment caches refreshed for recently viewed content');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Failed to refresh comment caches: $e');
+      }
+    }
+  });
 });
+
 
 // Override providers for offline services (renamed to match the ones they override)
 final offlineQueueServiceProvider = Provider<OfflineQueueService>((ref) {
