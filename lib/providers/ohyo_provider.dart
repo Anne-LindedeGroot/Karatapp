@@ -50,10 +50,8 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       try {
         final isOnline = await _checkNetworkConnectivity();
         if (!isOnline) {
-          debugPrint('🌐 Offline mode detected for ohyo $ohyoId, loading cached images first');
           final cachedImageUrls = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
           if (cachedImageUrls.isNotEmpty) {
-            debugPrint('✅ Found ${cachedImageUrls.length} cached images for ohyo $ohyoId');
             imageUrls = cachedImageUrls;
 
             // Update the ohyo in the state with cached images
@@ -77,11 +75,10 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
             );
             return; // Return early if we have cached images and are offline
           } else {
-            debugPrint('ℹ️ No cached images available for ohyo $ohyoId');
           }
         }
       } catch (networkCheckError) {
-        debugPrint('⚠️ Failed to check network status: $networkCheckError');
+        // Ignore network check errors and continue with online fetch attempt
       }
 
       // Try to fetch online images
@@ -96,11 +93,9 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
         try {
           final cachedImageUrls = await OfflineMediaCacheService.getCachedOhyoImagePaths(ohyoId);
           if (cachedImageUrls.isNotEmpty) {
-            debugPrint('🔄 Using ${cachedImageUrls.length} cached images for ohyo $ohyoId as fallback');
             // Reduced spam: Cached image loading is now silent
             imageUrls = cachedImageUrls;
           } else {
-            debugPrint('ℹ️ No cached images available for ohyo $ohyoId');
           }
         } catch (cacheError) {
           debugPrint('❌ Failed to load cached images for ohyo $ohyoId: $cacheError');

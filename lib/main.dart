@@ -35,7 +35,6 @@ void main() async {
   // 🔑 CRITICAL: Initialize SharedPreferences FIRST (needed by providers)
   try {
     _sharedPreferences = await SharedPreferences.getInstance();
-    debugPrint('✅ SharedPreferences initialized');
   } catch (e) {
     debugPrint('⚠️ Failed to initialize SharedPreferences: $e');
   }
@@ -43,7 +42,6 @@ void main() async {
   // 🔑 CRITICAL: Initialize environment variables SECOND
   try {
     await Environment.initialize();
-    debugPrint('✅ Environment variables loaded');
   } catch (e) {
     debugPrint('⚠️ Failed to load .env file: $e - using default values');
   }
@@ -51,27 +49,15 @@ void main() async {
   // 🔑 CRITICAL: Initialize Supabase SECOND before any other initialization
   // This must complete before creating any providers that use Supabase
   try {
-    debugPrint('🚀 Initializing Supabase...');
-    debugPrint('📡 Supabase URL: ${Environment.supabaseUrl}');
-    debugPrint('🔑 Using anon key: ${Environment.supabaseAnonKey.substring(0, 20)}...');
 
     await Supabase.initialize(
       url: Environment.supabaseUrl,
       anonKey: Environment.supabaseAnonKey,
     );
 
-    // Test the connection immediately
-    final testClient = Supabase.instance.client;
-    debugPrint('🔗 Testing Supabase connection...');
-    // Try to access auth to verify connection
-    final currentUser = testClient.auth.currentUser;
-    debugPrint('👤 Current user check: ${currentUser != null ? 'User logged in' : 'No user'}');
-
     // Initialize the SupabaseClientManager immediately after Supabase
     SupabaseClientManager().initializeClient();
 
-    debugPrint('✅ Supabase initialized successfully');
-    debugPrint('🎉 App will start normally');
   } catch (e, stackTrace) {
     debugPrint('❌ CRITICAL: Failed to initialize Supabase: $e');
     debugPrint('Stack trace: $stackTrace');
@@ -207,7 +193,6 @@ Future<void> _precompileShaders() async {
   final picture = recorder.endRecording();
   picture.dispose();
 
-  debugPrint('✅ Shaders precompiled for optimal performance');
 }
 
 // Optimized Riverpod observer for better performance

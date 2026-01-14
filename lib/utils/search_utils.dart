@@ -90,3 +90,4 @@ extension StringNormalize on String {
   List<String> toWords() => SearchUtils.splitIntoWords(this);
 }
 
+

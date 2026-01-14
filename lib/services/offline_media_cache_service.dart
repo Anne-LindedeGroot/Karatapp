@@ -32,7 +32,6 @@ class OfflineMediaCacheService {
       await _cacheDir!.create(recursive: true);
       await _imagesDir!.create(recursive: true);
 
-      debugPrint('Offline image cache initialized at: ${_cacheDir!.path} (videos work online only)');
     } catch (e) {
       debugPrint('Failed to initialize offline image cache: $e');
     }
@@ -130,17 +129,14 @@ class OfflineMediaCacheService {
               final fileSize = await file.length();
               if (fileSize > 0) {
                 paths.add(file.path);
-                debugPrint('Found cached ohyo image: ${file.path}');
               }
             }
           }
-          debugPrint('Found ${paths.length} cached images for ohyo $ohyoId via metadata');
           return paths;
         }
       }
 
       // If no metadata exists, try to scan for files with the ohyo pattern
-      debugPrint('No metadata found for ohyo $ohyoId, scanning directory for cached files...');
       final files = await _getFilesInDirectory(_imagesDir!);
       for (final file in files) {
         final fileName = file.uri.pathSegments.last;
@@ -152,12 +148,10 @@ class OfflineMediaCacheService {
           final fileSize = await file.length();
           if (fileSize > 0) {
             paths.add(file.path);
-            debugPrint('Found cached ohyo image via scan: ${file.path}');
           }
         }
       }
 
-      debugPrint('Found ${paths.length} cached images for ohyo $ohyoId via directory scan');
     } catch (e) {
       debugPrint('Failed to get cached ohyo images for ohyo $ohyoId: $e');
     }
@@ -252,7 +246,6 @@ class OfflineMediaCacheService {
         }
       } catch (e) {
         // If providers aren't available, assume we can cache
-        debugPrint('Network/data usage providers not available, proceeding with cache');
       }
 
       if (!shouldCache) return null;

@@ -586,7 +586,6 @@ class OfflineSyncService {
     }
 
     try {
-      debugPrint('🔄 Starting favorite content preload...');
       
       // Get favorite katas
       final favoriteKatas = app_storage.LocalStorage.getFavoriteKatas();
@@ -618,7 +617,6 @@ class OfflineSyncService {
         }
       }
       
-      debugPrint('✅ Favorite content preload completed');
     } catch (e) {
       debugPrint('Error during favorite content preload: $e');
     }
@@ -642,7 +640,6 @@ class OfflineSyncService {
         // Fetch and cache videos for this kata
         await _cacheKataVideos(kata.id, ref);
       }
-      debugPrint('Media caching completed for ${katas.length} katas');
     } catch (e) {
       debugPrint('Error caching kata media: $e');
     }
@@ -662,7 +659,6 @@ class OfflineSyncService {
       if (videoUrls.isNotEmpty) {
         // Cache video files
         await OfflineMediaCacheService.preCacheMediaFiles(videoUrls, true, ref);
-        debugPrint('Cached ${videoUrls.length} videos for kata $kataId');
       }
     } catch (e) {
       debugPrint('Error caching videos for kata $kataId: $e');
@@ -692,7 +688,6 @@ class OfflineSyncService {
         // Fetch and cache videos for this ohyo
         await _cacheOhyoVideos(ohyo.id, ref);
       }
-      debugPrint('Media caching completed for ${ohyos.length} ohyos');
     } catch (e) {
       debugPrint('Error caching ohyo media: $e');
     }
@@ -1550,7 +1545,6 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
 
       debugPrint('✅ Comprehensive offline cache completed! Processed: $processed, Failed: $failed');
     } catch (e) {
-      debugPrint('❌ Comprehensive cache failed: $e');
       state = state.copyWith(
         status: SyncStatus.failed,
         currentOperation: null,

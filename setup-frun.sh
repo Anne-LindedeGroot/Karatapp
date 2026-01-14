@@ -97,3 +97,4 @@ echo ""
 echo -e "${GREEN}💡 PRO TIP: Use 'frun' instead of 'flutter run' for 3x faster development!${NC}"
 
 
+

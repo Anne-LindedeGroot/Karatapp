@@ -16,7 +16,6 @@ class SmartPreloadService {
     final dataUsageState = ref.read(dataUsageProvider);
     
     if (!dataUsageState.preloadFavorites) {
-      debugPrint('Smart preloading disabled by user settings');
       return;
     }
 
@@ -30,14 +29,12 @@ class SmartPreloadService {
       _performSmartPreload(ref);
     });
     
-    debugPrint('🔄 Smart preloading started');
   }
   
   /// Stop smart preloading
   void stopSmartPreloading() {
     _preloadTimer?.cancel();
     _preloadTimer = null;
-    debugPrint('⏹️ Smart preloading stopped');
   }
   
   /// Perform smart preload based on user behavior and preferences
@@ -48,24 +45,20 @@ class SmartPreloadService {
       
       // Only preload if conditions are met
       if (!_shouldPreload(dataUsageState, networkState)) {
-        debugPrint('Preload conditions not met, skipping...');
         return;
       }
 
-      debugPrint('🚀 Starting smart preload...');
       
       // Get content to preload based on user behavior
       final preloadPlan = await _createPreloadPlan(ref);
       
       if (preloadPlan.isEmpty) {
-        debugPrint('No content to preload');
         return;
       }
 
       // Execute preload plan
       await _executePreloadPlan(preloadPlan, ref);
       
-      debugPrint('✅ Smart preload completed');
     } catch (e) {
       debugPrint('❌ Smart preload failed: $e');
     }
@@ -100,7 +93,6 @@ class SmartPreloadService {
       final favoriteKatas = LocalStorage.getFavoriteKatas();
       if (favoriteKatas.isNotEmpty) {
         plan['favoriteKatas'] = favoriteKatas;
-        debugPrint('📋 Added ${favoriteKatas.length} favorite katas to preload plan');
       }
       
       // Get recently viewed katas (last 7 days)

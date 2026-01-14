@@ -42,7 +42,6 @@ class PreCachingService {
     _backgroundTimer?.cancel();
     _backgroundTimer = null;
     _isRunning = false;
-    debugPrint('🗄️ Pre-caching service stopped');
   }
 
   /// Perform background caching of all media
@@ -64,14 +63,12 @@ class PreCachingService {
       // Check network status
       final networkState = ref.read(networkProvider);
       if (!networkState.isConnected) {
-        debugPrint('📶 Skipping kata image caching - offline');
         return;
       }
 
       // Check data usage permission
       final dataUsageState = ref.read(dataUsageProvider);
       if (!dataUsageState.shouldAllowDataUsage) {
-        debugPrint('📊 Skipping kata image caching - data usage disabled');
         return;
       }
 
@@ -83,7 +80,6 @@ class PreCachingService {
       final allKatas = currentState.katas;
 
       if (allKatas.isEmpty) {
-        debugPrint('📂 No katas found to cache - kata state: ${currentState.toString()}');
         return;
       }
 
@@ -121,14 +117,12 @@ class PreCachingService {
       // Check network status
       final networkState = ref.read(networkProvider);
       if (!networkState.isConnected) {
-        debugPrint('📶 Skipping ohyo image caching - offline');
         return;
       }
 
       // Check data usage permission
       final dataUsageState = ref.read(dataUsageProvider);
       if (!dataUsageState.shouldAllowDataUsage) {
-        debugPrint('📊 Skipping ohyo image caching - data usage disabled');
         return;
       }
 
