@@ -269,88 +269,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
-    // Speak confirmation for second dialog (only if TTS is enabled)
-    try {
-      final accessibilityState = ref.read(accessibilityNotifierProvider);
-      if (accessibilityState.isTextToSpeechEnabled) {
-        final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-        await accessibilityNotifier.speak('Laatste bevestiging vereist. Wees voorzichtig, dit kan niet ongedaan worden gemaakt.');
-      }
-    } catch (e) {
-      // Ignore TTS errors
-    }
-
-    // Show second confirmation dialog
-    if (!mounted) return;
-    final finalConfirmed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Laatste waarschuwing'),
-          content: SingleChildScrollView(
-            child: Text(
-              'Dit is je laatste kans om te annuleren. Klik op "Verwijder mijn account" om je account definitief te verwijderen.',
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Annuleren'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
-              child: const Text('Ik begrijp het, verwijder mijn account'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (finalConfirmed != true) {
-      // Speak final cancellation message (only if TTS is enabled)
-      try {
-        final accessibilityState = ref.read(accessibilityNotifierProvider);
-        if (accessibilityState.isTextToSpeechEnabled) {
-          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-          await accessibilityNotifier.speak('Account verwijderen definitief geannuleerd.');
-        }
-      } catch (e) {
-        // Ignore TTS errors
-      }
-      return;
-    }
-
-    // Check if user is still authenticated before starting deletion
-    final currentUser = ref.read(authUserProvider);
-    if (currentUser == null) {
-      // Speak error message (only if TTS is enabled)
-      try {
-        final accessibilityState = ref.read(accessibilityNotifierProvider);
-        if (accessibilityState.isTextToSpeechEnabled) {
-          final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-          await accessibilityNotifier.speak('Je bent niet ingelogd. Log eerst in om je account te verwijderen.');
-        }
-      } catch (e) {
-        // Ignore TTS errors
-      }
-      
-      // Show error message and navigate to login
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Je bent niet ingelogd. Log eerst in om je account te verwijderen.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        context.go('/login');
-      }
-      return;
-    }
-
     try {
       // Speak deletion start message (only if TTS is enabled)
       try {
@@ -392,7 +310,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await _authService.deleteAccount();
 
       // Close loading dialog
-      if (mounted) context.pop();
+      if (mounted) Navigator.of(context).pop();
 
       // Speak success message (only if TTS is enabled)
       try {
@@ -413,14 +331,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Navigate to login screen
         context.go('/login');
       }
     } catch (e) {
       // Close loading dialog
-      if (mounted) context.pop();
-      
+      if (mounted) Navigator.of(context).pop();
+
       // Speak error message (only if TTS is enabled)
       try {
         final accessibilityState = ref.read(accessibilityNotifierProvider);
@@ -431,7 +349,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       } catch (e) {
         // Ignore TTS errors
       }
-      
+
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -443,7 +361,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     }
   }
-
 
   @override
   Widget build(BuildContext context) {

@@ -413,21 +413,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Switch to signup
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Column(
               children: [
                 Semantics(
                   label: 'Nog geen account? Tekst om naar registratie te gaan',
                   child: Text(
-                    'Nog geen account? ',
+                    'Nog geen account?',
                     style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                TextButton(
-                  onPressed: () => _tabController.animateTo(1),
-                  child: Semantics(
-                    label: 'Registreren knop om een nieuw account aan te maken',
-                    child: const Text('Registreren'),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: TextButton(
+                    onPressed: () => _tabController.animateTo(1),
+                    child: Semantics(
+                      label: 'Registreren knop om een nieuw account aan te maken',
+                      child: const Text('Registreren'),
+                    ),
                   ),
                 ),
               ],
@@ -582,21 +587,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
             
             // Switch to login
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Column(
               children: [
                 Semantics(
                   label: 'Al een account? Tekst om naar inloggen te gaan',
                   child: Text(
-                    'Al een account? ',
+                    'Al een account?',
                     style: Theme.of(context).textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                TextButton(
-                  onPressed: () => _tabController.animateTo(0),
-                  child: Semantics(
-                    label: 'Inloggen knop om naar de inlogpagina te gaan',
-                    child: const Text('Inloggen'),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+                SizedBox(
+                  width: double.infinity,
+                  height: 40,
+                  child: TextButton(
+                    onPressed: () => _tabController.animateTo(0),
+                    child: Semantics(
+                      label: 'Inloggen knop om naar de inlogpagina te gaan',
+                      child: const Text('Inloggen'),
+                    ),
                   ),
                 ),
               ],
@@ -654,6 +664,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
             // Tab bar
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24),
+              constraints: const BoxConstraints(minHeight: 48),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
@@ -664,20 +675,36 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   color: Theme.of(context).colorScheme.primary,
                   borderRadius: BorderRadius.circular(8),
                 ),
+                indicatorSize: TabBarIndicatorSize.tab,
                 labelColor: Theme.of(context).colorScheme.onPrimary,
                 unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
                 dividerColor: Colors.transparent,
+                labelStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 2),
                 tabs: [
                   Tab(
+                    height: 44,
                     child: Semantics(
                       label: 'Inloggen tab, klik om naar de inlogpagina te gaan',
-                      child: const Text('Inloggen'),
+                      child: const Text(
+                        'Inloggen',
+                        overflow: TextOverflow.visible,
+                        softWrap: false,
+                      ),
                     ),
                   ),
                   Tab(
+                    height: 44,
                     child: Semantics(
                       label: 'Registreren tab, klik om naar de registratiepagina te gaan',
-                      child: const Text('Registreren'),
+                      child: const Text(
+                        'Registreren',
+                        overflow: TextOverflow.visible,
+                        softWrap: false,
+                      ),
                     ),
                   ),
                 ],

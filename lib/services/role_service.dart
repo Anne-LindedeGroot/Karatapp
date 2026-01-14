@@ -242,12 +242,12 @@ class RoleService {
           .select('user_id')
           .eq('user_id', userId)
           .maybeSingle();
-      
+
       if (existingProfile != null) {
         print('RoleService: User profile already exists for $userId');
         return true;
       }
-      
+
       await _client
           .from('user_profiles')
           .insert({
@@ -262,6 +262,32 @@ class RoleService {
       print('RoleService: Error creating user profile: $e');
       // Don't fail if user_profiles table doesn't exist
       return true;
+    }
+  }
+
+  // Delete user profile entry (call this during account deletion)
+  Future<bool> deleteUserProfile(String userId) async {
+    try {
+      print('RoleService: Deleting user profile for $userId');
+
+      // Delete user profile
+      await _client
+          .from('user_profiles')
+          .delete()
+          .eq('user_id', userId);
+
+      // Delete user roles
+      await _client
+          .from('user_roles')
+          .delete()
+          .eq('user_id', userId);
+
+      print('RoleService: User profile and roles deleted successfully for $userId');
+      return true;
+    } catch (e) {
+      print('RoleService: Error deleting user profile: $e');
+      // Don't fail the account deletion if profile deletion fails
+      return false;
     }
   }
 

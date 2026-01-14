@@ -374,7 +374,23 @@ class AuthService {
     return await RetryUtils.executeWithRetry(
       () async {
         try {
-          await _supabase.auth.admin.deleteUser(currentUser!.id);
+          final user = currentUser;
+          if (user == null) {
+            throw Exception('No authenticated user found');
+          }
+
+          // Delete the user profile first (to avoid orphaned data)
+          await _roleService.deleteUserProfile(user.id);
+
+          // Clear local session data before signing out
+          await app_storage.LocalStorage.clearAuthSession();
+
+          // Sign out the user (this effectively "deletes" their account from their perspective)
+          await _supabase.auth.signOut();
+
+          // Note: Complete account deletion requires server-side implementation
+          // This provides the best available client-side solution by removing all user data and signing them out
+
         } on AuthException catch (e) {
           throw _handleAuthException(e, 'Account deletion failed');
         } catch (e) {

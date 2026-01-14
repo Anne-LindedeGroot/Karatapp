@@ -16,31 +16,36 @@ class NetworkState {
   final String? lastError;
   final DateTime? lastChecked;
   final bool hasShownConnectionError;
+  final DateTime? lastLoggedError;
 
   const NetworkState({
     required this.status,
     this.lastError,
     this.lastChecked,
     this.hasShownConnectionError = false,
+    this.lastLoggedError,
   });
 
   NetworkState.initial()
       : status = NetworkStatus.unknown,
         lastError = null,
         lastChecked = null,
-        hasShownConnectionError = false;
+        hasShownConnectionError = false,
+        lastLoggedError = null;
 
   NetworkState copyWith({
     NetworkStatus? status,
     String? lastError,
     DateTime? lastChecked,
     bool? hasShownConnectionError,
+    DateTime? lastLoggedError,
   }) {
     return NetworkState(
       status: status ?? this.status,
       lastError: lastError,
       lastChecked: lastChecked ?? this.lastChecked,
       hasShownConnectionError: hasShownConnectionError ?? this.hasShownConnectionError,
+      lastLoggedError: lastLoggedError ?? this.lastLoggedError,
     );
   }
 
@@ -55,8 +60,8 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
   }
 
   Timer? _periodicTimer;
-  static const Duration _checkInterval = Duration(seconds: 30);
-  static const Duration _retryInterval = Duration(seconds: 5);
+  static const Duration _checkInterval = Duration(minutes: 2); // Reduced frequency to prevent spam
+  static const Duration _retryInterval = Duration(seconds: 30); // Reduced retry frequency
 
   void _startPeriodicCheck() {
     // Initial check
@@ -102,7 +107,15 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
           basicConnectivity = true;
         }
       } catch (httpError) {
-        debugPrint('HTTP connectivity check failed: $httpError');
+        // Only log network errors once every 5 minutes to prevent spam
+        final now = DateTime.now();
+        final shouldLog = state.lastLoggedError == null ||
+                         now.difference(state.lastLoggedError!).inMinutes >= 5;
+
+        if (shouldLog) {
+          debugPrint('Network connectivity check failed (will not spam logs): $httpError');
+          state = state.copyWith(lastLoggedError: now);
+        }
       } finally {
         httpClient.close();
       }
