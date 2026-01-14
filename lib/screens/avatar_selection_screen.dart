@@ -417,6 +417,9 @@ class _AvatarSelectionScreenState extends ConsumerState<AvatarSelectionScreen>
         );
       }
 
+      // Refresh user session to get updated metadata
+      await ref.read(authNotifierProvider.notifier).refreshUserSession();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

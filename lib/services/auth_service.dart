@@ -158,6 +158,16 @@ class AuthService {
     );
   }
 
+  // Refresh user session to get updated metadata
+  Future<void> refreshSession() async {
+    try {
+      await _supabase.auth.refreshSession();
+    } catch (e) {
+      print('AuthService: Failed to refresh session: $e');
+      rethrow;
+    }
+  }
+
   // Restore session from local storage
   Future<bool> restoreSession() async {
     try {

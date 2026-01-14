@@ -590,10 +590,53 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                         children: [
                           Semantics(
                             label: 'Auteur avatar voor ${post.authorName}',
-                            child: AvatarWidget(
-                          customAvatarUrl: post.authorAvatar,
-                              userName: post.authorName,
-                              size: 28,
+                            child: Builder(
+                              builder: (context) {
+                                String? avatarUrlToShow;
+                                String? avatarIdToShow;
+
+                                // Check if this is a fake account (sensei, student)
+                                final authorNameLower = post.authorName.toLowerCase();
+                                final isFakeAccount = authorNameLower.contains('sensei') ||
+                                                     authorNameLower.contains('student');
+
+                                // Only show current user's avatar for real accounts with matching name
+                                final isCurrentUser = !isFakeAccount &&
+                                                     currentUser != null &&
+                                                     post.authorId == currentUser.id &&
+                                                     post.authorName == (currentUser.userMetadata?['full_name'] ?? currentUser.email);
+
+                                if (isCurrentUser) {
+                                  // For current user, get avatar from their profile metadata
+                                  final metadata = currentUser.userMetadata ?? {};
+                                  final avatarType = metadata['avatar_type'] as String?;
+
+                                  if (avatarType == 'custom') {
+                                    avatarUrlToShow = metadata['avatar_url'] as String? ??
+                                                     metadata['custom_avatar_url'] as String?;
+                                    avatarIdToShow = null;
+                                  } else if (avatarType == 'preset') {
+                                    avatarIdToShow = metadata['preset_avatar_id'] as String? ??
+                                                   metadata['avatar_id'] as String?;
+                                    avatarUrlToShow = null;
+                                  } else {
+                                    // If avatar_type is null or not set, don't use any preset avatar
+                                    avatarIdToShow = null;
+                                    avatarUrlToShow = null;
+                                  }
+                                } else {
+                                  // For other users, use stored avatar from post
+                                  avatarUrlToShow = post.authorAvatar;
+                                  avatarIdToShow = null;
+                                }
+
+                                return AvatarWidget(
+                                  customAvatarUrl: avatarUrlToShow,
+                                  avatarId: avatarIdToShow,
+                                  userName: post.authorName,
+                                  size: 28,
+                                );
+                              },
                             ),
                           ),
                           const SizedBox(width: 12),

@@ -304,6 +304,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Refresh the user session to get updated metadata from server
+  Future<void> refreshUserSession() async {
+    try {
+      await _authService.refreshSession();
+      final currentUser = _authService.currentUser;
+      state = state.copyWith(
+        user: currentUser,
+        isLoading: false,
+        error: null,
+      );
+    } catch (e) {
+      debugPrint('Failed to refresh user session: $e');
+      // Don't throw here, just log the error
+    }
+  }
+
   void clearError() {
     state = state.copyWith(error: null);
   }
