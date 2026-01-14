@@ -2,6 +2,122 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 
+/// Forum-specific accessibility settings popup
+class ForumAccessibilitySettingsPopup extends ConsumerWidget {
+  const ForumAccessibilitySettingsPopup({super.key});
+
+  /// Get appropriate icon for forum font size
+  IconData _getForumFontSizeIcon(AccessibilityFontSize fontSize) {
+    switch (fontSize) {
+      case AccessibilityFontSize.small:
+        return Icons.text_decrease;
+      case AccessibilityFontSize.normal:
+        return Icons.text_fields;
+      case AccessibilityFontSize.large:
+        return Icons.text_increase;
+      case AccessibilityFontSize.extraLarge:
+        return Icons.format_size;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accessibilityState = ref.watch(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 400),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Forum accessibility settings popup
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.text_fields,
+              color: (accessibilityState.forumFontSize != AccessibilityFontSize.normal ||
+                      accessibilityState.isDyslexiaFriendly)
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
+            tooltip: 'Forum tekst instellingen',
+            constraints: BoxConstraints(
+              minWidth: accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge ||
+                      accessibilityState.isDyslexiaFriendly
+                  ? 320
+                  : 280,
+            ),
+            itemBuilder: (context) => [
+              // Forum Font size section
+              PopupMenuItem<String>(
+                enabled: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Forum lettergrootte',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: AccessibilityFontSize.values.map((size) {
+                        final isSelected = accessibilityState.forumFontSize == size;
+                        return InkWell(
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            accessibilityNotifier.setForumFontSize(size);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.primaryContainer
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _getForumFontSizeIcon(size),
+                                  size: 16,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  size.displayName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Colors.grey.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class AccessibilitySettingsPopup extends ConsumerWidget {
   const AccessibilitySettingsPopup({super.key});
 

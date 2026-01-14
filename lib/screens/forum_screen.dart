@@ -15,6 +15,7 @@ import '../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
 import '../widgets/enhanced_accessible_text.dart';
+import '../widgets/accessibility_settings_popup.dart';
 
 class ForumScreen extends ConsumerStatefulWidget {
   const ForumScreen({super.key});
@@ -450,14 +451,14 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           maxWidth: post.category == ForumCategory.events
-                              ? (accessibilityState.fontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly ? 240 : 200)
+                              ? (accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly ? 240 : 200)
                               : (post.category.displayName.length > 15 ? 140 : 120),
                         ),
                         child: Container(
                           padding: EdgeInsets.symmetric(
                             horizontal: 8,
                               vertical: post.category == ForumCategory.events
-                                ? (accessibilityState.fontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly ? 9 : 7)
+                                ? (accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly ? 9 : 7)
                                 : (post.category.displayName.length > 20 ? 6 : 5),
                           ),
                           decoration: BoxDecoration(
@@ -470,7 +471,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                 : post.category.displayName,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: post.category == ForumCategory.events && (accessibilityState.fontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly)
+                              fontSize: post.category == ForumCategory.events && (accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly)
                                   ? 14
                                   : 12,
                               fontWeight: FontWeight.bold,
@@ -1190,7 +1191,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
         title: Consumer(
           builder: (context, ref, child) {
             final accessibilityState = ref.watch(accessibilityNotifierProvider);
-            final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
+            final isExtraLarge = accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge;
             final isDyslexiaFriendly = accessibilityState.isDyslexiaFriendly;
             
             // For dyslexia + extra large: keep Forum text large (don't reduce)
@@ -1201,7 +1202,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               fontSize = 22.0; // Large font size
             } else if (isExtraLarge) {
               fontSize = 24.0; // Extra large for regular font
-            } else if (accessibilityState.fontSize == AccessibilityFontSize.large) {
+            } else if (accessibilityState.forumFontSize == AccessibilityFontSize.large) {
               fontSize = 22.0; // Large size
             } else {
               fontSize = null; // Use default
@@ -1231,7 +1232,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               final pendingOperations = ref.watch(forumPendingOperationsProvider);
               final hasPendingOperations = pendingOperations > 0;
               final accessibilityState = ref.watch(accessibilityNotifierProvider);
-              final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
+              final isExtraLarge = accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge;
               final isDyslexiaFriendly = accessibilityState.isDyslexiaFriendly;
               final shouldReduceSize = isExtraLarge && isDyslexiaFriendly;
               
@@ -1302,12 +1303,12 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
               );
             },
           ),
-          // Accessibility quick actions in app bar
+          // Forum accessibility settings
           Consumer(
             builder: (context, ref, child) {
               final accessibilityState = ref.watch(accessibilityNotifierProvider);
               final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-              final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
+              final isExtraLarge = accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge;
               final isDyslexiaFriendly = accessibilityState.isDyslexiaFriendly;
               final shouldReduceSize = isExtraLarge && isDyslexiaFriendly;
               
@@ -1322,7 +1323,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                     icon: Icon(
                       Icons.text_fields,
                       size: iconSize,
-                      color: (accessibilityState.fontSize != AccessibilityFontSize.normal ||
+                      color: (accessibilityState.forumFontSize != AccessibilityFontSize.normal ||
                              accessibilityState.isDyslexiaFriendly)
                           ? Theme.of(context).colorScheme.primary
                           : null,
@@ -1333,7 +1334,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                     constraints: BoxConstraints(
                       minWidth: shouldReduceSize
                           ? 280
-                          : (accessibilityState.fontSize == AccessibilityFontSize.extraLarge ||
+                          : (accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge ||
                              accessibilityState.isDyslexiaFriendly
                               ? 320
                               : 280),
@@ -1351,7 +1352,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                         ),
                       ),
                       ...AccessibilityFontSize.values.map((fontSize) {
-                        final isSelected = accessibilityState.fontSize == fontSize;
+                        final isSelected = accessibilityState.forumFontSize == fontSize;
                         return PopupMenuItem<String>(
                           value: 'font_${fontSize.name}',
                           child: Row(

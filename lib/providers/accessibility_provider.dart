@@ -20,6 +20,7 @@ enum AccessibilityFontSize {
 /// Accessibility state class
 class AccessibilityState {
   final AccessibilityFontSize fontSize;
+  final AccessibilityFontSize forumFontSize; // Separate font size for forum
   final bool isDyslexiaFriendly;
   final bool isTextToSpeechEnabled;
   final double speechRate;
@@ -32,6 +33,7 @@ class AccessibilityState {
 
   const AccessibilityState({
     this.fontSize = AccessibilityFontSize.normal,
+    this.forumFontSize = AccessibilityFontSize.normal,
     this.isDyslexiaFriendly = false,
     this.isTextToSpeechEnabled = true,
     this.speechRate = 0.5,
@@ -45,6 +47,7 @@ class AccessibilityState {
 
   AccessibilityState copyWith({
     AccessibilityFontSize? fontSize,
+    AccessibilityFontSize? forumFontSize,
     bool? isDyslexiaFriendly,
     bool? isTextToSpeechEnabled,
     double? speechRate,
@@ -57,6 +60,7 @@ class AccessibilityState {
   }) {
     return AccessibilityState(
       fontSize: fontSize ?? this.fontSize,
+      forumFontSize: forumFontSize ?? this.forumFontSize,
       isDyslexiaFriendly: isDyslexiaFriendly ?? this.isDyslexiaFriendly,
       isTextToSpeechEnabled: isTextToSpeechEnabled ?? this.isTextToSpeechEnabled,
       speechRate: speechRate ?? this.speechRate,
@@ -72,6 +76,20 @@ class AccessibilityState {
   /// Get font scale factor based on selected font size
   double get fontScaleFactor {
     switch (fontSize) {
+      case AccessibilityFontSize.small:
+        return 0.85;
+      case AccessibilityFontSize.normal:
+        return 1.0;
+      case AccessibilityFontSize.large:
+        return 1.2;
+      case AccessibilityFontSize.extraLarge:
+        return 1.5;
+    }
+  }
+
+  /// Get font scale factor for forum based on selected forum font size
+  double get forumFontScaleFactor {
+    switch (forumFontSize) {
       case AccessibilityFontSize.small:
         return 0.85;
       case AccessibilityFontSize.normal:
@@ -134,6 +152,7 @@ class AccessibilityState {
 /// Accessibility notifier class
 class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   static const String _fontSizeKey = 'accessibility_font_size';
+  static const String _forumFontSizeKey = 'accessibility_forum_font_size';
   static const String _dyslexiaFriendlyKey = 'accessibility_dyslexia_friendly';
   static const String _textToSpeechKey = 'accessibility_text_to_speech';
   static const String _speechRateKey = 'accessibility_speech_rate';
@@ -392,6 +411,16 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
         );
       }
 
+      // Load forum font size
+      final forumFontSizeString = prefs.getString(_forumFontSizeKey);
+      AccessibilityFontSize forumFontSize = AccessibilityFontSize.normal;
+      if (forumFontSizeString != null) {
+        forumFontSize = AccessibilityFontSize.values.firstWhere(
+          (size) => size.toString() == forumFontSizeString,
+          orElse: () => AccessibilityFontSize.normal,
+        );
+      }
+
       // Load dyslexia-friendly setting
       final isDyslexiaFriendly = prefs.getBool(_dyslexiaFriendlyKey) ?? false;
 
@@ -416,6 +445,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
 
       state = AccessibilityState(
         fontSize: fontSize,
+        forumFontSize: forumFontSize,
         isDyslexiaFriendly: isDyslexiaFriendly,
         isTextToSpeechEnabled: isTextToSpeechEnabled,
         speechRate: speechRate,
@@ -442,6 +472,7 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_fontSizeKey, state.fontSize.toString());
+      await prefs.setString(_forumFontSizeKey, state.forumFontSize.toString());
       await prefs.setBool(_dyslexiaFriendlyKey, state.isDyslexiaFriendly);
       await prefs.setBool(_textToSpeechKey, state.isTextToSpeechEnabled);
       await prefs.setDouble(_speechRateKey, state.speechRate);
@@ -458,6 +489,12 @@ class AccessibilityNotifier extends StateNotifier<AccessibilityState> {
   /// Set font size
   Future<void> setFontSize(AccessibilityFontSize fontSize) async {
     state = state.copyWith(fontSize: fontSize);
+    await _saveAccessibilityToPreferences();
+  }
+
+  /// Set forum font size
+  Future<void> setForumFontSize(AccessibilityFontSize fontSize) async {
+    state = state.copyWith(forumFontSize: fontSize);
     await _saveAccessibilityToPreferences();
   }
 
