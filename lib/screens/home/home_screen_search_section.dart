@@ -64,7 +64,7 @@ class _HomeScreenSearchSectionState extends ConsumerState<HomeScreenSearchSectio
 
   Widget _buildSearchBar(BuildContext context) {
     final isKataTab = widget.currentTabIndex == 0;
-    final hintText = isKataTab ? 'Kata\'s...' : 'Ohyo\'s...';
+    final hintText = isKataTab ? 'Zoek kata\'s...' : 'Zoek ohyo\'s...';
     final ttsLabel = isKataTab ? 'Zoek kata\'s invoerveld' : 'Zoek ohyo\'s invoerveld';
 
     final textScaler = MediaQuery.of(context).textScaler;
@@ -74,8 +74,8 @@ class _HomeScreenSearchSectionState extends ConsumerState<HomeScreenSearchSectio
     final isExtraLarge = accessibilityState.fontSize == AccessibilityFontSize.extraLarge;
     final fontSizeMultiplier = (isDyslexiaFriendly || isExtraLarge) ? 1.1 : 1.0;
     
-    // Increase horizontal padding to ensure full text visibility
-    final horizontalPadding = 40.0 * scaleFactor.clamp(1.0, 1.8) * fontSizeMultiplier;
+    // Keep padding compact so full hint text remains visible
+    final horizontalPadding = 24.0 * scaleFactor.clamp(1.0, 1.8) * fontSizeMultiplier;
 
     return SizedBox(
       width: double.infinity,
@@ -88,6 +88,7 @@ class _HomeScreenSearchSectionState extends ConsumerState<HomeScreenSearchSectio
         style: Theme.of(context).textTheme.bodyMedium,
         decoration: InputDecoration(
           hintText: hintText,
+          hintMaxLines: 2,
           prefixIcon: const Icon(Icons.search),
           suffixIcon: widget.searchController.text.isNotEmpty
               ? IconButton(
@@ -111,6 +112,7 @@ class _HomeScreenSearchSectionState extends ConsumerState<HomeScreenSearchSectio
             fontSize: Theme.of(context).textTheme.bodyMedium?.fontSize != null
                 ? Theme.of(context).textTheme.bodyMedium!.fontSize! * fontSizeMultiplier
                 : 14 * fontSizeMultiplier,
+            height: 1.1,
           ),
         ),
         onChanged: widget.onSearchChanged,

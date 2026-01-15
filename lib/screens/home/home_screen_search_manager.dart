@@ -35,6 +35,7 @@ class HomeScreenSearchManager {
           onChanged: onSearchChanged,
           decoration: InputDecoration(
             hintText: 'Zoek kata\'s...',
+            hintMaxLines: 2,
             prefixIcon: const Icon(Icons.search),
             suffixIcon: searchController.text.isNotEmpty
                 ? IconButton(
@@ -50,7 +51,7 @@ class HomeScreenSearchManager {
             ),
             filled: true,
             fillColor: Theme.of(context).cardColor,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
           ),
         ),
       ),

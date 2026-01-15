@@ -60,6 +60,7 @@ class _HomeSearchSectionState extends ConsumerState<HomeSearchSection> {
         scrollPhysics: const BouncingScrollPhysics(),
         decoration: InputDecoration(
           hintText: 'Zoek kata\'s...',
+          hintMaxLines: 2,
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
@@ -75,7 +76,7 @@ class _HomeSearchSectionState extends ConsumerState<HomeSearchSection> {
           ),
           filled: true,
           fillColor: Theme.of(context).colorScheme.surface,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 28),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
         ),
         onChanged: (value) {
           ref.read(kataNotifierProvider.notifier).searchKatas(value);
