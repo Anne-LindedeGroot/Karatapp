@@ -27,6 +27,36 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   final UserManagementService _userManagementService = UserManagementService();
   final RoleService _roleService = RoleService();
 
+  Future<void> _speakAccordionContent() async {
+    try {
+      final accessibilityState = ref.read(accessibilityNotifierProvider);
+      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+      if (!accessibilityState.isTextToSpeechEnabled) {
+        return;
+      }
+
+      const content =
+          'Gebruikersrollen. '
+          'Beheer gebruikersrollen en demp gebruikers. '
+          'Hosts en moderators kunnen rollen wijzigen en gebruikers dempen. '
+          'Alle gebruikers worden getoond. '
+          'Privacy waarschuwing. '
+          'Deze pagina bevat gevoelige persoonlijke gegevens. '
+          'Bij gebruik van spraakfunctie: zet volume laag of gebruik koptelefoon of oordopjes, '
+          'vooral in openbare ruimtes.';
+
+      if (accessibilityNotifier.isSpeaking()) {
+        await accessibilityNotifier.stopSpeaking();
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+
+      await accessibilityNotifier.speak(content);
+    } catch (e) {
+      debugPrint('Error speaking accordion content: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -948,8 +978,21 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       color: Theme.of(context).primaryColor.withValues(alpha: 0.3),
                     ),
                   ),
-                  child: ExpansionTile(
+                  child: Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
                     initiallyExpanded: true, // Start expanded
+                    onExpansionChanged: (expanded) {
+                      if (expanded) {
+                        _speakAccordionContent();
+                      }
+                    },
+                    shape: const RoundedRectangleBorder(
+                      side: BorderSide(color: Colors.transparent),
+                    ),
+                    collapsedShape: const RoundedRectangleBorder(
+                      side: BorderSide(color: Colors.transparent),
+                    ),
                     title: Row(
                       children: [
                         Icon(
@@ -979,7 +1022,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Beheer gebruikersrollen en demp gebruikers. Hosts en moderators kunnen rollen wijzigen en gebruikers dempen. Alle gebruikers worden getoond, inclusief verwijderde accounts.',
+                              'Beheer gebruikersrollen en demp gebruikers. Hosts en moderators kunnen rollen wijzigen en gebruikers dempen. Alle gebruikers worden getoond.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Theme.of(context).brightness == Brightness.dark
@@ -987,7 +1030,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                     : Colors.black.withValues(alpha: 0.8),
                               ),
                               textAlign: TextAlign.left,
-                              softWrap: true,
                             ),
 
                             // Privacy warning section
@@ -1037,7 +1079,6 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                                           : Colors.black.withValues(alpha: 0.7),
                                       fontWeight: FontWeight.w500,
                                     ),
-                                    softWrap: true,
                                   ),
                                 ],
                               ),
@@ -1047,6 +1088,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       ),
                     ],
                   ),
+                ),
                 ),
 
                 // Users list - now in scrollable container
