@@ -309,9 +309,18 @@ class OfflineMediaCacheService {
     }
 
     for (final url in urls) {
-      if (url.isNotEmpty) {
-        await cacheMediaFile(url, false, ref); // Always pass false for isVideo since we don't cache videos
+      if (url.isEmpty) continue;
+      // Stop if we go offline mid-cache to avoid wiping caches with failed downloads.
+      if (_isValidRef(ref)) {
+        try {
+          final networkState = ref.read(networkProvider);
+          if (!networkState.isConnected) {
+            break;
+          }
+        } catch (_) {}
       }
+      await cacheMediaFile(url, false, ref); // Always pass false for isVideo since we don't cache videos
+      await Future.delayed(const Duration(milliseconds: 50));
     }
   }
 
@@ -474,8 +483,13 @@ class OfflineMediaCacheService {
       }
 
       final ohyoKey = ohyoId.toString();
-      // Replace the entire list for this ohyo with the new filename
-      metadata[ohyoKey] = [fileName];
+      // Append to existing list (dedupe) so all cached images remain discoverable
+      final existingFiles = metadata[ohyoKey] as List<dynamic>? ?? [];
+      final existingNames = existingFiles.map((value) => value.toString()).toList();
+      if (!existingNames.contains(fileName)) {
+        existingNames.add(fileName);
+      }
+      metadata[ohyoKey] = existingNames;
 
       await metadataFile.writeAsString(json.encode(metadata));
     } catch (e) {

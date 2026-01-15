@@ -629,10 +629,7 @@ class OfflineSyncService {
   Future<void> _cacheKataMedia(List<app_storage.CachedKata> katas, Ref ref) async {
     try {
       for (final kata in katas) {
-        // Clear old cache for this kata before caching new content
-        await OfflineMediaCacheService.clearKataCache(kata.id);
-
-        // Cache images
+        // Cache images (don't clear first; keep old cache if downloads fail)
         if (kata.imageUrls.isNotEmpty) {
           await OfflineMediaCacheService.preCacheMediaFiles(kata.imageUrls, false, ref);
           // Update metadata for offline gallery access with all URLs
@@ -671,10 +668,7 @@ class OfflineSyncService {
   Future<void> _cacheOhyoMedia(List<app_storage.CachedOhyo> ohyos, Ref ref) async {
     try {
       for (final ohyo in ohyos) {
-        // Clear old cache for this ohyo before caching new content
-        await OfflineMediaCacheService.clearOhyoCache(ohyo.id);
-
-        // Cache images
+        // Cache images (don't clear first; keep old cache if downloads fail)
         if (ohyo.imageUrls.isNotEmpty) {
           await OfflineMediaCacheService.preCacheMediaFiles(ohyo.imageUrls, false, ref);
           // Update metadata for offline gallery access
@@ -1570,6 +1564,10 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
 
       // Cache images for all katas
       for (final kata in katasToCache) {
+        final networkState = ref.read(networkProvider);
+        if (!networkState.isConnected) {
+          break;
+        }
         debugPrint('📹 Kata ${kata.id}: ${kata.name} with ${kata.imageUrls.length} images');
         if (kata.imageUrls.isNotEmpty) {
           debugPrint('📹 Caching ${kata.imageUrls.length} images for kata ${kata.id}');
@@ -1580,11 +1578,19 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
 
       // Cache images for all ohyos using stable key system
       for (final ohyo in ohyosToCache) {
+        final networkState = ref.read(networkProvider);
+        if (!networkState.isConnected) {
+          break;
+        }
         debugPrint('📹 Ohyo ${ohyo.id}: ${ohyo.name} with ${ohyo.imageUrls.length} images');
         if (ohyo.imageUrls.isNotEmpty) {
           debugPrint('📹 Caching ${ohyo.imageUrls.length} images for ohyo ${ohyo.id}');
           // Use cacheOhyoImage for stable key-based caching
           for (final imageUrl in ohyo.imageUrls) {
+            final networkState = ref.read(networkProvider);
+            if (!networkState.isConnected) {
+              break;
+            }
             try {
               // Extract filename from URL for stable key
               final uri = Uri.parse(imageUrl);
@@ -1592,6 +1598,7 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
                   ? uri.pathSegments.last 
                   : 'image_${ohyo.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
               await OfflineMediaCacheService.cacheOhyoImage(ohyo.id, filename, imageUrl, ref);
+              await Future.delayed(const Duration(milliseconds: 50));
             } catch (e) {
               debugPrint('⚠️ Failed to cache ohyo image $imageUrl: $e');
             }

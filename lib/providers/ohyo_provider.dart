@@ -139,6 +139,25 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       try {
         cachedOhyos = await _offlineOhyoService!.getValidCachedOhyos();
         if (cachedOhyos != null && cachedOhyos.isNotEmpty) {
+          // Seed Hive cache with like counts from SharedPreferences cache
+          // so interaction providers can show likes offline.
+          final cachedOhyosForHive = cachedOhyos.map((ohyo) {
+            return app_storage.CachedOhyo(
+              id: ohyo.id,
+              name: ohyo.name,
+              description: ohyo.description,
+              createdAt: ohyo.createdAt,
+              lastSynced: DateTime.now(),
+              imageUrls: ohyo.imageUrls ?? const [],
+              style: ohyo.style,
+              isFavorite: false,
+              needsSync: false,
+              isLiked: ohyo.isLiked,
+              likeCount: ohyo.likeCount,
+            );
+          }).toList();
+          await app_storage.LocalStorage.saveOhyos(cachedOhyosForHive);
+
           // Load cached ohyos first for immediate UI feedback
           state = state.copyWith(
             ohyos: cachedOhyos,

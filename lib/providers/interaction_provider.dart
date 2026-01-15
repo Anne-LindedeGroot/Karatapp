@@ -353,6 +353,16 @@ class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
+      // Load cached like count for offline visibility
+      final cachedPost = app_storage.LocalStorage.getForumPost(forumPostId.toString());
+      if (cachedPost != null) {
+        state = state.copyWith(
+          likeCount: cachedPost.likesCount,
+          isLoading: true,
+          error: null,
+        );
+      }
+
       // Load likes and favorites in parallel
       final results = await Future.wait([
         _interactionService.getForumPostLikes(forumPostId),
@@ -374,10 +384,19 @@ class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
       );
     } catch (e) {
       final errorMessage = 'Failed to load forum interactions: ${e.toString()}';
-      state = state.copyWith(
-        isLoading: false,
-        error: errorMessage,
-      );
+      final cachedPost = app_storage.LocalStorage.getForumPost(forumPostId.toString());
+      if (cachedPost != null) {
+        state = state.copyWith(
+          likeCount: cachedPost.likesCount,
+          isLoading: false,
+          error: null,
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: errorMessage,
+        );
+      }
       // Only report non-network errors to global error boundary
       if (!_isNetworkError(e)) {
         _errorBoundary.reportNetworkError(errorMessage);
@@ -412,6 +431,25 @@ class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
           likes: likes,
           likeCount: likes.length,
         );
+
+        // Keep cached forum post likes in sync for offline visibility
+        final cachedPost = app_storage.LocalStorage.getForumPost(forumPostId.toString());
+        if (cachedPost != null) {
+          final updatedPost = app_storage.CachedForumPost(
+            id: cachedPost.id,
+            title: cachedPost.title,
+            content: cachedPost.content,
+            authorId: cachedPost.authorId,
+            authorName: cachedPost.authorName,
+            createdAt: cachedPost.createdAt,
+            lastSynced: DateTime.now(),
+            likesCount: likes.length,
+            commentsCount: cachedPost.commentsCount,
+            needsSync: cachedPost.needsSync,
+            category: cachedPost.category,
+          );
+          await app_storage.LocalStorage.saveForumPost(updatedPost);
+        }
       } catch (e) {
         final errorMessage = 'Failed to toggle like: ${e.toString()}';
         state = state.copyWith(error: errorMessage);
@@ -645,6 +683,25 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
         error: null,
         isOffline: false,
       );
+
+      // Keep cached ohyo likes in sync for offline visibility
+      final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+      if (cachedOhyo != null) {
+        final updatedOhyo = app_storage.CachedOhyo(
+          id: cachedOhyo.id,
+          name: cachedOhyo.name,
+          description: cachedOhyo.description,
+          createdAt: cachedOhyo.createdAt,
+          lastSynced: DateTime.now(),
+          imageUrls: cachedOhyo.imageUrls,
+          style: cachedOhyo.style,
+          isFavorite: cachedOhyo.isFavorite,
+          needsSync: cachedOhyo.needsSync,
+          isLiked: isLiked,
+          likeCount: likes.length,
+        );
+        await app_storage.LocalStorage.saveOhyo(updatedOhyo);
+      }
     } catch (e) {
       final errorMessage = 'Failed to load ohyo interactions: ${e.toString()}';
       // If we have cached data, keep it but mark as offline

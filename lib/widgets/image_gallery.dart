@@ -30,6 +30,16 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
   int _currentIndex = 0;
   final Map<int, String> _resolvedUrls = {};
 
+  String? _extractFileNameFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        return uri.pathSegments.last;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -41,6 +51,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
   /// Resolve image URLs - use cached files when available
   Future<void> _resolveImageUrls() async {
     final networkState = ref.read(networkProvider);
+    final isOffline = !networkState.isConnected;
 
     // For each input URL, resolve it to a cached file if available, or keep the original URL
     for (int i = 0; i < widget.imageUrls.length; i++) {
@@ -53,9 +64,35 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
         continue;
       }
 
+      // Prefer stable ohyo cache keys when ohyoId is provided
+      if (widget.ohyoId != null) {
+        final fileName = _extractFileNameFromUrl(originalUrl);
+        if (fileName != null) {
+          final cachedOhyoPath = OfflineMediaCacheService.getCachedOhyoImagePath(
+            widget.ohyoId!,
+            fileName,
+          );
+          if (cachedOhyoPath != null) {
+            _resolvedUrls[i] = cachedOhyoPath;
+            continue;
+          }
+        }
+      }
+
+      // Check generic cache by URL hash (kata images and non-ohyo cache)
+      final cachedPath = OfflineMediaCacheService.getCachedFilePath(originalUrl, false);
+      if (cachedPath != null) {
+        _resolvedUrls[i] = cachedPath;
+        continue;
+      }
+
       // Try to get cached version or use original
-      final resolvedUrl = await OfflineMediaCacheService.getMediaUrl(originalUrl, false, ref);
-      _resolvedUrls[i] = resolvedUrl;
+      if (!isOffline) {
+        final resolvedUrl = await OfflineMediaCacheService.getMediaUrl(originalUrl, false, ref);
+        _resolvedUrls[i] = resolvedUrl;
+      } else {
+        _resolvedUrls[i] = originalUrl;
+      }
     }
 
     // Pre-cache images if online (for future offline use)
