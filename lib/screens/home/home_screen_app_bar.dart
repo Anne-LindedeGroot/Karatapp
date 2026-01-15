@@ -34,40 +34,40 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
     double? titleFontSize;
     double logoSpacing;
     
-    if (isDyslexiaFriendly) {
-      // Dyslexia font: smaller elements to prevent overlap
+      if (isDyslexiaFriendly) {
+      // Dyslexia font: bigger logo, tighter title spacing to avoid overlap
       if (isExtraLarge) {
-        logoSize = 24.0;
-        titleFontSize = 20.0;
-        logoSpacing = 4.0;
-      } else if (isLarge) {
-        logoSize = 26.0;
+        logoSize = 36.0;
         titleFontSize = 18.0;
-        logoSpacing = 5.0;
-      } else {
-        logoSize = 28.0;
+        logoSpacing = 3.0;
+      } else if (isLarge) {
+        logoSize = 34.0;
         titleFontSize = 16.0;
-        logoSpacing = 6.0;
+        logoSpacing = 3.0;
+      } else {
+        logoSize = 36.0;
+        titleFontSize = 14.0;
+        logoSpacing = 4.0;
       }
     } else {
-      // Regular font: optimize sizes to fit "Karatapp" fully without overlap
+      // Regular font: bigger logo, slightly smaller title
       if (isExtraLarge) {
-        logoSize = 28.0; // Smaller logo to make room for full text
-        titleFontSize = 21.0; // Reduced to fit fully
-        logoSpacing = 5.0; // Minimal spacing
+        logoSize = 36.0;
+        titleFontSize = 19.0;
+        logoSpacing = 3.0;
       } else if (isLarge) {
-        logoSize = 32.0; // Smaller logo
-        titleFontSize = 19.0; // Good size to fit fully
-        logoSpacing = 5.0;
+        logoSize = 40.0;
+        titleFontSize = 17.0;
+        logoSpacing = 3.0;
       } else if (isSmall) {
-        logoSize = 36.0; // Medium logo
-        titleFontSize = 17.0; // Good size for small
-        logoSpacing = 5.0;
+        logoSize = 42.0;
+        titleFontSize = 15.0;
+        logoSpacing = 3.0;
       } else {
-        // Normal size: optimize to fit "Karatapp" fully
-        logoSize = 34.0; // Smaller logo to make room
-        titleFontSize = 18.0; // Optimized size to fit fully
-        logoSpacing = 5.0; // Minimal spacing
+        // Normal size: largest logo, compact title
+        logoSize = 42.0;
+        titleFontSize = 16.0;
+        logoSpacing = 3.0;
       }
     }
     

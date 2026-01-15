@@ -15,7 +15,6 @@ import '../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';
 import 'create_forum_post_screen.dart';
 import '../widgets/enhanced_accessible_text.dart';
-import '../widgets/accessibility_settings_popup.dart';
 
 class ForumScreen extends ConsumerStatefulWidget {
   const ForumScreen({super.key});
