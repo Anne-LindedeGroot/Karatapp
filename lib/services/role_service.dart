@@ -242,12 +242,12 @@ class RoleService {
           .select('user_id')
           .eq('user_id', userId)
           .maybeSingle();
-
+      
       if (existingProfile != null) {
         print('RoleService: User profile already exists for $userId');
         return true;
       }
-
+      
       await _client
           .from('user_profiles')
           .insert({

@@ -269,13 +269,25 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
 
     String description = '';
 
+    String? baseLabel;
     if (widget.customTTSLabel != null) {
-      description += '${widget.customTTSLabel} ';
+      baseLabel = widget.customTTSLabel;
     } else if (widget.decoration?.labelText != null) {
-      description += '${widget.decoration!.labelText} ';
+      baseLabel = widget.decoration!.labelText;
     }
 
-    description += 'invoerveld. ';
+    if (baseLabel != null && baseLabel.isNotEmpty) {
+      description += '$baseLabel ';
+    }
+
+    // Avoid double "invoerveld" if the label already contains it.
+    final hasInputFieldWord =
+        baseLabel != null && baseLabel.toLowerCase().contains('invoerveld');
+    if (!hasInputFieldWord) {
+      description += 'invoerveld. ';
+    } else {
+      description += '. ';
+    }
 
     if (_controller.text.isNotEmpty) {
       if (widget.obscureText) {

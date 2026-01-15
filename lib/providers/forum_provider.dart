@@ -556,47 +556,47 @@ class ForumNotifier extends StateNotifier<ForumState> {
       throw Exception('Je kunt geen reacties plaatsen zonder internetverbinding');
     }
 
-    // Online mode - try to add comment directly
-    try {
-      final comment = await _forumService.addComment(
-        postId: postId,
-        content: content,
-        parentCommentId: parentCommentId,
-      );
-
-      // If we have the selected post loaded, update its comments
-      if (state.selectedPost != null && state.selectedPost!.id == postId) {
-        final updatedComments = [...state.selectedPost!.comments, comment];
-        final updatedPost = state.selectedPost!.copyWith(
-          comments: updatedComments,
-          commentCount: updatedComments.length,
+      // Online mode - try to add comment directly
+      try {
+        final comment = await _forumService.addComment(
+          postId: postId,
+          content: content,
+          parentCommentId: parentCommentId,
         );
-        state = state.copyWith(selectedPost: updatedPost);
-      }
 
-      // Update the comment count in the posts list
-      final updatedPosts = state.posts.map((post) {
-        if (post.id == postId) {
-          return post.copyWith(commentCount: post.commentCount + 1);
+        // If we have the selected post loaded, update its comments
+        if (state.selectedPost != null && state.selectedPost!.id == postId) {
+          final updatedComments = [...state.selectedPost!.comments, comment];
+          final updatedPost = state.selectedPost!.copyWith(
+            comments: updatedComments,
+            commentCount: updatedComments.length,
+          );
+          state = state.copyWith(selectedPost: updatedPost);
         }
-        return post;
-      }).toList();
 
-      final filteredPosts = _filterPosts(updatedPosts, state.searchQuery, state.selectedCategory);
+        // Update the comment count in the posts list
+        final updatedPosts = state.posts.map((post) {
+          if (post.id == postId) {
+            return post.copyWith(commentCount: post.commentCount + 1);
+          }
+          return post;
+        }).toList();
 
-      state = state.copyWith(
-        posts: updatedPosts,
-        filteredPosts: filteredPosts,
-      );
+        final filteredPosts = _filterPosts(updatedPosts, state.searchQuery, state.selectedCategory);
 
-      return comment;
-    } catch (e) {
-      final errorMessage = 'Failed to add comment: ${e.toString()}';
-      state = state.copyWith(error: errorMessage);
+        state = state.copyWith(
+          posts: updatedPosts,
+          filteredPosts: filteredPosts,
+        );
 
-      // Report to global error boundary
-      _errorBoundary.reportNetworkError(errorMessage);
-      rethrow;
+        return comment;
+      } catch (e) {
+        final errorMessage = 'Failed to add comment: ${e.toString()}';
+        state = state.copyWith(error: errorMessage);
+
+        // Report to global error boundary
+        _errorBoundary.reportNetworkError(errorMessage);
+        rethrow;
     }
   }
 

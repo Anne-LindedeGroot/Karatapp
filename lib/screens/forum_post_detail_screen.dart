@@ -263,6 +263,12 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     }
   }
 
+  Color _getCategoryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -405,8 +411,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         ),
                         child: Text(
                           post.category.displayName,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: _getCategoryTextColor(context),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1856,6 +1862,9 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                         final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
                         final baseStyle = const TextStyle(fontSize: 14, height: 1.2);
                         final accessibleStyle = accessibilityNotifier.getAccessibleTextStyle(baseStyle);
+                        final textColor = Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black;
 
                         return DropdownButtonFormField<ForumCategory>(
                           initialValue: _selectedCategory,
@@ -1865,7 +1874,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                           ),
                           isExpanded: true,
-                          style: accessibleStyle,
+                          style: accessibleStyle.copyWith(color: textColor),
                           items: ForumCategory.values.map((category) {
                             return DropdownMenuItem(
                               value: category,
@@ -1873,7 +1882,7 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                                 constraints: const BoxConstraints(minHeight: 48),
                                 child: Text(
                                   category.displayName,
-                                  style: accessibleStyle,
+                                  style: accessibleStyle.copyWith(color: textColor),
                                   softWrap: true,
                                 ),
                               ),

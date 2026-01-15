@@ -469,7 +469,7 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
                                 ? 'Evenementen\n&\nAankondigingen'
                                 : post.category.displayName,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: _getCategoryTextColor(context),
                               fontSize: post.category == ForumCategory.events && (accessibilityState.forumFontSize == AccessibilityFontSize.extraLarge || accessibilityState.isDyslexiaFriendly)
                                   ? 14
                                   : 12,
@@ -1006,6 +1006,12 @@ class _ForumScreenState extends ConsumerState<ForumScreen> {
       case ForumCategory.feedback:
         return Colors.red;
     }
+  }
+
+  Color _getCategoryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
   }
 
 

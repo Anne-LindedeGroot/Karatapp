@@ -88,6 +88,7 @@ class _LogoutDialogState extends ConsumerState<_LogoutDialog> {
   @override
   Widget build(BuildContext context) {
     return DialogTTSOverlay(
+      enabled: false,
       child: AlertDialog(
         title: TTSClickableWidget(
           ttsText: 'Uitloggen',

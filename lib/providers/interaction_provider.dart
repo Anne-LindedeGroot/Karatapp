@@ -60,16 +60,16 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
   Future<void> loadKataInteractions() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    // First, try to load from cache for immediate UI feedback
-    final cachedKata = app_storage.LocalStorage.getKata(kataId);
-    if (cachedKata != null) {
-      state = state.copyWith(
-        isLiked: cachedKata.isLiked,
-        likeCount: cachedKata.likeCount,
-        isFavorited: cachedKata.isFavorite,
-        isOffline: true,
-      );
-    }
+      // First, try to load from cache for immediate UI feedback
+      final cachedKata = app_storage.LocalStorage.getKata(kataId);
+      if (cachedKata != null) {
+        state = state.copyWith(
+          isLiked: cachedKata.isLiked,
+          likeCount: cachedKata.likeCount,
+          isFavorited: cachedKata.isFavorite,
+          isOffline: true,
+        );
+      }
 
     // Check if we're online before trying to fetch
     final isOnline = await _isOnline();
@@ -140,14 +140,14 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
       final errorMessage = 'Failed to load kata interactions: ${e.toString()}';
       // If we have cached data, keep it but mark as offline
       if (cachedKata != null) {
-        state = state.copyWith(
-          isLiked: cachedKata.isLiked,
-          likeCount: cachedKata.likeCount,
-          isFavorited: cachedKata.isFavorite,
-          isLoading: false,
-          error: null,
-          isOffline: true,
-        );
+          state = state.copyWith(
+            isLiked: cachedKata.isLiked,
+            likeCount: cachedKata.likeCount,
+            isFavorited: cachedKata.isFavorite,
+            isLoading: false,
+            error: null,
+            isOffline: true,
+          );
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -569,16 +569,16 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
   Future<void> loadOhyoInteractions() async {
     state = state.copyWith(isLoading: true, error: null);
 
-    // First, try to load from cache for immediate UI feedback
-    final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
-    if (cachedOhyo != null) {
-      state = state.copyWith(
-        isLiked: cachedOhyo.isLiked,
-        likeCount: cachedOhyo.likeCount,
-        isFavorited: cachedOhyo.isFavorite,
-        isOffline: true,
-      );
-    }
+      // First, try to load from cache for immediate UI feedback
+      final cachedOhyo = app_storage.LocalStorage.getOhyo(ohyoId);
+      if (cachedOhyo != null) {
+        state = state.copyWith(
+          isLiked: cachedOhyo.isLiked,
+          likeCount: cachedOhyo.likeCount,
+          isFavorited: cachedOhyo.isFavorite,
+          isOffline: true,
+        );
+      }
 
     // Check if we're online before trying to fetch
     final isOnline = await _isOnline();
@@ -649,14 +649,14 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
       final errorMessage = 'Failed to load ohyo interactions: ${e.toString()}';
       // If we have cached data, keep it but mark as offline
       if (cachedOhyo != null) {
-        state = state.copyWith(
-          isLiked: cachedOhyo.isLiked,
-          likeCount: cachedOhyo.likeCount,
-          isFavorited: cachedOhyo.isFavorite,
-          isLoading: false,
-          error: null,
-          isOffline: true,
-        );
+          state = state.copyWith(
+            isLiked: cachedOhyo.isLiked,
+            likeCount: cachedOhyo.likeCount,
+            isFavorited: cachedOhyo.isFavorite,
+            isLoading: false,
+            error: null,
+            isOffline: true,
+          );
       } else {
         state = state.copyWith(
           isLoading: false,

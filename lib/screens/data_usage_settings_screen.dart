@@ -99,22 +99,22 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               children: [
                 Flexible(
                   child: Text(
-                    'Status:',
-                    style: theme.textTheme.bodyMedium,
+                  'Status:',
+                  style: theme.textTheme.bodyMedium,
                   ),
                 ),
                 Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: networkState.isConnected ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: networkState.isConnected ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: networkState.isConnected ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    networkState.isConnected ? 'Verbonden' : 'Niet verbonden',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: networkState.isConnected ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
                       ),
                       overflow: TextOverflow.visible,
                       maxLines: 2,
@@ -129,15 +129,15 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               children: [
                 Flexible(
                   child: Text(
-                    'Type:',
-                    style: theme.textTheme.bodyMedium,
+                  'Type:',
+                  style: theme.textTheme.bodyMedium,
                   ),
                 ),
                 Flexible(
                   child: Text(
-                    _getConnectionTypeText(dataUsageState.connectionType),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
+                  _getConnectionTypeText(dataUsageState.connectionType),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
                     ),
                     overflow: TextOverflow.visible,
                     maxLines: 2,
@@ -247,8 +247,8 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
                   child: Container(
                     constraints: const BoxConstraints(minWidth: 300, minHeight: 60),
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                    child: Text(
-                      _getQualityTitle(quality),
+                  child: Text(
+                    _getQualityTitle(quality),
                       overflow: TextOverflow.visible,
                       maxLines: 3,
                       textAlign: TextAlign.center,
@@ -303,8 +303,8 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
                   child: Container(
                     constraints: const BoxConstraints(minWidth: 300, minHeight: 60),
                     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                    child: Text(
-                      _getQualityTitle(quality),
+                  child: Text(
+                    _getQualityTitle(quality),
                       overflow: TextOverflow.visible,
                       maxLines: 3,
                       textAlign: TextAlign.center,
@@ -362,8 +362,8 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
               children: [
                 Flexible(
                   child: Text(
-                    'Maandelijkse Limiet:',
-                    style: theme.textTheme.bodyMedium,
+                  'Maandelijkse Limiet:',
+                  style: theme.textTheme.bodyMedium,
                   ),
                 ),
                 Text(
@@ -613,8 +613,8 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
         children: [
           Expanded(
             child: Text(
-              label,
-              style: theme.textTheme.bodyMedium,
+            label,
+            style: theme.textTheme.bodyMedium,
               overflow: TextOverflow.visible,
               maxLines: 2,
             ),

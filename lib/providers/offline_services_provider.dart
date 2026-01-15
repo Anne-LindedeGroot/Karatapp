@@ -83,8 +83,8 @@ final offlineServicesInitializerProvider = FutureProvider<void>((ref) async {
     // Ignore errors during sync startup
   }
 
-    // Clear expired cache on startup
-    await commentCacheService.clearExpiredCache();
+  // Clear expired cache on startup
+  await commentCacheService.clearExpiredCache();
 
   // Listen for network connectivity changes to refresh comment caches when coming back online
   ref.listen<NetworkState>(networkProvider, (previous, next) async {

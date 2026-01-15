@@ -135,6 +135,12 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
     }
   }
 
+  Color _getCategoryTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+  }
+
   String _getCategoryDescription(ForumCategory category) {
     switch (category) {
       case ForumCategory.general:
@@ -246,8 +252,8 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                                                 ),
                                                 child: Text(
                                                   category.displayName,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
+                                                  style: TextStyle(
+                                                    color: _getCategoryTextColor(context),
                                                     fontSize: 12,
                                                     fontWeight: FontWeight.bold,
                                                   ),

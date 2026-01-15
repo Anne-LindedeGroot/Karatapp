@@ -131,17 +131,17 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
       // But be more lenient - if Supabase fails but basic internet works,
       // consider it partially connected
       try {
-        await client.auth.getUser().timeout(
+      await client.auth.getUser().timeout(
           const Duration(seconds: 3),
           onTimeout: () => throw TimeoutException('Supabase connection timeout'),
-        );
+      );
 
         // If we get here, full connection is working
-        state = state.copyWith(
-          status: NetworkStatus.connected,
-          lastError: null,
-          lastChecked: DateTime.now(),
-        );
+      state = state.copyWith(
+        status: NetworkStatus.connected,
+        lastError: null,
+        lastChecked: DateTime.now(),
+      );
       } catch (supabaseError) {
         debugPrint('Supabase connectivity check failed, but basic internet works: $supabaseError');
         // Basic internet works, but Supabase doesn't - consider it connected for now

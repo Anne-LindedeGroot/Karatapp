@@ -343,9 +343,11 @@ class AppTheme {
 
     // Handle high contrast themes first
     if (isHighContrast) {
-      return effectiveBrightness == Brightness.light 
-          ? highContrastLightTheme 
-          : highContrastDarkTheme;
+      return _buildHighContrastTheme(
+        brightness: effectiveBrightness,
+        fontScaleFactor: fontScaleFactor,
+        isDyslexiaFriendly: isDyslexiaFriendly,
+      );
     }
 
     // Get color palette for the selected scheme
@@ -1150,43 +1152,108 @@ class AppTheme {
     );
   }
 
+  static const ColorScheme _highContrastLightColorScheme = ColorScheme.light(
+    brightness: Brightness.light,
+    primary: Colors.black,
+    onPrimary: Colors.white,
+    primaryContainer: Color(0xFF000000),
+    onPrimaryContainer: Colors.white,
+    secondary: Color(0xFF000000),
+    onSecondary: Colors.white,
+    secondaryContainer: Color(0xFF000000),
+    onSecondaryContainer: Colors.white,
+    tertiary: Color(0xFF000000),
+    onTertiary: Colors.white,
+    error: Color(0xFFD32F2F),
+    onError: Colors.white,
+    errorContainer: Color(0xFFFFEBEE),
+    onErrorContainer: Color(0xFFD32F2F),
+    surface: Colors.white,
+    onSurface: Colors.black,
+    surfaceContainerHighest: Color(0xFFF5F5F5),
+    onSurfaceVariant: Colors.black,
+    outline: Colors.black,
+    outlineVariant: Colors.black,
+    shadow: Colors.black,
+    scrim: Colors.black,
+    inverseSurface: Colors.black,
+    onInverseSurface: Colors.white,
+    inversePrimary: Colors.white,
+    surfaceTint: Colors.black,
+  );
+
+  static const ColorScheme _highContrastDarkColorScheme = ColorScheme.dark(
+    brightness: Brightness.dark,
+    primary: Colors.white,
+    onPrimary: Colors.black,
+    primaryContainer: Colors.white,
+    onPrimaryContainer: Colors.black,
+    secondary: Colors.white,
+    onSecondary: Colors.black,
+    secondaryContainer: Colors.white,
+    onSecondaryContainer: Colors.black,
+    tertiary: Colors.white,
+    onTertiary: Colors.black,
+    error: Color(0xFFFF5252),
+    onError: Colors.black,
+    errorContainer: Color(0xFFFF5252),
+    onErrorContainer: Colors.black,
+    surface: Colors.black,
+    onSurface: Colors.white,
+    surfaceContainerHighest: Color(0xFF1A1A1A),
+    onSurfaceVariant: Colors.white,
+    outline: Colors.white,
+    outlineVariant: Colors.white,
+    shadow: Colors.black,
+    scrim: Colors.black,
+    inverseSurface: Colors.white,
+    onInverseSurface: Colors.black,
+    inversePrimary: Colors.black,
+    surfaceTint: Colors.white,
+  );
+
   // High contrast theme for accessibility
   static ThemeData get highContrastLightTheme {
-    const ColorScheme colorScheme = ColorScheme.light(
+    return _buildHighContrastTheme(
       brightness: Brightness.light,
-      primary: Colors.black,
-      onPrimary: Colors.white,
-      primaryContainer: Color(0xFF000000),
-      onPrimaryContainer: Colors.white,
-      secondary: Color(0xFF000000),
-      onSecondary: Colors.white,
-      secondaryContainer: Color(0xFF000000),
-      onSecondaryContainer: Colors.white,
-      tertiary: Color(0xFF000000),
-      onTertiary: Colors.white,
-      error: Color(0xFFD32F2F),
-      onError: Colors.white,
-      errorContainer: Color(0xFFFFEBEE),
-      onErrorContainer: Color(0xFFD32F2F),
-      surface: Colors.white,
-      onSurface: Colors.black,
-      surfaceContainerHighest: Color(0xFFF5F5F5),
-      onSurfaceVariant: Colors.black,
-      outline: Colors.black,
-      outlineVariant: Colors.black,
-      shadow: Colors.black,
-      scrim: Colors.black,
-      inverseSurface: Colors.black,
-      onInverseSurface: Colors.white,
-      inversePrimary: Colors.white,
-      surfaceTint: Colors.black,
-    );
-
-    return _buildThemeFromColorScheme(
-      colorScheme,
       fontScaleFactor: null,
       isDyslexiaFriendly: false,
-    ).copyWith(
+    );
+  }
+
+  // High contrast dark theme for accessibility
+  static ThemeData get highContrastDarkTheme {
+    return _buildHighContrastTheme(
+      brightness: Brightness.dark,
+      fontScaleFactor: null,
+      isDyslexiaFriendly: false,
+    );
+  }
+
+  static ThemeData _buildHighContrastTheme({
+    required Brightness brightness,
+    double? fontScaleFactor,
+    bool isDyslexiaFriendly = false,
+  }) {
+    final colorScheme = brightness == Brightness.dark
+        ? _highContrastDarkColorScheme
+        : _highContrastLightColorScheme;
+
+    final baseTheme = _buildThemeFromColorScheme(
+      colorScheme,
+      fontScaleFactor: fontScaleFactor,
+      isDyslexiaFriendly: isDyslexiaFriendly,
+    );
+
+    final borderColor = brightness == Brightness.dark ? Colors.white : Colors.black;
+    final fillColor = brightness == Brightness.dark ? Colors.black : Colors.white;
+    final labelColor = brightness == Brightness.dark ? Colors.white : Colors.black;
+    final hintColor = brightness == Brightness.dark ? Colors.white70 : Colors.black54;
+    final errorColor = brightness == Brightness.dark
+        ? const Color(0xFFFF5252)
+        : const Color(0xFFD32F2F);
+
+    return baseTheme.copyWith(
       // Override specific themes for high contrast
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
@@ -1197,7 +1264,7 @@ class AppTheme {
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMedium),
-            side: const BorderSide(color: Colors.black, width: 2),
+            side: BorderSide(color: borderColor, width: 2),
           ),
           textStyle: _labelLarge.copyWith(fontWeight: FontWeight.bold),
           minimumSize: const Size(88, 48), // Larger minimum size for accessibility
@@ -1212,150 +1279,44 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMedium),
           ),
-          side: const BorderSide(color: Colors.black, width: 3),
+          side: BorderSide(color: borderColor, width: 3),
           textStyle: _labelLarge.copyWith(fontWeight: FontWeight.bold),
           minimumSize: const Size(88, 48),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: fillColor,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Colors.black, width: 3),
+          borderSide: BorderSide(color: borderColor, width: 3),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Colors.black, width: 3),
+          borderSide: BorderSide(color: borderColor, width: 3),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Colors.black, width: 4),
+          borderSide: BorderSide(color: borderColor, width: 4),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Color(0xFFD32F2F), width: 3),
+          borderSide: BorderSide(color: errorColor, width: 3),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Color(0xFFD32F2F), width: 4),
+          borderSide: BorderSide(color: errorColor, width: 4),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: spacing20,
           vertical: spacing16,
         ),
         labelStyle: _bodyMedium.copyWith(
-          color: Colors.black,
+          color: labelColor,
           fontWeight: FontWeight.bold,
         ),
         hintStyle: _bodyMedium.copyWith(
-          color: Colors.black54,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  // High contrast dark theme for accessibility
-  static ThemeData get highContrastDarkTheme {
-    const ColorScheme colorScheme = ColorScheme.dark(
-      brightness: Brightness.dark,
-      primary: Colors.white,
-      onPrimary: Colors.black,
-      primaryContainer: Colors.white,
-      onPrimaryContainer: Colors.black,
-      secondary: Colors.white,
-      onSecondary: Colors.black,
-      secondaryContainer: Colors.white,
-      onSecondaryContainer: Colors.black,
-      tertiary: Colors.white,
-      onTertiary: Colors.black,
-      error: Color(0xFFFF5252),
-      onError: Colors.black,
-      errorContainer: Color(0xFFFF5252),
-      onErrorContainer: Colors.black,
-      surface: Colors.black,
-      onSurface: Colors.white,
-      surfaceContainerHighest: Color(0xFF1A1A1A),
-      onSurfaceVariant: Colors.white,
-      outline: Colors.white,
-      outlineVariant: Colors.white,
-      shadow: Colors.black,
-      scrim: Colors.black,
-      inverseSurface: Colors.white,
-      onInverseSurface: Colors.black,
-      inversePrimary: Colors.black,
-      surfaceTint: Colors.white,
-    );
-
-    return _buildThemeFromColorScheme(
-      colorScheme,
-      fontScaleFactor: null,
-      isDyslexiaFriendly: false,
-    ).copyWith(
-      // Override specific themes for high contrast
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          elevation: elevation4,
-          padding: const EdgeInsets.symmetric(
-            horizontal: spacing24,
-            vertical: spacing16,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-            side: const BorderSide(color: Colors.white, width: 2),
-          ),
-          textStyle: _labelLarge.copyWith(fontWeight: FontWeight.bold),
-          minimumSize: const Size(88, 48),
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(
-            horizontal: spacing24,
-            vertical: spacing16,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMedium),
-          ),
-          side: const BorderSide(color: Colors.white, width: 3),
-          textStyle: _labelLarge.copyWith(fontWeight: FontWeight.bold),
-          minimumSize: const Size(88, 48),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.black,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Colors.white, width: 3),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Colors.white, width: 3),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Colors.white, width: 4),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Color(0xFFFF5252), width: 3),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMedium),
-          borderSide: const BorderSide(color: Color(0xFFFF5252), width: 4),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: spacing20,
-          vertical: spacing16,
-        ),
-        labelStyle: _bodyMedium.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-        hintStyle: _bodyMedium.copyWith(
-          color: Colors.white70,
+          color: hintColor,
           fontWeight: FontWeight.bold,
         ),
       ),

@@ -281,7 +281,7 @@ class _AppErrorBoundaryState extends ConsumerState<AppErrorBoundary> {
         debugPrint('🎨 Graphics System Error Suppressed (non-critical): ${details.exception}');
         return;
       }
-
+      
       // Check for framework assertion errors and handle them gracefully
       if (_isFrameworkAssertionError(errorString)) {
         debugPrint('🔧 Framework Assertion Error: ${details.exception}');
@@ -316,9 +316,9 @@ class _AppErrorBoundaryState extends ConsumerState<AppErrorBoundary> {
 
   bool _isOverflowError(String error) {
     final errorLower = error.toLowerCase();
-    return (errorLower.contains('renderflex') &&
+    return (errorLower.contains('renderflex') && 
            errorLower.contains('overflow')) ||
-           (errorLower.contains('overflow') &&
+           (errorLower.contains('overflow') && 
             (errorLower.contains('pixels') || errorLower.contains('bottom'))) ||
            errorLower.contains('cannot hit test a render box with no size') ||
            (errorLower.contains('renderbox') && errorLower.contains('size')) ||

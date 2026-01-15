@@ -331,14 +331,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             backgroundColor: Colors.green,
           ),
         );
-
+        
         // Navigate to login screen
         context.go('/login');
       }
     } catch (e) {
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
-
+      
       // Speak error message (only if TTS is enabled)
       try {
         final accessibilityState = ref.read(accessibilityNotifierProvider);
@@ -349,7 +349,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       } catch (e) {
         // Ignore TTS errors
       }
-
+      
       // Show error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

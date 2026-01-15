@@ -126,15 +126,15 @@ class OhyoCardMedia extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (context) => VideoGallery(
-                      videoUrls: videoUrls,
-                      title: '${ohyo.name} - Videos',
-                      kataId: ohyo.id,
+                videoUrls: videoUrls,
+                          title: '${ohyo.name} - Videos',
+                          kataId: ohyo.id,
                     ),
                   ),
                 );
               }
             },
-            child: _buildMainMediaDisplay(context, hasImages, hasVideos, ohyoImages, videoUrls),
+                child: _buildMainMediaDisplay(context, hasImages, hasVideos, ohyoImages, videoUrls),
           ),
 
         // Navigation buttons - stacked vertically for full width

@@ -37,6 +37,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   bool _isSignupLoading = false;
   String? _loginError;
   String? _signupError;
+  bool _accessibilityListenerSet = false;
 
 
 
@@ -62,21 +63,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       _readPageContent();
     });
 
-    // Also listen to accessibility state changes and retry autoread if needed
-    ref.listen<AccessibilityState>(accessibilityNotifierProvider, (previous, next) {
-      // If TTS was just enabled and we're on this screen, try autoread again
-      if (previous != null &&
-          !previous.isTextToSpeechEnabled &&
-          next.isTextToSpeechEnabled &&
-          mounted) {
-        debugPrint('AuthScreen TTS: TTS was just enabled, retrying autoread');
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _retryAutoReadIfNeeded();
-          }
-        });
-      }
-    });
   }
   
   /// Read the current page content using TTS
@@ -84,22 +70,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     try {
       // Add a small delay to ensure the screen is fully rendered
       await Future.delayed(const Duration(milliseconds: 1000)); // Increased delay
-
+      if (!mounted) return;
+      
       final accessibilityState = ref.read(accessibilityNotifierProvider);
 
       // Debug: Check TTS state
       debugPrint('AuthScreen TTS: isTextToSpeechEnabled = ${accessibilityState.isTextToSpeechEnabled}');
       debugPrint('AuthScreen TTS: showTTSButton = ${accessibilityState.showTTSButton}');
-
+      
       // Only proceed if TTS is enabled
       if (!accessibilityState.isTextToSpeechEnabled) {
         debugPrint('AuthScreen TTS: TTS is not enabled, skipping auto-read');
         return;
       }
-
+      
       // Read only the relevant auth screen content, not the entire screen
       await readAuthScreenContent();
-
+      
     } catch (e) {
       debugPrint('AuthScreen TTS Error: $e');
       // Don't rethrow the error to prevent screen from crashing
@@ -458,10 +445,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   width: double.infinity,
                   height: 40,
                   child: TextButton(
-                    onPressed: () => _tabController.animateTo(1),
-                    child: Semantics(
-                      label: 'Registreren knop om een nieuw account aan te maken',
-                      child: const Text('Registreren'),
+                  onPressed: () => _tabController.animateTo(1),
+                  child: Semantics(
+                    label: 'Registreren knop om een nieuw account aan te maken',
+                    child: const Text('Registreren'),
                     ),
                   ),
                 ),
@@ -632,10 +619,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                   width: double.infinity,
                   height: 40,
                   child: TextButton(
-                    onPressed: () => _tabController.animateTo(0),
-                    child: Semantics(
-                      label: 'Inloggen knop om naar de inlogpagina te gaan',
-                      child: const Text('Inloggen'),
+                  onPressed: () => _tabController.animateTo(0),
+                  child: Semantics(
+                    label: 'Inloggen knop om naar de inlogpagina te gaan',
+                    child: const Text('Inloggen'),
                     ),
                   ),
                 ),
@@ -649,6 +636,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!_accessibilityListenerSet) {
+      ref.listen<AccessibilityState>(accessibilityNotifierProvider, (previous, next) {
+        // If TTS was just enabled and we're on this screen, try autoread again
+        if (previous != null &&
+            !previous.isTextToSpeechEnabled &&
+            next.isTextToSpeechEnabled &&
+            mounted) {
+          debugPrint('AuthScreen TTS: TTS was just enabled, retrying autoread');
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _retryAutoReadIfNeeded();
+            }
+          });
+        }
+      });
+      _accessibilityListenerSet = true;
+    }
+
     // Listen to auth state changes for automatic navigation
     ref.listen<AuthState>(authNotifierProvider, (previous, next) {
       if (next.isAuthenticated && mounted && context.mounted) {
