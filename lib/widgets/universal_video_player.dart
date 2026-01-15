@@ -442,35 +442,40 @@ class _UniversalVideoPlayerState extends State<_UniversalVideoPlayerWidget> {
       return Container(
         height: 200,
         color: Colors.black,
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.wifi_off,
-                color: Colors.white,
-                size: 48,
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Video alleen beschikbaar online',
-                style: TextStyle(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.wifi_off,
                   color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  size: 48,
                 ),
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Ga online om video\'s te bekijken',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
+                SizedBox(height: 16),
+                Text(
+                  'Video alleen beschikbaar online',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  softWrap: true,
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                SizedBox(height: 8),
+                Text(
+                  'Ga online om video\'s te bekijken',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -489,45 +494,54 @@ class _UniversalVideoPlayerState extends State<_UniversalVideoPlayerWidget> {
         height: 200,
         color: Colors.black,
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                color: Colors.white,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _isOfflineMode && !_isCachedLocally
-                    ? 'Video niet beschikbaar offline'
-                    : 'Laden video...',
-                style: const TextStyle(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(
                   color: Colors.white,
-                  fontSize: 14,
                 ),
-              ),
-              if (_isOfflineMode && _isCachedLocally)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Offline versie beschikbaar',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
+                const SizedBox(height: 16),
+                Text(
+                  _isOfflineMode && !_isCachedLocally
+                      ? 'Video niet beschikbaar offline'
+                      : 'Laden video...',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                ),
+                if (_isOfflineMode && _isCachedLocally)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Offline versie beschikbaar',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
                     ),
                   ),
-                ),
-              if (_isOfflineMode && !_isCachedLocally)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    'Maak verbinding met internet',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
+                if (_isOfflineMode && !_isCachedLocally)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Maak verbinding met internet',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                      softWrap: true,
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       );

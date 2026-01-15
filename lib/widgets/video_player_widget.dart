@@ -336,63 +336,67 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
           ),
         ),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.wifi_off_outlined,
-                color: isDark ? theme.colorScheme.primary : Colors.blue[600],
-                size: 48,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Video niet beschikbaar offline',
-                style: TextStyle(
-                  color: isDark ? theme.colorScheme.onSurface : Colors.black87,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.wifi_off_outlined,
+                  color: isDark ? theme.colorScheme.primary : Colors.blue[600],
+                  size: 48,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Deze video is alleen beschikbaar met internetverbinding. Maak verbinding met internet om deze video te bekijken.',
+                const SizedBox(height: 16),
+                Text(
+                  'Video niet beschikbaar offline',
+                  style: TextStyle(
+                    color: isDark ? theme.colorScheme.onSurface : Colors.black87,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Deze video is alleen beschikbaar met internetverbinding. '
+                  'Maak verbinding met internet om deze video te bekijken.',
                   style: TextStyle(
                     color: isDark ? theme.colorScheme.onSurfaceVariant : Colors.black54,
                     fontSize: 14,
                   ),
                   textAlign: TextAlign.center,
+                  softWrap: true,
                 ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isDark ? theme.colorScheme.primaryContainer : Colors.blue[50],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: isDark ? theme.colorScheme.primary : Colors.blue[600],
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Online beschikbaar',
-                      style: TextStyle(
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isDark ? theme.colorScheme.primaryContainer : Colors.blue[50],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
                         color: isDark ? theme.colorScheme.primary : Colors.blue[600],
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        size: 16,
                       ),
-                    ),
-                  ],
+                      Text(
+                        'Online beschikbaar',
+                        style: TextStyle(
+                          color: isDark ? theme.colorScheme.primary : Colors.blue[600],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
