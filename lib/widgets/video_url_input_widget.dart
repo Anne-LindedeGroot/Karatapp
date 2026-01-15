@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/accessibility_provider.dart';
 import 'error_boundary.dart';
+import 'enhanced_accessible_text.dart';
 
 class VideoUrlInputWidget extends StatefulWidget {
   final List<String> videoUrls;
@@ -240,7 +241,7 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               const SizedBox(height: 16),
             
             // URL Input Field
-            TextFormField(
+            EnhancedAccessibleTextField(
               controller: _urlController,
               decoration: const InputDecoration(
                 labelText: 'Voer video URL in',
@@ -250,7 +251,8 @@ class _VideoUrlInputWidgetState extends State<VideoUrlInputWidget> {
               ),
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _addUrl(),
+              onSubmitted: (_) => _addUrl(),
+              customTTSLabel: 'Video URL invoerveld',
             ),
             
             const SizedBox(height: 16),

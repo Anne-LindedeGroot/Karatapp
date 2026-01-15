@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/ohyo_provider.dart';
+import '../providers/accessibility_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/enhanced_accessible_text.dart';
 import '../core/navigation/app_router.dart';
@@ -32,6 +33,9 @@ class _CreateOhyoScreenState extends ConsumerState<CreateOhyoScreen> {
     _descriptionController = TextEditingController();
     _styleController = TextEditingController();
     _urlController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakScreenContent();
+    });
   }
 
   @override
@@ -81,6 +85,34 @@ class _CreateOhyoScreenState extends ConsumerState<CreateOhyoScreen> {
     setState(() {
       _videoUrls.remove(url);
     });
+  }
+
+  Future<void> _speakScreenContent() async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+    if (!accessibilityState.isTextToSpeechEnabled || !mounted) {
+      return;
+    }
+
+    final content = _buildScreenContentText();
+    await accessibilityNotifier.speak(content);
+  }
+
+  String _buildScreenContentText() {
+    final parts = <String>[
+      'Nieuwe ohyo maken',
+      'Ohyo informatie sectie',
+      'Ohyo naam invoerveld',
+      'Stijl invoerveld',
+      'Beschrijving invoerveld',
+      'Afbeeldingen en videos sectie',
+      'Knoppen voor galerij en camera',
+      'Video URL invoerveld',
+      'Gebruik de ohyo aanmaken knop om op te slaan',
+    ];
+
+    return parts.join('. ');
   }
 
   Future<void> _createOhyo() async {
@@ -183,6 +215,7 @@ class _CreateOhyoScreenState extends ConsumerState<CreateOhyoScreen> {
           'Video URL\'s Toevoegen',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         const SizedBox(height: 16),
@@ -191,15 +224,16 @@ class _CreateOhyoScreenState extends ConsumerState<CreateOhyoScreen> {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 8),
-        TextFormField(
+        EnhancedAccessibleTextField(
           controller: _urlController,
           decoration: const InputDecoration(
             hintText: 'https://www.youtube.com/watch?v=...',
             border: OutlineInputBorder(),
             prefixIcon: Icon(Icons.link),
           ),
-          onFieldSubmitted: _addVideoUrl,
+          onSubmitted: _addVideoUrl,
           textInputAction: TextInputAction.done,
+          customTTSLabel: 'Video URL invoerveld',
         ),
         if (_videoUrls.isNotEmpty) ...[
           const SizedBox(height: 16),

@@ -49,6 +49,9 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     _nameController.addListener(_onTextChanged);
     _descriptionController.addListener(_onTextChanged);
     _styleController.addListener(_onTextChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakScreenContent();
+    });
   }
 
   @override
@@ -65,6 +68,39 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
     setState(() {
       _hasChanges = true;
     });
+  }
+
+  Future<void> _speakScreenContent() async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+    if (!accessibilityState.isTextToSpeechEnabled || !mounted) {
+      return;
+    }
+
+    final content = _buildScreenContentText();
+    await accessibilityNotifier.speak(content);
+  }
+
+  String _buildScreenContentText() {
+    final parts = <String>[
+      'Kata bewerken',
+      'Kata naam invoerveld. Huidige waarde: ${_truncateText(_nameController.text)}',
+      'Stijl invoerveld. Huidige waarde: ${_truncateText(_styleController.text)}',
+      'Beschrijving invoerveld. Huidige waarde: ${_truncateText(_descriptionController.text)}',
+      'Afbeeldingen beheren en volgorde aanpassen',
+      'Video URLs beheren. Aantal URLs: ${_videoUrls.length}',
+      'Gebruik de opslaan knop om wijzigingen op te slaan',
+    ];
+
+    return parts.join('. ');
+  }
+
+  String _truncateText(String text, [int max = 100]) {
+    if (text.trim().isEmpty) return 'leeg';
+    final trimmed = text.trim();
+    if (trimmed.length <= max) return trimmed;
+    return '${trimmed.substring(0, max)}...';
   }
 
   void _removeExistingImage(int index) {
@@ -115,42 +151,6 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
         }
         _originalImageUrls = List.from(_currentImageUrls); // Store original URLs
       });
-    }
-  }
-
-  /// Apply Cho-in sequence sorting to current images
-  Future<void> _applyChoInSequence() async {
-    if (_currentImageUrls.isEmpty) return;
-
-    setState(() {
-      _currentImageUrls = _sortImagesByChoInSequence(_currentImageUrls);
-    });
-
-    // Save the new order immediately
-    try {
-      await ref.read(kataNotifierProvider.notifier).updateKataImageUrls(
-        kataId: widget.kata.id,
-        imageUrls: _currentImageUrls,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Afbeeldingen gesorteerd volgens Cho-in volgorde'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Failed to save Cho-in sequence: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Fout bij opslaan van volgorde'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
@@ -766,14 +766,15 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
               customTTSText: 'Veld voor het toevoegen van een nieuwe video URL',
             ),
             const SizedBox(height: 8),
-            TextFormField(
+            EnhancedAccessibleTextField(
               controller: _newUrlController,
               maxLines: 1,
               decoration: const InputDecoration(
                 hintText: 'https://www.youtube.com/watch?v=... (druk op Enter om toe te voegen)',
                 border: OutlineInputBorder(),
               ),
-              onFieldSubmitted: _addVideoUrl,
+              onSubmitted: _addVideoUrl,
+              customTTSLabel: 'Video URL invoerveld',
             ),
 
             if (_videoUrls.isNotEmpty) ...[
@@ -1119,6 +1120,9 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                                     fontWeight: FontWeight.bold,
                                     color: Theme.of(context).colorScheme.primary,
                                   ),
+                                  overflow: TextOverflow.visible,
+                                  maxLines: 2,
+                                  softWrap: true,
                                   customTTSText: '${_currentImageUrls.length} ${_currentImageUrls.length == 1 ? 'huidige afbeelding' : 'huidige afbeeldingen'}',
                                 ),
                               ),
@@ -1164,44 +1168,24 @@ class _EditKataScreenState extends ConsumerState<EditKataScreen> {
                 _buildSimpleVideoUrlSection(),
                 const SizedBox(height: 16),
 
-                // Sort by Cho-in Sequence Button (only for Cho-in katas)
-                if ((widget.kata.name.toLowerCase().contains('choin') ||
-                     widget.kata.name.toLowerCase().contains('cho-in')) &&
-                    _currentImageUrls.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _isLoading ? null : _applyChoInSequence,
-                      icon: const Icon(Icons.sort),
-                      label: const Text('Sorteer volgens Cho-in volgorde'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                // Save Button - Always visible
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _saveChanges,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      backgroundColor: _hasChanges ? Colors.blue : Colors.grey,
                     ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator()
+                        : Text(
+                            _hasChanges ? 'Wijzigingen Opslaan' : 'Geen Wijzigingen',
+                            style: const TextStyle(fontSize: 16),
+                          ),
                   ),
-                ],
-
-                // Save Button
-                if (_hasChanges) ...[
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _saveChanges,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.blue,
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator()
-                          : const Text(
-                              'Wijzigingen Opslaan',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                    ),
-                  ),
-                ],
+                ),
 
                 // Additional spacing
                 const SizedBox(height: 80),

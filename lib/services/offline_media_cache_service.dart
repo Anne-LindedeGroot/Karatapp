@@ -117,7 +117,16 @@ class OfflineMediaCacheService {
       // Try to read metadata file first
       final metadataFile = File('${_imagesDir!.path}/ohyo_metadata.json');
       if (await metadataFile.exists()) {
-        final metadata = json.decode(await metadataFile.readAsString());
+        Map<String, dynamic> metadata = {};
+        try {
+          metadata = json.decode(await metadataFile.readAsString()) as Map<String, dynamic>;
+        } catch (e) {
+          // Corrupted metadata; remove it so future reads don't keep failing
+          try {
+            await metadataFile.delete();
+          } catch (_) {}
+          metadata = {};
+        }
         final ohyoKey = ohyoId.toString();
         if (metadata.containsKey(ohyoKey)) {
           final fileNames = metadata[ohyoKey] as List<dynamic>;
@@ -456,7 +465,12 @@ class OfflineMediaCacheService {
       Map<String, dynamic> metadata = {};
 
       if (await metadataFile.exists()) {
-        metadata = json.decode(await metadataFile.readAsString());
+        try {
+          metadata = json.decode(await metadataFile.readAsString()) as Map<String, dynamic>;
+        } catch (_) {
+          // Corrupted metadata; reset to avoid repeated decode errors
+          metadata = {};
+        }
       }
 
       final ohyoKey = ohyoId.toString();
@@ -521,7 +535,12 @@ class OfflineMediaCacheService {
       // Remove from metadata
       final metadataFile = File('${_imagesDir!.path}/ohyo_metadata.json');
       if (await metadataFile.exists()) {
-        final metadata = json.decode(await metadataFile.readAsString()) as Map<String, dynamic>;
+        Map<String, dynamic> metadata = {};
+        try {
+          metadata = json.decode(await metadataFile.readAsString()) as Map<String, dynamic>;
+        } catch (_) {
+          metadata = {};
+        }
         if (metadata.containsKey(ohyoId.toString())) {
           metadata.remove(ohyoId.toString());
           await metadataFile.writeAsString(json.encode(metadata));
@@ -704,7 +723,12 @@ class OfflineMediaCacheService {
         // Load ohyo metadata
         final ohyoMetadataFile = File('${_imagesDir!.path}/ohyo_metadata.json');
         if (await ohyoMetadataFile.exists()) {
-          final ohyoMetadata = json.decode(await ohyoMetadataFile.readAsString()) as Map<String, dynamic>;
+        Map<String, dynamic> ohyoMetadata = {};
+        try {
+          ohyoMetadata = json.decode(await ohyoMetadataFile.readAsString()) as Map<String, dynamic>;
+        } catch (_) {
+          ohyoMetadata = {};
+        }
           for (final entry in ohyoMetadata.entries) {
             final ohyoId = entry.key;
             final fileNames = entry.value;

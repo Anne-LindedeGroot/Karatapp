@@ -6,6 +6,7 @@ import '../providers/kata_provider.dart';
 import '../utils/image_utils.dart';
 import '../widgets/video_url_input_widget.dart';
 import '../widgets/enhanced_accessible_text.dart';
+import '../providers/accessibility_provider.dart';
 
 class CreateKataScreen extends ConsumerStatefulWidget {
   const CreateKataScreen({super.key});
@@ -30,6 +31,9 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
     _nameController = TextEditingController();
     _descriptionController = TextEditingController();
     _styleController = TextEditingController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakScreenContent();
+    });
   }
 
   @override
@@ -62,6 +66,34 @@ class _CreateKataScreenState extends ConsumerState<CreateKataScreen> {
     setState(() {
       _selectedImages.removeAt(index);
     });
+  }
+
+  Future<void> _speakScreenContent() async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+    if (!accessibilityState.isTextToSpeechEnabled || !mounted) {
+      return;
+    }
+
+    final content = _buildScreenContentText();
+    await accessibilityNotifier.speak(content);
+  }
+
+  String _buildScreenContentText() {
+    final parts = <String>[
+      'Nieuwe kata maken',
+      'Kata informatie sectie',
+      'Kata naam invoerveld',
+      'Stijl invoerveld',
+      'Beschrijving invoerveld',
+      'Afbeeldingen en videos sectie',
+      'Knoppen voor galerij en camera',
+      'Video URLs toevoegen',
+      'Gebruik de kata aanmaken knop om op te slaan',
+    ];
+
+    return parts.join('. ');
   }
 
 

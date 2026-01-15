@@ -6,6 +6,8 @@ import '../models/ohyo_model.dart';
 import '../providers/ohyo_provider.dart';
 import '../utils/image_utils.dart';
 import '../core/navigation/app_router.dart';
+import '../widgets/enhanced_accessible_text.dart';
+import '../providers/accessibility_provider.dart';
 
 class EditOhyoScreen extends ConsumerStatefulWidget {
   final Ohyo ohyo;
@@ -47,6 +49,9 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
     _nameController.addListener(_onTextChanged);
     _descriptionController.addListener(_onTextChanged);
     _styleController.addListener(_onTextChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakScreenContent();
+    });
   }
 
   @override
@@ -63,6 +68,39 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
     setState(() {
       _hasChanges = true;
     });
+  }
+
+  Future<void> _speakScreenContent() async {
+    final accessibilityState = ref.read(accessibilityNotifierProvider);
+    final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
+
+    if (!accessibilityState.isTextToSpeechEnabled || !mounted) {
+      return;
+    }
+
+    final content = _buildScreenContentText();
+    await accessibilityNotifier.speak(content);
+  }
+
+  String _buildScreenContentText() {
+    final parts = <String>[
+      'Ohyo bewerken',
+      'Ohyo naam invoerveld. Huidige waarde: ${_truncateText(_nameController.text)}',
+      'Stijl invoerveld. Huidige waarde: ${_truncateText(_styleController.text)}',
+      'Beschrijving invoerveld. Huidige waarde: ${_truncateText(_descriptionController.text)}',
+      'Afbeeldingen beheren en volgorde aanpassen',
+      'Video URLs beheren. Aantal URLs: ${_videoUrls.length}',
+      'Gebruik de opslaan knop om wijzigingen op te slaan',
+    ];
+
+    return parts.join('. ');
+  }
+
+  String _truncateText(String text, [int max = 100]) {
+    if (text.trim().isEmpty) return 'leeg';
+    final trimmed = text.trim();
+    if (trimmed.length <= max) return trimmed;
+    return '${trimmed.substring(0, max)}...';
   }
 
   void _removeExistingImage(int index) {
@@ -274,7 +312,7 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
+            EnhancedAccessibleTextField(
               controller: _newUrlController,
               decoration: const InputDecoration(
                 labelText: 'Video URL',
@@ -282,6 +320,7 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
                 border: OutlineInputBorder(),
               ),
               onSubmitted: (_) => _addVideoUrl(),
+              customTTSLabel: 'Video URL invoerveld',
             ),
             if (_videoUrls.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -490,33 +529,36 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Name Field
-              TextField(
+              EnhancedAccessibleTextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: 'Ohyo Naam',
                   border: OutlineInputBorder(),
                 ),
+                customTTSLabel: 'Ohyo naam invoerveld',
               ),
               const SizedBox(height: 16),
 
               // Style Field
-              TextField(
+              EnhancedAccessibleTextField(
                 controller: _styleController,
                 decoration: const InputDecoration(
                   labelText: 'Stijl',
                   border: OutlineInputBorder(),
                 ),
+                customTTSLabel: 'Stijl invoerveld',
               ),
               const SizedBox(height: 16),
 
               // Description Field
-              TextField(
+              EnhancedAccessibleTextField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
                   labelText: 'Beschrijving',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 5,
+                customTTSLabel: 'Beschrijving invoerveld',
               ),
               const SizedBox(height: 16),
 
