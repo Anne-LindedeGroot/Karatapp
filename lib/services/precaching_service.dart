@@ -13,6 +13,18 @@ class PreCachingService {
   static const Duration _cacheInterval = Duration(hours: 6); // Cache every 6 hours
   static const Duration _initialDelay = Duration(seconds: 30); // Start after 30 seconds
 
+  static bool _isRefMounted(dynamic ref) {
+    try {
+      final mounted = ref.mounted;
+      if (mounted is bool) {
+        return mounted;
+      }
+    } catch (_) {
+      // Ref doesn't expose mounted, assume valid
+    }
+    return true;
+  }
+
   /// Initialize the pre-caching service
   static void initialize() {
     // Start background caching after initial delay
@@ -60,6 +72,7 @@ class PreCachingService {
   /// Pre-cache all kata images
   static Future<void> preCacheAllKataImages(dynamic ref) async {
     try {
+      if (!_isRefMounted(ref)) return;
       // Check network status
       final networkState = ref.read(networkProvider);
       if (!networkState.isConnected) {
@@ -87,15 +100,21 @@ class PreCachingService {
 
       // Pre-cache images for each kata
       for (final kata in allKatas) {
+        if (!_isRefMounted(ref)) return;
         if (kata.imageUrls != null && kata.imageUrls!.isNotEmpty) {
           // Silent: Kata caching info not logged
 
           final successfullyCachedUrls = <String>[];
           for (final imageUrl in kata.imageUrls!) {
+            if (!_isRefMounted(ref)) return;
             try {
               final cachedPath = await OfflineMediaCacheService.cacheMediaFile(imageUrl, false, ref);
               if (cachedPath != null) {
                 successfullyCachedUrls.add(imageUrl);
+              }
+              final fileName = _extractFileNameFromUrl(imageUrl);
+              if (fileName != null) {
+                await OfflineMediaCacheService.cacheKataImage(kata.id, fileName, imageUrl, ref);
               }
             } catch (e) {
               debugPrint('❌ Failed to cache image $imageUrl: $e');
@@ -119,6 +138,7 @@ class PreCachingService {
   /// Pre-cache all ohyo images
   static Future<void> preCacheAllOhyoImages(dynamic ref) async {
     try {
+      if (!_isRefMounted(ref)) return;
       // Check network status
       final networkState = ref.read(networkProvider);
       if (!networkState.isConnected) {
@@ -148,10 +168,12 @@ class PreCachingService {
 
       // Pre-cache images for each ohyo
       for (final ohyo in allOhyos) {
+        if (!_isRefMounted(ref)) return;
         if (ohyo.imageUrls != null && ohyo.imageUrls!.isNotEmpty) {
           debugPrint('📸 Caching images for ohyo: ${ohyo.name} (${ohyo.imageUrls!.length} images)');
 
           for (final imageUrl in ohyo.imageUrls!) {
+            if (!_isRefMounted(ref)) return;
             totalImages++;
             try {
               // For ohyo images, we need filename from URL to use stable caching
@@ -202,5 +224,15 @@ class PreCachingService {
   static Future<void> forcePreCacheAll(dynamic ref) async {
     debugPrint('🔄 Force pre-caching all media...');
     await preCacheAllMedia(ref);
+  }
+
+  static String? _extractFileNameFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        return uri.pathSegments.last;
+      }
+    } catch (_) {}
+    return null;
   }
 }

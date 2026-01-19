@@ -32,6 +32,27 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
   bool _isOfflineError = false;
   bool _isDisposed = false;
 
+  bool _hasCachedKataImage(String url) {
+    if (OfflineMediaCacheService.getCachedFilePath(url, false) != null) {
+      return true;
+    }
+    final fileName = _extractFileNameFromUrl(url);
+    if (fileName != null) {
+      return OfflineMediaCacheService.getCachedKataImagePath(widget.kata.id, fileName) != null;
+    }
+    return false;
+  }
+
+  String? _extractFileNameFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        return uri.pathSegments.last;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -370,9 +391,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
               Consumer(
                 builder: (context, ref, child) {
                   // Check offline availability for images
-                  final offlineAvailable = kataImages.any((url) =>
-                    OfflineMediaCacheService.getCachedFilePath(url, false) != null
-                  );
+                  final offlineAvailable = kataImages.any(_hasCachedKataImage);
 
                   return OverflowSafeButton(
                     onPressed: () {
@@ -552,7 +571,19 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
 
                   if (snapshot.hasError) {
                     // Check if we have cached images available before showing error
-                    final cachedPath = OfflineMediaCacheService.getCachedFilePath(imageUrls.first, false);
+                    String? cachedPath;
+                    if (_hasCachedKataImage(imageUrls.first)) {
+                      cachedPath = OfflineMediaCacheService.getCachedFilePath(imageUrls.first, false);
+                      if (cachedPath == null) {
+                        final fileName = _extractFileNameFromUrl(imageUrls.first);
+                        if (fileName != null) {
+                          cachedPath = OfflineMediaCacheService.getCachedKataImagePath(
+                            widget.kata.id,
+                            fileName,
+                          );
+                        }
+                      }
+                    }
                     if (cachedPath != null) {
                       debugPrint('Found cached image despite error, using: $cachedPath');
                       final isLocalFile = cachedPath.startsWith('/') || cachedPath.startsWith('file://');

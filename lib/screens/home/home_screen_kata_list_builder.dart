@@ -4,6 +4,7 @@ import '../../widgets/collapsible_kata_card.dart';
 import '../../widgets/responsive_layout.dart';
 import '../../providers/kata_provider.dart';
 import '../../utils/responsive_utils.dart';
+import '../../desktop/desktop_kata_grid.dart';
 
 /// Home Screen Kata List Builder - Handles building responsive kata lists
 class HomeScreenKataListBuilder {
@@ -129,51 +130,21 @@ class HomeScreenKataListBuilder {
 
   /// Build desktop grid
   static Widget _buildDesktopGrid(BuildContext context, List<dynamic> katas, Function(int kataId, String kataName) onDelete) {
-    return ResponsiveGrid(
-      maxColumns: 3,
-      padding: EdgeInsets.only(
-        bottom: ResponsiveUtils.responsiveButtonHeight(context) +
-                context.responsiveSpacing(SpacingSize.lg),
-      ),
-      mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-      crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-      childAspectRatio: 0.9,
-      shrinkWrap: false,
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: katas
-          .map(
-            (kata) => CollapsibleKataCard(
-              kata: kata,
-              onDelete: () => onDelete(kata.id, kata.name),
-              useAdaptiveWidth: false,
-            ),
-          )
-          .toList(),
+    return DesktopKataGrid(
+      katas: katas,
+      onDelete: onDelete,
+      isLargeDesktop: false,
+      useAdaptiveWidth: false,
     );
   }
 
   /// Build large desktop grid
   static Widget _buildLargeDesktopGrid(BuildContext context, List<dynamic> katas, Function(int kataId, String kataName) onDelete) {
-    return ResponsiveGrid(
-      maxColumns: 4,
-      padding: EdgeInsets.only(
-        bottom: ResponsiveUtils.responsiveButtonHeight(context) +
-                context.responsiveSpacing(SpacingSize.lg),
-      ),
-      mainAxisSpacing: context.responsiveSpacing(SpacingSize.lg),
-      crossAxisSpacing: context.responsiveSpacing(SpacingSize.lg),
-      childAspectRatio: 1.0,
-      shrinkWrap: false,
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: katas
-          .map(
-            (kata) => CollapsibleKataCard(
-              kata: kata,
-              onDelete: () => onDelete(kata.id, kata.name),
-              useAdaptiveWidth: false,
-            ),
-          )
-          .toList(),
+    return DesktopKataGrid(
+      katas: katas,
+      onDelete: onDelete,
+      isLargeDesktop: true,
+      useAdaptiveWidth: false,
     );
   }
 }

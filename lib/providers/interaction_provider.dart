@@ -10,6 +10,7 @@ import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'auth_provider.dart';
 import 'offline_services_provider.dart';
+import 'network_provider.dart';
 
 // Provider for the InteractionService instance
 final interactionServiceProvider = Provider<InteractionService>((ref) {
@@ -353,6 +354,8 @@ class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
+      final networkState = _ref.read(networkProvider);
+
       // Load cached like count for offline visibility
       final cachedPost = app_storage.LocalStorage.getForumPost(forumPostId.toString());
       if (cachedPost != null) {
@@ -361,6 +364,11 @@ class ForumInteractionNotifier extends StateNotifier<ForumInteractionState> {
           isLoading: true,
           error: null,
         );
+      }
+
+      if (!networkState.isConnected) {
+        state = state.copyWith(isLoading: false, error: null);
+        return;
       }
 
       // Load likes and favorites in parallel

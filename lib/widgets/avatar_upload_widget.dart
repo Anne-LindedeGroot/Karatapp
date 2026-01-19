@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../models/avatar_model.dart';
 import '../providers/avatar_provider.dart';
 import '../services/avatar_service.dart';
+import '../desktop/desktop_camera_screen.dart';
+import '../desktop/desktop_avatar_utils.dart';
 import 'avatar_widget.dart';
 
 class AvatarUploadWidget extends ConsumerStatefulWidget {
@@ -26,6 +28,8 @@ class AvatarUploadWidget extends ConsumerStatefulWidget {
 class _AvatarUploadWidgetState extends ConsumerState<AvatarUploadWidget> {
   final ImagePicker _picker = ImagePicker();
   bool _isUploading = false;
+  bool get _isDesktopPlatform =>
+      DesktopAvatarUtils.isDesktopPlatform();
 
   @override
   Widget build(BuildContext context) {
@@ -255,12 +259,20 @@ class _AvatarUploadWidgetState extends ConsumerState<AvatarUploadWidget> {
         onPresetSelected: _showPresetAvatars,
         onDeleteSelected: _deleteCustomAvatar,
         hasCustomAvatar: ref.read(userAvatarProvider).value?.type == AvatarType.custom,
+        isDesktopPlatform: _isDesktopPlatform,
       ),
     );
   }
 
   Future<void> _pickImageFromCamera() async {
     Navigator.pop(context);
+    if (_isDesktopPlatform) {
+      final imageFile = await DesktopCameraScreen.capture(context);
+      if (imageFile != null) {
+        await _uploadImage(imageFile);
+      }
+      return;
+    }
     final XFile? image = await _picker.pickImage(
       source: ImageSource.camera,
       maxWidth: 800,
@@ -396,6 +408,7 @@ class AvatarOptionsBottomSheet extends StatelessWidget {
   final VoidCallback onPresetSelected;
   final VoidCallback onDeleteSelected;
   final bool hasCustomAvatar;
+  final bool isDesktopPlatform;
 
   const AvatarOptionsBottomSheet({
     super.key,
@@ -404,6 +417,7 @@ class AvatarOptionsBottomSheet extends StatelessWidget {
     required this.onPresetSelected,
     required this.onDeleteSelected,
     required this.hasCustomAvatar,
+    required this.isDesktopPlatform,
   });
 
   @override
@@ -433,7 +447,9 @@ class AvatarOptionsBottomSheet extends StatelessWidget {
             context,
             icon: Icons.camera_alt,
             title: 'Take Photo',
-            subtitle: 'Use camera to take a new photo',
+            subtitle: isDesktopPlatform
+                ? 'Desktop gebruikt galerij om een foto te kiezen'
+                : 'Use camera to take a new photo',
             onTap: onCameraSelected,
           ),
           _buildOption(

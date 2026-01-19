@@ -365,7 +365,10 @@ class ForumNotifier extends StateNotifier<ForumState> {
     // First, try to load from cache if available
     if (_offlineForumService != null) {
       try {
-        final cachedPost = await _offlineForumService!.getCachedIndividualPost(postId);
+        final cachedPost = await _offlineForumService!.getCachedIndividualPost(
+          postId,
+          allowExpired: !isOnline,
+        );
         if (cachedPost != null) {
           state = state.copyWith(selectedPost: cachedPost);
           // Try to refresh from online in the background if we're online
@@ -443,6 +446,7 @@ class ForumNotifier extends StateNotifier<ForumState> {
           postId,
           limit: limit,
           offset: offset,
+          allowExpired: !isOnline,
         );
         if (cachedComments != null && cachedComments.isNotEmpty) {
           // Try to refresh from online in the background if we're online

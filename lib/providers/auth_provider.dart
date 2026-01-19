@@ -250,6 +250,36 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    if (email.trim().isEmpty) {
+      throw Exception('Vul een e-mailadres in');
+    }
+    try {
+      await _authService.sendPasswordResetEmail(email.trim());
+    } catch (e) {
+      final errorMessage = e.toString();
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportAuthError(errorMessage);
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> updatePassword(String newPassword) async {
+    if (newPassword.trim().length < 6) {
+      throw Exception('Wachtwoord moet minimaal 6 tekens zijn');
+    }
+    try {
+      await _authService.updatePassword(newPassword.trim());
+    } catch (e) {
+      final errorMessage = e.toString();
+      if (!_isNetworkError(e)) {
+        _errorBoundary.reportAuthError(errorMessage);
+      }
+      rethrow;
+    }
+  }
+
   Future<void> updateUserName(String name) async {
     state = state.copyWith(isLoading: true, error: null);
     

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'desktop/desktop_camera_bootstrap.dart';
 import 'dart:ui' as ui;
 import 'supabase_client.dart';
 import 'config/environment.dart';
@@ -31,6 +32,9 @@ SharedPreferences getSharedPreferences() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Desktop camera delegate: image_picker uses this for ImageSource.camera
+  configureDesktopImagePickerCameraDelegate();
 
   // 🔑 CRITICAL: Initialize SharedPreferences FIRST (needed by providers)
   try {

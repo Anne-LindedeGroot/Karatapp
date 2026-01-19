@@ -7,6 +7,7 @@ import '../../widgets/responsive_layout.dart';
 import '../../widgets/collapsible_kata_card.dart';
 import '../../widgets/modern_loading_widget.dart';
 import '../../providers/precaching_provider.dart';
+import '../../desktop/desktop_kata_grid.dart';
 
 /// Home Kata List - Handles kata list building and display
 class HomeKataList extends ConsumerStatefulWidget {
@@ -57,6 +58,17 @@ class _HomeKataListState extends ConsumerState<HomeKataList> {
   }
 
   Widget _buildKataList(List<Kata> katas) {
+    final desktopGrid = DesktopKataGrid.maybe(
+      context: context,
+      katas: katas,
+      onDelete: (kataId, kataName) =>
+          widget.onDelete(kataId.toString(), kataName),
+      useAdaptiveWidth: false,
+    );
+    if (desktopGrid != null) {
+      return desktopGrid;
+    }
+
     return ResponsiveLayout(
       mobile: ResponsiveGrid(
         maxColumns: 1,
@@ -81,7 +93,7 @@ class _HomeKataListState extends ConsumerState<HomeKataList> {
         ),
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.6,
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => widget.onDelete(kata.id.toString(), kata.name),
@@ -96,27 +108,26 @@ class _HomeKataListState extends ConsumerState<HomeKataList> {
         ),
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.65,
         children: katas.map((kata) => CollapsibleKataCard(
           kata: kata,
           onDelete: () => widget.onDelete(kata.id.toString(), kata.name),
           useAdaptiveWidth: false,
         )).toList(),
       ),
-      desktop: ResponsiveGrid(
-        maxColumns: 3,
-        padding: EdgeInsets.only(
-          bottom: ResponsiveUtils.responsiveButtonHeight(context) + 
-                  context.responsiveSpacing(SpacingSize.lg),
-        ),
-        mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.9,
-        children: katas.map((kata) => CollapsibleKataCard(
-          kata: kata,
-          onDelete: () => widget.onDelete(kata.id.toString(), kata.name),
-          useAdaptiveWidth: false,
-        )).toList(),
+      desktop: DesktopKataGrid(
+        katas: katas,
+        onDelete: (kataId, kataName) =>
+            widget.onDelete(kataId.toString(), kataName),
+        isLargeDesktop: ResponsiveUtils.isLargeDesktop(context),
+        useAdaptiveWidth: false,
+      ),
+      largeDesktop: DesktopKataGrid(
+        katas: katas,
+        onDelete: (kataId, kataName) =>
+            widget.onDelete(kataId.toString(), kataName),
+        isLargeDesktop: ResponsiveUtils.isLargeDesktop(context),
+        useAdaptiveWidth: false,
       ),
     );
   }

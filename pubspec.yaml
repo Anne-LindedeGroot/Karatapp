@@ -38,7 +38,11 @@ dependencies:
   supabase_flutter: ^2.12.0
   cached_network_image: ^3.2.1
   image_picker: ^1.2.1
+  image_picker_platform_interface: ^2.10.0
   image: ^4.6.0
+  camera: ^0.11.0+2
+  camera_macos: ^0.0.7
+  camera_windows: ^0.2.1
   
   # State Management
   flutter_riverpod: ^2.4.9

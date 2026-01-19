@@ -101,7 +101,7 @@ class OfflineForumService {
   }
 
   /// Get a cached individual post by ID
-  Future<ForumPost?> getCachedIndividualPost(int postId) async {
+  Future<ForumPost?> getCachedIndividualPost(int postId, {bool allowExpired = false}) async {
     try {
       final individualPosts = await getCachedIndividualPosts();
       if (individualPosts == null) return null;
@@ -114,7 +114,7 @@ class OfflineForumService {
       final difference = now.difference(cachedAt);
 
       // Check if individual post cache is still valid
-      if (difference >= _cacheValidityDuration) {
+      if (!allowExpired && difference >= _cacheValidityDuration) {
         return null; // Cache expired
       }
 
@@ -153,7 +153,7 @@ class OfflineForumService {
   }
 
   /// Get cached comments for a specific post
-  Future<List<ForumComment>?> getCachedPostComments(int postId, {int? limit, int? offset}) async {
+  Future<List<ForumComment>?> getCachedPostComments(int postId, {int? limit, int? offset, bool allowExpired = false}) async {
     try {
       final allPostComments = await _getCachedPostCommentsMap();
       if (allPostComments == null) return null;
@@ -166,7 +166,7 @@ class OfflineForumService {
       final difference = now.difference(cachedAt);
 
       // Check if comments cache is still valid
-      if (difference >= _cacheValidityDuration) {
+      if (!allowExpired && difference >= _cacheValidityDuration) {
         return null; // Cache expired
       }
 

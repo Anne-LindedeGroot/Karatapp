@@ -634,6 +634,13 @@ class OfflineSyncService {
           await OfflineMediaCacheService.preCacheMediaFiles(kata.imageUrls, false, ref);
           // Update metadata for offline gallery access with all URLs
           await OfflineMediaCacheService.updateKataMetadata(kata.id, kata.imageUrls);
+          // Also cache using stable kata keys to survive signed URL changes
+          for (final url in kata.imageUrls) {
+            final fileName = _extractFileNameFromUrl(url);
+            if (fileName != null) {
+              await OfflineMediaCacheService.cacheKataImage(kata.id, fileName, url, ref);
+            }
+          }
         }
 
         // Fetch and cache videos for this kata

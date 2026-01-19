@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../screens/auth_wrapper.dart';
-import '../../screens/profile_screen.dart';
-import '../../screens/forum_screen.dart';
-import '../../screens/forum_post_detail_screen.dart';
+import '../../screens/auth/auth_wrapper.dart';
+import '../../screens/profile/profile_screen.dart';
+import '../../screens/forum/forum_screen.dart';
+import '../../screens/forum/forum_post_detail_screen.dart';
 import '../../screens/create_forum_post_screen.dart';
-import '../../screens/favorites_screen.dart';
-import '../../screens/edit_kata_screen.dart';
-import '../../screens/create_kata_screen.dart';
-import '../../screens/create_ohyo_screen.dart';
-import '../../screens/edit_ohyo_screen.dart';
-import '../../screens/avatar_selection_screen.dart';
-import '../../screens/user_management_screen.dart';
+import '../../screens/favorites/favorites_screen.dart';
+import '../../screens/kata/edit_kata_screen.dart';
+import '../../screens/kata/create_kata_screen.dart';
+import '../../screens/ohyo/create_ohyo_screen.dart';
+import '../../screens/ohyo/edit_ohyo_screen.dart';
+import '../../screens/profile/avatar_selection_screen.dart';
+import '../../screens/admin/user_management_screen.dart';
 import '../../screens/accessibility_demo_screen.dart';
 import '../../screens/tts_test_screen.dart';
+import '../../screens/auth/password_reset_screen.dart';
 import '../../providers/kata_provider.dart';
 import '../../providers/ohyo_provider.dart';
 import '../../widgets/global_error_widget.dart';
@@ -38,6 +39,7 @@ class AppRoutes {
   static const String userManagement = '/user-management';
   static const String accessibilityDemo = '/accessibility-demo';
   static const String ttsTest = '/tts-test';
+  static const String passwordReset = '/reset-password';
 }
 
 /// Router provider for dependency injection
@@ -73,6 +75,17 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const GlobalErrorBoundary(
           child: AuthWrapper(),
         ),
+      ),
+
+      GoRoute(
+        path: AppRoutes.passwordReset,
+        name: 'passwordReset',
+        builder: (context, state) {
+          final email = state.uri.queryParameters['email'];
+          return GlobalErrorBoundary(
+            child: PasswordResetScreen(initialEmail: email),
+          );
+        },
       ),
       
       // Main app routes - these are now handled by AuthWrapper, but kept for direct navigation

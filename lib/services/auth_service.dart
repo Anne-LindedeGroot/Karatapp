@@ -9,6 +9,7 @@ class AuthService {
   final SupabaseClient _supabase = SupabaseClientManager().client;
   final AuthSecurityService _securityService = AuthSecurityService();
   final RoleService _roleService = RoleService();
+  static const String _passwordResetRedirectUrl = 'karatapp://app/reset-password';
   
   // Enhanced sign up with password validation
   Future<AuthResponse> signUp(String email, String password, String name) async {
@@ -155,6 +156,54 @@ class AuthService {
       onRetry: (attempt, error) {
         // Retry attempt for sign out
       },
+    );
+  }
+
+  // Send password reset email
+  Future<void> sendPasswordResetEmail(String email) async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          try {
+            await _supabase.auth.resetPasswordForEmail(
+              email,
+              redirectTo: _passwordResetRedirectUrl,
+            );
+          } on AuthException {
+            // Fallback in case redirect URL is not allowed in Supabase settings
+            await _supabase.auth.resetPasswordForEmail(email);
+          }
+        } on AuthException catch (e) {
+          throw _handleAuthException(e, 'Password reset failed');
+        } catch (e) {
+          throw Exception('Password reset failed: $e');
+        }
+      },
+      maxRetries: 2,
+      initialDelay: const Duration(milliseconds: 500),
+      shouldRetry: RetryUtils.shouldRetryAuthError,
+      onRetry: (attempt, error) {},
+    );
+  }
+
+  // Update password (requires a valid session, e.g. after password recovery)
+  Future<void> updatePassword(String newPassword) async {
+    return await RetryUtils.executeWithRetry(
+      () async {
+        try {
+          await _supabase.auth.updateUser(
+            UserAttributes(password: newPassword),
+          );
+        } on AuthException catch (e) {
+          throw _handleAuthException(e, 'Update password failed');
+        } catch (e) {
+          throw Exception('Update password failed: $e');
+        }
+      },
+      maxRetries: 2,
+      initialDelay: const Duration(milliseconds: 500),
+      shouldRetry: RetryUtils.shouldRetryAuthError,
+      onRetry: (attempt, error) {},
     );
   }
 

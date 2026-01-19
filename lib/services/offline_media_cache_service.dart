@@ -108,12 +108,69 @@ class OfflineMediaCacheService {
     return null;
   }
 
+  /// Get cached file path for kata images using stable key (kataId_filename)
+  static String? getCachedKataImagePath(int kataId, String fileName) {
+    if (_imagesDir == null) return null;
+
+    final stableKey = 'kata_${kataId}_$fileName';
+    final hash = _generateUrlHash(stableKey);
+    final extension = _getFileExtension(fileName, false);
+    final file = File('${_imagesDir!.path}/$hash$extension');
+
+    // Check if file exists and is not empty
+    if (file.existsSync()) {
+      final fileSize = file.lengthSync();
+      if (fileSize > 0) {
+        return file.path;
+      } else {
+        // Delete empty/corrupted cache file
+        try {
+          file.deleteSync();
+          debugPrint('Deleted empty cached kata image file: ${file.path}');
+        } catch (e) {
+          debugPrint('Failed to delete empty cached kata image file: $e');
+        }
+      }
+    }
+
+    return null;
+  }
+
   /// Get all cached ohyo image paths for a specific ohyo ID
   static Future<List<String>> getCachedOhyoImagePaths(int ohyoId) async {
     final paths = <String>[];
     if (_imagesDir == null) return paths;
 
     try {
+      // First try URL metadata (same strategy as kata)
+      final urlMetadataFile = File('${_imagesDir!.path}/ohyo_url_metadata.json');
+      if (await urlMetadataFile.exists()) {
+        try {
+          final content = await urlMetadataFile.readAsString();
+          if (content.trim().isNotEmpty) {
+            final metadata = json.decode(content) as Map<String, dynamic>;
+            final ohyoKey = ohyoId.toString();
+            if (metadata.containsKey(ohyoKey)) {
+              final storedUrls = metadata[ohyoKey] as List<dynamic>;
+              for (final url in storedUrls) {
+                final cachedPath = getCachedFilePath(url.toString(), false);
+                if (cachedPath != null) {
+                  paths.add(cachedPath);
+                }
+              }
+              if (paths.isNotEmpty) {
+                return paths;
+              }
+            }
+          }
+        } catch (e) {
+          // Corrupted metadata; remove it so future reads don't keep failing
+          try {
+            await urlMetadataFile.delete();
+          } catch (_) {}
+        }
+      }
+
       // Try to read metadata file first
       final metadataFile = File('${_imagesDir!.path}/ohyo_metadata.json');
       if (await metadataFile.exists()) {
@@ -173,6 +230,26 @@ class OfflineMediaCacheService {
     try {
       if (_cacheDir == null) return null;
 
+      if (url.trim().isEmpty) return null;
+
+      final uri = Uri.tryParse(url);
+      if (uri == null) return null;
+
+      // Local file paths should be returned directly (no HTTP)
+      if (uri.scheme.isEmpty) {
+        final localFile = File(url);
+        if (await localFile.exists()) {
+          return localFile.path;
+        }
+      } else if (uri.scheme == 'file') {
+        final localFile = File.fromUri(uri);
+        if (await localFile.exists()) {
+          return localFile.path;
+        }
+      } else if (uri.scheme != 'http' && uri.scheme != 'https') {
+        return null;
+      }
+
       // Don't cache streaming video URLs (YouTube, Vimeo, etc.) as they can't be downloaded as files
       if (_isStreamingVideoUrl(url)) {
         // Silent: Video caching warnings are not logged
@@ -210,7 +287,7 @@ class OfflineMediaCacheService {
       }
 
       // Download and cache the file
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(uri);
       if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
         await file.writeAsBytes(response.bodyBytes);
 
@@ -267,6 +344,7 @@ class OfflineMediaCacheService {
       if (await file.exists()) {
         // Still update metadata
         await _updateOhyoMetadata(ohyoId, fileName);
+        await _updateOhyoUrlMetadata(ohyoId, url);
         return file.path;
       }
 
@@ -277,6 +355,7 @@ class OfflineMediaCacheService {
 
         // Update metadata
         await _updateOhyoMetadata(ohyoId, fileName);
+        await _updateOhyoUrlMetadata(ohyoId, url);
 
         // Record data usage (if provider is available)
         try {
@@ -298,6 +377,33 @@ class OfflineMediaCacheService {
       debugPrint('Failed to cache ohyo image $url: $e');
     }
     return null;
+  }
+
+  /// Update metadata for cached ohyo images (URL list for hash-based cache)
+  static Future<void> _updateOhyoUrlMetadata(int ohyoId, String url) async {
+    if (_imagesDir == null) return;
+
+    try {
+      final metadataFile = File('${_imagesDir!.path}/ohyo_url_metadata.json');
+      Map<String, dynamic> metadata = {};
+
+      if (await metadataFile.exists()) {
+        metadata = json.decode(await metadataFile.readAsString());
+      }
+
+      final ohyoKey = ohyoId.toString();
+      final existingUrls = metadata[ohyoKey] as List<dynamic>? ?? [];
+      final existingUrlStrings = existingUrls.map((u) => u.toString()).toList();
+      if (!existingUrlStrings.contains(url)) {
+        metadata[ohyoKey] = [...existingUrlStrings, url];
+      } else {
+        metadata[ohyoKey] = existingUrlStrings;
+      }
+
+      await metadataFile.writeAsString(json.encode(metadata));
+    } catch (_) {
+      // Silent: metadata update failures are not logged to reduce spam
+    }
   }
 
   /// Pre-cache multiple media files (images only - videos work online only)
@@ -648,10 +754,23 @@ class OfflineMediaCacheService {
               final storedUrls = metadata[kataKey] as List<dynamic>;
               for (final url in storedUrls) {
                 // Check if this URL is cached locally
-                final cachedPath = getCachedFilePath(url, false);
+                final cachedPath = getCachedFilePath(url.toString(), false);
                 if (cachedPath != null) {
                   urls.add(cachedPath);
+                  continue;
                 }
+
+                // Fallback to stable kata cache (handles signed URL changes)
+                try {
+                  final uri = Uri.parse(url.toString());
+                  final fileName = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+                  if (fileName != null) {
+                    final stablePath = getCachedKataImagePath(kataId, fileName);
+                    if (stablePath != null) {
+                      urls.add(stablePath);
+                    }
+                  }
+                } catch (_) {}
               }
               if (urls.isNotEmpty) {
                 debugPrint('Found ${urls.length} cached images for kata $kataId via metadata');
@@ -695,6 +814,74 @@ class OfflineMediaCacheService {
     }
 
     return urls;
+  }
+
+  /// Cache kata image with stable key for offline access
+  static Future<String?> cacheKataImage(int kataId, String fileName, String url, dynamic ref) async {
+    try {
+      if (_imagesDir == null) return null;
+
+      // Try to read network and data usage state, but don't fail if providers aren't available
+      bool shouldCache = true;
+      try {
+        final networkState = ref.read(networkProvider);
+        final dataUsageState = ref.read(dataUsageProvider);
+
+        // Don't cache if not connected or data usage not allowed
+        if (!networkState.isConnected || !dataUsageState.shouldAllowDataUsage) {
+          shouldCache = false;
+        }
+      } catch (e) {
+        // If providers aren't available, assume we can cache
+      }
+
+      if (!shouldCache) return null;
+
+      final stableKey = 'kata_${kataId}_$fileName';
+      final hash = _generateUrlHash(stableKey);
+      final extension = _getFileExtension(url, false);
+      final file = File('${_imagesDir!.path}/$hash$extension');
+
+      // Check if already cached
+      if (await file.exists()) {
+        return file.path;
+      }
+
+      // If the URL-hash cache exists, copy it to the stable cache
+      final cachedByUrl = getCachedFilePath(url, false);
+      if (cachedByUrl != null) {
+        try {
+          await File(cachedByUrl).copy(file.path);
+          return file.path;
+        } catch (_) {
+          // Fallback to download if copy fails
+        }
+      }
+
+      // Download and cache the file
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+        await file.writeAsBytes(response.bodyBytes);
+
+        // Record data usage (if provider is available)
+        try {
+          ref.read(dataUsageProvider.notifier).recordDataUsage(
+            response.bodyBytes.length,
+            type: 'kata_image_cache',
+          );
+        } catch (e) {
+          // Data usage provider not available, skip recording
+        }
+
+        // Clean up old cache if needed
+        await _cleanupCacheIfNeeded();
+
+        return file.path;
+      }
+    } catch (e) {
+      debugPrint('Failed to cache kata image $url: $e');
+    }
+    return null;
   }
 
   /// Check if media should be loaded from cache (when offline)

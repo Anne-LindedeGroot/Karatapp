@@ -79,6 +79,21 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
         }
       }
 
+      // Prefer stable kata cache keys when kataId is provided
+      if (widget.kataId != null) {
+        final fileName = _extractFileNameFromUrl(originalUrl);
+        if (fileName != null) {
+          final cachedKataPath = OfflineMediaCacheService.getCachedKataImagePath(
+            widget.kataId!,
+            fileName,
+          );
+          if (cachedKataPath != null) {
+            _resolvedUrls[i] = cachedKataPath;
+            continue;
+          }
+        }
+      }
+
       // Check generic cache by URL hash (kata images and non-ohyo cache)
       final cachedPath = OfflineMediaCacheService.getCachedFilePath(originalUrl, false);
       if (cachedPath != null) {

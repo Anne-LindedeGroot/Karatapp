@@ -45,6 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>karatapp</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>karatapp</string>
+			</array>
+		</dict>
+	</array>
 
 	<!-- Camera and Photo Library permissions -->
 	<key>NSCameraUsageDescription</key>

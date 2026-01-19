@@ -103,8 +103,8 @@ class HomeScreenAppBar extends ConsumerWidget implements PreferredSizeWidget {
           // Flexible instead of Expanded to prevent overlap with actions
           Flexible(
             child: Text(
-              "Karatapp",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            "Karatapp",
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: titleFontSize,
                 fontWeight: FontWeight.w500,
               ),

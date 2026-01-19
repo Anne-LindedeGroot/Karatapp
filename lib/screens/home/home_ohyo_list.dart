@@ -6,6 +6,7 @@ import '../../widgets/responsive_layout.dart';
 import '../../widgets/collapsible_ohyo_card.dart';
 import '../../widgets/modern_loading_widget.dart';
 import '../../providers/precaching_provider.dart';
+import '../../desktop/desktop_ohyo_grid.dart';
 
 /// Home Ohyo List - Handles ohyo list building and display
 class HomeOhyoList extends ConsumerStatefulWidget {
@@ -76,6 +77,17 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
       );
     }
 
+    final desktopGrid = DesktopOhyoGrid.maybe(
+      context: context,
+      ohyos: ohyos,
+      onDelete: widget.onDelete,
+      keyPrefix: 'ohyo_',
+      useAdaptiveWidth: false,
+    );
+    if (desktopGrid != null) {
+      return desktopGrid;
+    }
+
     // Use grid for larger screens with appropriate aspect ratios
     return ResponsiveLayout(
       mobile: Container(), // Mobile handled above
@@ -87,7 +99,7 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
         ),
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.8, // Match kata aspect ratio
+        childAspectRatio: 0.6, // Match kata aspect ratio
         shrinkWrap: false,
         physics: const AlwaysScrollableScrollPhysics(),
         children: ohyos.map((ohyo) => CollapsibleOhyoCard(
@@ -105,7 +117,7 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
         ),
         mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
         crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.85, // Match kata aspect ratio
+        childAspectRatio: 0.65, // Match kata aspect ratio
         shrinkWrap: false,
         physics: const AlwaysScrollableScrollPhysics(),
         children: ohyos.map((ohyo) => CollapsibleOhyoCard(
@@ -115,23 +127,19 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
           useAdaptiveWidth: false,
         )).toList(),
       ),
-      desktop: ResponsiveGrid(
-        maxColumns: 3,
-        padding: EdgeInsets.only(
-          bottom: ResponsiveUtils.responsiveButtonHeight(context) +
-                  context.responsiveSpacing(SpacingSize.lg),
-        ),
-        mainAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        crossAxisSpacing: context.responsiveSpacing(SpacingSize.md),
-        childAspectRatio: 0.9, // Match kata aspect ratio
-        shrinkWrap: false,
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: ohyos.map((ohyo) => CollapsibleOhyoCard(
-          key: ValueKey('ohyo_${ohyo.id}'),
-          ohyo: ohyo,
-          onDelete: () => widget.onDelete(ohyo.id, ohyo.name),
-          useAdaptiveWidth: false,
-        )).toList(),
+      desktop: DesktopOhyoGrid(
+        ohyos: ohyos,
+        onDelete: widget.onDelete,
+        isLargeDesktop: ResponsiveUtils.isLargeDesktop(context),
+        keyPrefix: 'ohyo_',
+        useAdaptiveWidth: false,
+      ),
+      largeDesktop: DesktopOhyoGrid(
+        ohyos: ohyos,
+        onDelete: widget.onDelete,
+        isLargeDesktop: ResponsiveUtils.isLargeDesktop(context),
+        keyPrefix: 'ohyo_',
+        useAdaptiveWidth: false,
       ),
     );
   }

@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'retry_utils.dart';
 import '../services/offline_media_cache_service.dart';
 import '../providers/network_provider.dart';
+import '../desktop/desktop_image_utils.dart';
 
 class ImageUtils {
   static final ImagePicker _picker = ImagePicker();
@@ -45,8 +46,14 @@ class ImageUtils {
   }
   
   /// Capture an image with camera
-  static Future<File?> captureImageWithCamera() async {
+  static Future<File?> captureImageWithCamera({BuildContext? context}) async {
     try {
+      // Desktop: use the dedicated camera screen (shows fallback UI if needed)
+      final desktopImage =
+          await DesktopImageUtils.captureImageWithCamera(context: context);
+      if (desktopImage != null) {
+        return desktopImage;
+      }
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 90, // High quality (0-100, where 100 is original quality)
@@ -338,6 +345,7 @@ class ImageUtils {
                 if (ref != null) {
                   try {
                     await OfflineMediaCacheService.cacheMediaFile(signedUrl, false, ref);
+                    await OfflineMediaCacheService.cacheKataImage(kataId, file.name, signedUrl, ref);
                     await OfflineMediaCacheService.updateKataMetadata(kataId, signedUrl);
                   } catch (cacheError) {
                     debugPrint('⚠️ Failed to cache kata image ${file.name}: $cacheError');
