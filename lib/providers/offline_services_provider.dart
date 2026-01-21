@@ -74,8 +74,14 @@ final offlineServicesInitializerProvider = FutureProvider<void>((ref) async {
       final dataUsageState = ref.read(dataUsageProvider);
 
       if (!isComprehensiveDone && networkState.isConnected && dataUsageState.shouldAllowDataUsage) {
-        debugPrint('🏗️ Automatically starting comprehensive cache on first app launch...');
-        await ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref);
+        // Delay heavy caching a bit more to keep first render smooth
+        await Future.delayed(const Duration(seconds: 8));
+        final networkStateAfterDelay = ref.read(networkProvider);
+        final dataUsageAfterDelay = ref.read(dataUsageProvider);
+        if (networkStateAfterDelay.isConnected && dataUsageAfterDelay.shouldAllowDataUsage) {
+          debugPrint('🏗️ Automatically starting comprehensive cache on first app launch...');
+          await ref.read(offlineSyncProvider.notifier).comprehensiveCache(ref);
+        }
       }
     });
   } catch (e) {

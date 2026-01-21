@@ -776,6 +776,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               ? const Center(child: Text('Geen dempgeschiedenis'))
               : ListView.builder(
                   itemCount: history.length,
+                  cacheExtent: 600,
                   itemBuilder: (context, index) {
                     final mute = history[index];
                     return Card(

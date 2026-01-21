@@ -16,6 +16,11 @@ class CollapsibleOhyoCard extends ConsumerStatefulWidget {
   final bool isDragging;
   final bool useAdaptiveWidth;
   final bool showAllInfo;
+  final bool showHeader;
+  final EdgeInsetsGeometry? cardMargin;
+  final EdgeInsetsGeometry? cardPadding;
+  final double? cardElevation;
+  final VoidCallback? onTap;
 
   const CollapsibleOhyoCard({
     super.key,
@@ -24,6 +29,11 @@ class CollapsibleOhyoCard extends ConsumerStatefulWidget {
     this.isDragging = false,
     this.useAdaptiveWidth = true,
     this.showAllInfo = false,
+    this.showHeader = true,
+    this.cardMargin,
+    this.cardPadding,
+    this.cardElevation,
+    this.onTap,
   });
 
   @override
@@ -42,22 +52,27 @@ class _CollapsibleOhyoCardState extends ConsumerState<CollapsibleOhyoCard> {
     return Semantics(
       label: 'Ohyo kaart: ${ohyo.name}, stijl: ${ohyo.style}',
       child: GestureDetector(
-        onTap: _speakOhyoContent,
+        onTap: () {
+          widget.onTap?.call();
+          _speakOhyoContent();
+        },
         child: ResponsiveCard(
-          margin: AppTheme.getResponsiveMargin(context),
-          padding: AppTheme.getResponsivePadding(context),
-          elevation: AppTheme.getResponsiveElevation(context),
+          margin: widget.cardMargin ?? AppTheme.getResponsiveMargin(context),
+          padding: widget.cardPadding ?? AppTheme.getResponsivePadding(context),
+          elevation: widget.cardElevation ?? AppTheme.getResponsiveElevation(context),
           adaptiveWidth: widget.useAdaptiveWidth,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header section
-              OhyoCardHeader(
-                ohyo: ohyo,
-                onDelete: widget.onDelete,
-              ),
-              SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+              if (widget.showHeader) ...[
+                // Header section
+                OhyoCardHeader(
+                  ohyo: ohyo,
+                  onDelete: widget.onDelete,
+                ),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+              ],
 
               // Display description with styling
               Semantics(

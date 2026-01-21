@@ -64,6 +64,7 @@ class _HomeOhyoListState extends ConsumerState<HomeOhyoList> {
           bottom: ResponsiveUtils.responsiveButtonHeight(context) +
                   context.responsiveSpacing(SpacingSize.lg),
         ),
+        cacheExtent: 600,
         itemCount: ohyos.length,
         itemBuilder: (context, index) {
           final ohyo = ohyos[index];

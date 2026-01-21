@@ -549,6 +549,7 @@ class _PresetAvatarSelectionScreenState extends State<PresetAvatarSelectionScree
             height: 50,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
+              cacheExtent: 300,
               itemCount: AvatarCategory.values.length,
               itemBuilder: (context, index) {
                 final category = AvatarCategory.values[index];
@@ -583,6 +584,7 @@ class _PresetAvatarSelectionScreenState extends State<PresetAvatarSelectionScree
                 mainAxisSpacing: 16,
                 childAspectRatio: 0.8,
               ),
+              cacheExtent: 800,
               itemCount: AvatarData.getAvatarsByCategory(selectedCategory).length,
               itemBuilder: (context, index) {
                 final avatar = AvatarData.getAvatarsByCategory(selectedCategory)[index];

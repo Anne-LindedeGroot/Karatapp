@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../services/offline_media_cache_service.dart';
 import '../providers/network_provider.dart';
+import '../utils/responsive_utils.dart';
+import '../utils/image_utils.dart';
 
 class ImageGallery extends ConsumerStatefulWidget {
   final List<String> imageUrls;
@@ -29,6 +31,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
   late PageController _pageController;
   int _currentIndex = 0;
   final Map<int, String> _resolvedUrls = {};
+  late List<String> _imageUrls;
 
   String? _extractFileNameFromUrl(String url) {
     try {
@@ -45,17 +48,67 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
     super.initState();
     _pageController = PageController(initialPage: widget.initialIndex);
     _currentIndex = widget.initialIndex;
-    _resolveImageUrls();
+    _imageUrls = List<String>.from(widget.imageUrls);
+    _initializeImages();
+  }
+
+  Future<void> _initializeImages() async {
+    final networkState = ref.read(networkProvider);
+    final isOffline = !networkState.isConnected;
+
+    if (isOffline && _imageUrls.isEmpty) {
+      if (widget.kataId != null) {
+        final cached = await OfflineMediaCacheService.getCachedKataImageUrls(widget.kataId!);
+        if (cached.isNotEmpty && mounted) {
+          setState(() {
+            _imageUrls = cached;
+          });
+        }
+      } else if (widget.ohyoId != null) {
+        final cached = await OfflineMediaCacheService.getCachedOhyoImagePaths(widget.ohyoId!);
+        if (cached.isNotEmpty && mounted) {
+          setState(() {
+            _imageUrls = cached;
+          });
+        }
+      }
+    }
+
+    if (!isOffline && (widget.kataId != null || widget.ohyoId != null)) {
+      try {
+        if (widget.kataId != null) {
+          final urls = await ImageUtils.fetchKataImagesFromBucket(widget.kataId!, ref: ref);
+          if (urls.isNotEmpty && mounted) {
+            setState(() {
+              _imageUrls = urls;
+            });
+          }
+        } else if (widget.ohyoId != null) {
+          final urls = await ImageUtils.fetchOhyoImagesFromBucket(widget.ohyoId!, ref: ref);
+          if (urls.isNotEmpty && mounted) {
+            setState(() {
+              _imageUrls = urls;
+            });
+          }
+        }
+      } catch (_) {
+        // Ignore fetch failures; fall back to existing list
+      }
+    }
+
+    if (!mounted) return;
+    await _resolveImageUrls();
   }
 
   /// Resolve image URLs - use cached files when available
   Future<void> _resolveImageUrls() async {
+    if (!mounted) return;
     final networkState = ref.read(networkProvider);
     final isOffline = !networkState.isConnected;
 
     // For each input URL, resolve it to a cached file if available, or keep the original URL
-    for (int i = 0; i < widget.imageUrls.length; i++) {
-      final originalUrl = widget.imageUrls[i];
+    for (int i = 0; i < _imageUrls.length; i++) {
+      final originalUrl = _imageUrls[i];
 
       // Check if it's already a local file path
       final isLocalFile = originalUrl.startsWith('/') || originalUrl.startsWith('file://');
@@ -104,6 +157,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
       // Try to get cached version or use original
       if (!isOffline) {
         final resolvedUrl = await OfflineMediaCacheService.getMediaUrl(originalUrl, false, ref);
+        if (!mounted) return;
         _resolvedUrls[i] = resolvedUrl;
       } else {
         _resolvedUrls[i] = originalUrl;
@@ -113,15 +167,32 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
     // Pre-cache images if online (for future offline use)
     if (networkState.isConnected && widget.kataId != null) {
       debugPrint('🖼️ Online - pre-caching kata ${widget.kataId} images');
-      await OfflineMediaCacheService.preCacheMediaFiles(widget.imageUrls, false, ref);
+      await OfflineMediaCacheService.preCacheMediaFiles(_imageUrls, false, ref);
+      // Also cache with stable keys so offline gallery resolves all images
+      Future.microtask(() async {
+        for (final url in _imageUrls) {
+          final fileName = _extractFileNameFromUrl(url);
+          if (fileName != null) {
+            await OfflineMediaCacheService.cacheKataImage(widget.kataId!, fileName, url, ref);
+          }
+        }
+      });
     } else if (networkState.isConnected && widget.ohyoId != null) {
       debugPrint('🖼️ Online - pre-caching ohyo ${widget.ohyoId} images');
-      // Note: ohyo images are cached individually in fetchOhyoImagesFromBucket
+      // Ensure ohyo images are cached with stable keys for offline gallery
+      Future.microtask(() async {
+        for (final url in _imageUrls) {
+          final fileName = _extractFileNameFromUrl(url);
+          if (fileName != null) {
+            await OfflineMediaCacheService.cacheOhyoImage(widget.ohyoId!, fileName, url, ref);
+          }
+        }
+      });
     }
   }
 
   /// Build thumbnail image widget - handles both local files and network images
-  Widget _buildThumbnailImage(int index) {
+  Widget _buildThumbnailImage(int index, int cacheSize) {
     final imageUrl = _resolvedUrls[index] ?? widget.imageUrls[index];
     final isLocalFile = imageUrl.startsWith('/') || imageUrl.startsWith('file://');
 
@@ -142,6 +213,8 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
       return Image.file(
         file,
         fit: BoxFit.cover,
+        cacheWidth: cacheSize,
+        cacheHeight: cacheSize,
         errorBuilder: (context, error, stackTrace) => const Center(
           child: Icon(
             Icons.error,
@@ -154,6 +227,8 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
       return CachedNetworkImage(
         imageUrl: imageUrl,
         fit: BoxFit.cover,
+        memCacheWidth: cacheSize,
+        memCacheHeight: cacheSize,
         placeholder: (context, url) => const Center(
           child: CircularProgressIndicator(
             color: Colors.white,
@@ -179,7 +254,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.imageUrls.isEmpty) {
+    if (_imageUrls.isEmpty) {
       return Scaffold(
         appBar: AppBar(
           title: Text(widget.title),
@@ -189,6 +264,22 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
         ),
       );
     }
+
+    final media = MediaQuery.of(context);
+    final dpr = media.devicePixelRatio;
+    final isMobile = context.isMobile;
+    final rawMainCacheWidth = (media.size.width * dpr).round();
+    final rawMainCacheHeight = (media.size.height * dpr).round();
+    final mainCacheWidth = isMobile && rawMainCacheWidth > 1080
+        ? 1080
+        : rawMainCacheWidth;
+    final mainCacheHeight = isMobile && rawMainCacheHeight > 1920
+        ? 1920
+        : rawMainCacheHeight;
+    final rawThumbnailCacheSize = (80 * dpr).round();
+    final thumbnailCacheSize = isMobile && rawThumbnailCacheSize > 120
+        ? 120
+        : rawThumbnailCacheSize;
 
     return Scaffold(
       appBar: AppBar(
@@ -204,14 +295,14 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
           Expanded(
             child: PageView.builder(
               controller: _pageController,
-              itemCount: widget.imageUrls.length,
+            itemCount: _imageUrls.length,
               onPageChanged: (index) {
                 setState(() {
                   _currentIndex = index;
                 });
               },
               itemBuilder: (context, index) {
-                final imageUrl = _resolvedUrls[index] ?? widget.imageUrls[index];
+                final imageUrl = _resolvedUrls[index] ?? _imageUrls[index];
                 final isLocalFile = imageUrl.startsWith('/') || imageUrl.startsWith('file://');
 
 
@@ -223,6 +314,8 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                         ? Image.file(
                             File(imageUrl.replaceFirst('file://', '')),
                             fit: BoxFit.contain,
+                            cacheWidth: mainCacheWidth,
+                            cacheHeight: mainCacheHeight,
                             errorBuilder: (context, error, stackTrace) => const Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -244,6 +337,8 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                         : CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.contain,
+                      memCacheWidth: mainCacheWidth,
+                      memCacheHeight: mainCacheHeight,
                       placeholder: (context, url) => const Center(
                         child: CircularProgressIndicator(
                           color: Colors.white,
@@ -296,7 +391,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                 
                 // Image counter
                 Text(
-                  '${_currentIndex + 1} / ${widget.imageUrls.length}',
+                '${_currentIndex + 1} / ${_imageUrls.length}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -326,7 +421,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              itemCount: widget.imageUrls.length,
+                itemCount: _imageUrls.length,
               itemBuilder: (context, index) {
                 return GestureDetector(
                   onTap: () {
@@ -350,7 +445,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(2.0),
-                      child: _buildThumbnailImage(index),
+                      child: _buildThumbnailImage(index, thumbnailCacheSize),
                     ),
                   ),
                 );

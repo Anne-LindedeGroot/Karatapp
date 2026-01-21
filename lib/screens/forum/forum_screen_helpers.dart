@@ -1047,6 +1047,7 @@ extension _ForumScreenHelpers on _ForumScreenState {
                             right: context.responsiveValue(mobile: 8.0, tablet: 6.0, desktop: 4.0),
                             bottom: 16.0,
                           ),
+                          cacheExtent: context.isMobile ? 600 : 1000,
                           itemCount: posts.length,
                           itemBuilder: (context, index) {
                             return _buildPostCard(posts[index]);

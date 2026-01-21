@@ -10,6 +10,8 @@ import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 import 'interaction_provider.dart';
+import 'data_usage_provider.dart';
+import 'network_provider.dart';
 import '../utils/search_utils.dart';
 
 // OfflineKataService provider is now imported from offline_services_provider.dart
@@ -38,28 +40,102 @@ class KataNotifier extends StateNotifier<KataState> {
     }
   }
 
+  bool _isMobilePlatform() {
+    final platform = defaultTargetPlatform;
+    return platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+  }
+
+  int _getInitialPreloadCount() {
+    return _isMobilePlatform() ? 1 : 3;
+  }
+
+  void _scheduleKataCommentPrecache(List<Kata> katas) {
+    if (_offlineKataService == null) {
+      return;
+    }
+    final dataUsageState = _ref.read(dataUsageProvider);
+    if (!dataUsageState.shouldAllowDataUsage ||
+        dataUsageState.connectionType != ConnectionType.wifi) {
+      return;
+    }
+
+    final delay = _isMobilePlatform()
+        ? const Duration(seconds: 5)
+        : Duration.zero;
+
+    Future.delayed(delay, () async {
+      final interactionService = _ref.read(interactionServiceProvider);
+      for (final kata in katas) {
+        try {
+          final comments = await interactionService.getKataComments(kata.id);
+          if (comments.isNotEmpty) {
+            await _offlineKataService!.cacheKataComments(kata.id, comments);
+          }
+        } catch (_) {
+          // Ignore individual failures to avoid blocking
+        }
+      }
+    });
+  }
+
+  void _runMobileDeferred(Duration delay, VoidCallback action) {
+    if (!_isMobilePlatform()) {
+      action();
+      return;
+    }
+    Future.delayed(delay, action);
+  }
+
   Future<void> loadKatas() async {
     state = state.copyWith(isLoading: true, error: null);
 
     List<Kata>? cachedKatas;
+    final networkState = _ref.read(networkProvider);
+    final isOffline = !networkState.isConnected;
 
     // First, try to load from cache if available
     if (_offlineKataService != null) {
       try {
-        cachedKatas = await _offlineKataService!.getValidCachedKatas();
+        cachedKatas = isOffline
+            ? await _offlineKataService!.getCachedKatas()
+            : await _offlineKataService!.getValidCachedKatas();
         if (cachedKatas != null && cachedKatas.isNotEmpty) {
+          final cachedList = cachedKatas;
+          // Seed Hive cache so offline likes/comments are available
+          final cachedKatasForHive = cachedList.map((kata) {
+            return app_storage.CachedKata(
+              id: kata.id,
+              name: kata.name,
+              description: kata.description,
+              createdAt: kata.createdAt,
+              lastSynced: DateTime.now(),
+              imageUrls: kata.imageUrls ?? const [],
+              style: kata.style,
+              isFavorite: false,
+              needsSync: false,
+              isLiked: kata.isLiked,
+              likeCount: kata.likeCount,
+            );
+          }).toList();
+          await app_storage.LocalStorage.saveKatas(cachedKatasForHive);
           // Load cached katas first for immediate UI feedback
           state = state.copyWith(
-            katas: cachedKatas,
-            filteredKatas: cachedKatas,
-            isLoading: true, // Keep loading true while we try to refresh from online
+            katas: cachedList,
+            filteredKatas: cachedList,
+            // On mobile, show cached data immediately and refresh in background
+            isLoading: _isMobilePlatform() ? false : true,
             error: null,
             isOfflineMode: true,
           );
 
           // Preload images for cached katas
-          if (cachedKatas.isNotEmpty) {
-            _preloadInitialKataImages(cachedKatas.take(3).toList());
+          if (cachedList.isNotEmpty) {
+            _runMobileDeferred(
+              const Duration(seconds: 2),
+              () => _preloadInitialKataImages(
+                cachedList.take(_getInitialPreloadCount()).toList(),
+              ),
+            );
           }
         } else {
           // If SharedPreferences cache is empty/expired, try Hive storage
@@ -83,17 +159,24 @@ class KataNotifier extends StateNotifier<KataState> {
               }).toList();
 
               // Load cached katas from Hive for immediate UI feedback
+              final cachedList = cachedKatas;
               state = state.copyWith(
-                katas: cachedKatas,
-                filteredKatas: cachedKatas,
-                isLoading: true, // Keep loading true while we try to refresh from online
+                katas: cachedList,
+                filteredKatas: cachedList,
+                // On mobile, show cached data immediately and refresh in background
+                isLoading: _isMobilePlatform() ? false : true,
                 error: null,
                 isOfflineMode: true,
               );
 
               // Preload images for cached katas
-              if (cachedKatas.isNotEmpty) {
-                _preloadInitialKataImages(cachedKatas.take(3).toList());
+              if (cachedList.isNotEmpty) {
+                _runMobileDeferred(
+                  const Duration(seconds: 2),
+                  () => _preloadInitialKataImages(
+                    cachedList.take(_getInitialPreloadCount()).toList(),
+                  ),
+                );
               }
             }
           } catch (e) {
@@ -122,6 +205,23 @@ class KataNotifier extends StateNotifier<KataState> {
           if (_offlineKataService != null) {
             await _offlineKataService!.cacheKatas(onlineKatas);
           }
+          // Ensure Hive cache exists for offline likes/comments visibility
+          final katasToCache = onlineKatas.map((kata) {
+            return app_storage.CachedKata(
+              id: kata.id,
+              name: kata.name,
+              description: kata.description,
+              createdAt: kata.createdAt,
+              lastSynced: DateTime.now(),
+              imageUrls: kata.imageUrls ?? const [],
+              style: kata.style,
+              isFavorite: false,
+              needsSync: false,
+              isLiked: kata.isLiked,
+              likeCount: kata.likeCount,
+            );
+          }).toList();
+          await app_storage.LocalStorage.saveKatas(katasToCache);
 
           // Update state with online data
           state = state.copyWith(
@@ -134,11 +234,26 @@ class KataNotifier extends StateNotifier<KataState> {
 
           // Preload images for online katas
           if (onlineKatas.isNotEmpty) {
-            _preloadInitialKataImages(onlineKatas.take(3).toList());
+            _runMobileDeferred(
+              const Duration(seconds: 2),
+              () => _preloadInitialKataImages(
+                onlineKatas.take(_getInitialPreloadCount()).toList(),
+              ),
+            );
           }
 
-          // Preload likes for all katas to ensure offline availability
-          await _preloadKataLikes(onlineKatas);
+          // Preload likes for offline availability, but defer on mobile
+          if (_isMobilePlatform()) {
+            _runMobileDeferred(
+              const Duration(seconds: 4),
+              () => _preloadKataLikes(onlineKatas),
+            );
+          } else {
+            await _preloadKataLikes(onlineKatas);
+          }
+
+          // Pre-cache comments for the first few katas for offline access
+          _scheduleKataCommentPrecache(onlineKatas);
         },
         maxRetries: 3,
         initialDelay: const Duration(seconds: 1),

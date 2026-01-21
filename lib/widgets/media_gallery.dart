@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'universal_video_player.dart';
 import '../services/offline_media_cache_service.dart';
+import '../utils/responsive_utils.dart';
 
 enum MediaType { image, video }
 
@@ -45,6 +46,8 @@ class MediaGallery extends ConsumerStatefulWidget {
     BoxFit fit = BoxFit.cover,
     Widget? placeholder,
     Widget? errorWidget,
+    int? cacheWidth,
+    int? cacheHeight,
   }) {
     return FutureBuilder<String>(
       future: OfflineMediaCacheService.getMediaUrl(imageUrl, false, ref),
@@ -56,6 +59,8 @@ class MediaGallery extends ConsumerStatefulWidget {
           return Image.file(
             File(resolvedUrl.replaceFirst('file://', '')),
             fit: fit,
+            cacheWidth: cacheWidth,
+            cacheHeight: cacheHeight,
             errorBuilder: (context, error, stackTrace) =>
                 errorWidget ?? const Center(child: Icon(Icons.error, size: 20)),
           );
@@ -63,6 +68,8 @@ class MediaGallery extends ConsumerStatefulWidget {
           return CachedNetworkImage(
             imageUrl: resolvedUrl,
             fit: fit,
+            memCacheWidth: cacheWidth,
+            memCacheHeight: cacheHeight,
             placeholder: placeholder != null
                 ? (context, url) => placeholder
                 : (context, url) => const Center(child: CircularProgressIndicator()),
@@ -246,6 +253,22 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
   }
 
   Widget _buildImageGallery() {
+    final media = MediaQuery.of(context);
+    final dpr = media.devicePixelRatio;
+    final isMobile = context.isMobile;
+    final rawMainCacheWidth = (media.size.width * dpr).round();
+    final rawMainCacheHeight = (media.size.height * dpr).round();
+    final mainCacheWidth = isMobile && rawMainCacheWidth > 1080
+        ? 1080
+        : rawMainCacheWidth;
+    final mainCacheHeight = isMobile && rawMainCacheHeight > 1920
+        ? 1920
+        : rawMainCacheHeight;
+    final rawThumbnailCacheSize = (80 * dpr).round();
+    final thumbnailCacheSize = isMobile && rawThumbnailCacheSize > 120
+        ? 120
+        : rawThumbnailCacheSize;
+
     return Column(
       children: [
         // Main image viewer
@@ -264,6 +287,8 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                   widget.imageUrls[index],
                   ref,
                   fit: BoxFit.contain,
+                  cacheWidth: mainCacheWidth,
+                  cacheHeight: mainCacheHeight,
                   errorWidget: const Center(
                     child: Icon(Icons.error, size: 50),
                   ),
@@ -354,6 +379,8 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                       widget.imageUrls[index],
                       ref,
                       fit: BoxFit.cover,
+                    cacheWidth: thumbnailCacheSize,
+                    cacheHeight: thumbnailCacheSize,
                     ),
                   ),
                 ),

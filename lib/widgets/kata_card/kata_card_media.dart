@@ -43,6 +43,14 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
     return false;
   }
 
+  int _getPreviewCacheWidth(BuildContext context) {
+    return context.isMobile ? 600 : 800;
+  }
+
+  int _getPreviewCacheHeight(BuildContext context) {
+    return context.isMobile ? 450 : 600;
+  }
+
   String? _extractFileNameFromUrl(String url) {
     try {
       final uri = Uri.parse(url);
@@ -621,8 +629,8 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                                 fit: BoxFit.contain,
                                 width: double.infinity,
                                 height: double.infinity,
-                                memCacheWidth: 800,
-                                memCacheHeight: 600,
+                                memCacheWidth: _getPreviewCacheWidth(context),
+                                memCacheHeight: _getPreviewCacheHeight(context),
                                 progressIndicatorBuilder: (context, url, downloadProgress) {
                                   print('🖼️ Loading cached image: $url - ${(downloadProgress.progress ?? 0) * 100}%');
                                   if (downloadProgress.progress == null) {
@@ -739,8 +747,8 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                             fit: BoxFit.contain,
                             width: double.infinity,
                             height: double.infinity,
-                            memCacheWidth: 800,
-                            memCacheHeight: 600,
+                            memCacheWidth: _getPreviewCacheWidth(context),
+                            memCacheHeight: _getPreviewCacheHeight(context),
                             progressIndicatorBuilder: (context, url, downloadProgress) {
                               // Silent: Image loading progress not logged
                               if (downloadProgress.progress == null) {

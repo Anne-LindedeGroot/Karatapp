@@ -284,7 +284,7 @@ class _EnhancedAccessibleTextFieldState extends ConsumerState<EnhancedAccessible
     final hasInputFieldWord =
         baseLabel != null && baseLabel.toLowerCase().contains('invoerveld');
     if (!hasInputFieldWord) {
-      description += 'invoerveld. ';
+    description += 'invoerveld. ';
     } else {
       description += '. ';
     }

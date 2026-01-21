@@ -93,11 +93,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
         name: 'home',
         builder: (context, state) {
-          // Parse query parameters for initial tab
+          // Parse query parameters for initial tab and search
           final tabParam = state.uri.queryParameters['tab'];
           final initialTab = tabParam == 'ohyo' ? 1 : 0;
+          final initialSearchQuery = state.uri.queryParameters['search'];
           return GlobalErrorBoundary(
-            child: AuthWrapper(initialHomeTab: initialTab),
+            child: AuthWrapper(
+              initialHomeTab: initialTab,
+              initialSearchQuery: initialSearchQuery,
+            ),
           );
         },
       ),

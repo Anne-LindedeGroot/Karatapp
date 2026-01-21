@@ -16,6 +16,11 @@ class CollapsibleKataCard extends ConsumerStatefulWidget {
   final bool isDragging;
   final bool useAdaptiveWidth;
   final bool showAllInfo;
+  final bool showHeader;
+  final EdgeInsetsGeometry? cardMargin;
+  final EdgeInsetsGeometry? cardPadding;
+  final double? cardElevation;
+  final VoidCallback? onTap;
 
   const CollapsibleKataCard({
     super.key,
@@ -24,6 +29,11 @@ class CollapsibleKataCard extends ConsumerStatefulWidget {
     this.isDragging = false,
     this.useAdaptiveWidth = true,
     this.showAllInfo = false,
+    this.showHeader = true,
+    this.cardMargin,
+    this.cardPadding,
+    this.cardElevation,
+    this.onTap,
   });
 
   @override
@@ -42,22 +52,27 @@ class _CollapsibleKataCardState extends ConsumerState<CollapsibleKataCard> {
     return Semantics(
       label: 'Kata kaart: ${kata.name}, stijl: ${kata.style}',
       child: GestureDetector(
-        onTap: _speakKataContent,
+        onTap: () {
+          widget.onTap?.call();
+          _speakKataContent();
+        },
         child: ResponsiveCard(
-          margin: AppTheme.getResponsiveMargin(context),
-          padding: AppTheme.getResponsivePadding(context),
-          elevation: AppTheme.getResponsiveElevation(context),
+          margin: widget.cardMargin ?? AppTheme.getResponsiveMargin(context),
+          padding: widget.cardPadding ?? AppTheme.getResponsivePadding(context),
+          elevation: widget.cardElevation ?? AppTheme.getResponsiveElevation(context),
           adaptiveWidth: widget.useAdaptiveWidth,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header section
-              KataCardHeader(
-                kata: kata,
-                onDelete: widget.onDelete,
-              ),
-              SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+              if (widget.showHeader) ...[
+                // Header section
+                KataCardHeader(
+                  kata: kata,
+                  onDelete: widget.onDelete,
+                ),
+                SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
+              ],
 
               // Display description with styling
               Semantics(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../models/kata_model.dart';
 import '../../models/forum_models.dart';
 import '../../models/ohyo_model.dart';
@@ -15,6 +16,7 @@ import '../../widgets/skeleton_kata_card.dart';
 import '../../widgets/skeleton_forum_post.dart';
 import '../../core/navigation/app_router.dart';
 import '../../providers/network_provider.dart';
+import '../../utils/responsive_utils.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -46,47 +48,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     ref.invalidate(userFavoriteOhyosProvider);
   }
 
-  Future<void> _speakKataContent(Kata kata, int index) async {
-    try {
-      final accessibilityState = ref.read(accessibilityNotifierProvider);
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-
-      // Only speak if TTS is enabled
-      if (!accessibilityState.isTextToSpeechEnabled) {
-        debugPrint('FavoritesScreen TTS: TTS is disabled, not speaking kata content');
-        return;
-      }
-
-      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSKataProvider);
-
-      // Build content for TTS based on settings
-      final content = StringBuffer();
-      content.write('Kata $index: ${kata.name}. ');
-
-      // Always include style (this is important kata information)
-      if (kata.style.isNotEmpty && kata.style != 'Unknown') {
-        content.write('Stijl: ${kata.style}. ');
-      }
-
-      // Include description only if not skipping general info
-      if (!skipGeneralInfo && kata.description.isNotEmpty) {
-        content.write('Beschrijving: ${kata.description}. ');
-      }
-
-      // Always include media information (this is specific content, not general info)
-      if (kata.imageUrls?.isNotEmpty == true) {
-        content.write('Deze kata heeft ${kata.imageUrls?.length} afbeeldingen. ');
-      }
-
-      if (kata.videoUrls?.isNotEmpty == true) {
-        content.write('Deze kata heeft ${kata.videoUrls?.length} video\'s. ');
-      }
-
-      await accessibilityNotifier.speak(content.toString());
-    } catch (e) {
-      debugPrint('Error speaking kata content: $e');
-    }
-  }
 
   Future<void> _speakForumPostContent(ForumPost post, int index) async {
     try {
@@ -130,47 +91,111 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
     }
   }
 
-  Future<void> _speakOhyoContent(Ohyo ohyo, int index) async {
-    try {
-      final accessibilityState = ref.read(accessibilityNotifierProvider);
-      final accessibilityNotifier = ref.read(accessibilityNotifierProvider.notifier);
-
-      // Only speak if TTS is enabled
-      if (!accessibilityState.isTextToSpeechEnabled) {
-        debugPrint('FavoritesScreen TTS: TTS is disabled, not speaking ohyo content');
-        return;
-      }
-
-      final skipGeneralInfo = ref.read(skipGeneralInfoInTTSOhyoProvider);
-
-      // Build content for TTS based on settings
-      final content = StringBuffer();
-      content.write('Ohyo $index: ${ohyo.name}. ');
-
-      // Always include style (this is important ohyo information)
-      if (ohyo.style.isNotEmpty && ohyo.style != 'Unknown') {
-        content.write('Stijl: ${ohyo.style}. ');
-      }
-
-      // Include description only if not skipping general info
-      if (!skipGeneralInfo && ohyo.description.isNotEmpty) {
-        content.write('Beschrijving: ${ohyo.description}. ');
-      }
-
-      // Always include media information (this is specific content, not general info)
-      if (ohyo.imageUrls?.isNotEmpty == true) {
-        content.write('Deze ohyo heeft ${ohyo.imageUrls?.length} afbeeldingen. ');
-      }
-
-      if (ohyo.videoUrls?.isNotEmpty == true) {
-        content.write('Deze ohyo heeft ${ohyo.videoUrls?.length} video\'s. ');
-      }
-
-      await accessibilityNotifier.speak(content.toString());
-    } catch (e) {
-      debugPrint('Error speaking ohyo content: $e');
-    }
+  Future<void> _showKataDetailDialog(Kata kata) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+          tooltip: 'Terug',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: _buildCompactTitle(kata.name, kata.style),
+          ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(context.responsiveSpacing(SpacingSize.md)),
+              child: CollapsibleKataCard(
+                key: ValueKey('favorite_kata_detail_${kata.id}'),
+                kata: kata,
+                onDelete: () {},
+                showAllInfo: true,
+                useAdaptiveWidth: false,
+                showHeader: true,
+                cardMargin: EdgeInsets.zero,
+                cardElevation: 0,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
+
+  Future<void> _showOhyoDetailDialog(Ohyo ohyo) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog.fullscreen(
+        child: Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+          tooltip: 'Terug',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: _buildCompactTitle(ohyo.name, ohyo.style),
+          ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(context.responsiveSpacing(SpacingSize.md)),
+              child: CollapsibleOhyoCard(
+                key: ValueKey('favorite_ohyo_detail_${ohyo.id}'),
+                ohyo: ohyo,
+                onDelete: () {},
+                showAllInfo: true,
+                useAdaptiveWidth: false,
+                showHeader: true,
+                cardMargin: EdgeInsets.zero,
+                cardElevation: 0,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactTitle(String name, String? style) {
+    final theme = Theme.of(context);
+    final hasStyle = style != null && style.isNotEmpty && style != 'Unknown';
+    final styleText = style ?? '';
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            name,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (hasStyle) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              styleText,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +214,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          tooltip: 'Terug',
           onPressed: () => context.goBackOrHome(),
         ),
         bottom: TabBar(
@@ -386,6 +412,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       onRefresh: _refreshFavorites,
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 80.0),
+        cacheExtent: context.isMobile ? 600 : 1000,
         itemCount: favoriteKatas.length,
         itemBuilder: (context, index) {
           final kata = favoriteKatas[index];
@@ -439,6 +466,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       onRefresh: _refreshFavorites,
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 80.0),
+        cacheExtent: context.isMobile ? 600 : 1000,
         itemCount: favoriteForumPosts.length,
         itemBuilder: (context, index) {
           final post = favoriteForumPosts[index];
@@ -489,6 +517,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       onRefresh: _refreshFavorites,
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 80.0),
+        cacheExtent: context.isMobile ? 600 : 1000,
         itemCount: favoriteOhyos.length,
         itemBuilder: (context, index) {
           final ohyo = favoriteOhyos[index];
@@ -503,46 +532,50 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       label: 'Favoriete kata $index van ${kata.name}. ${kata.style.isNotEmpty && kata.style != 'Unknown' ? 'Stijl: ${kata.style}.' : ''} ${kata.description.isNotEmpty ? 'Beschrijving: ${kata.description}.' : ''} ${kata.imageUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.imageUrls?.length} afbeeldingen.' : ''} ${kata.videoUrls?.isNotEmpty == true ? 'Deze kata heeft ${kata.videoUrls?.length} video\'s.' : ''} Tik om te bekijken.',
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: InkWell(
-          onTap: () => _speakKataContent(kata, index),
-          child: Column(
-            children: [
-              // Card header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  ),
+        child: Column(
+          children: [
+            // Header label (like forum post card)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              constraints: const BoxConstraints(minHeight: 40),
+              alignment: Alignment.centerLeft,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.self_improvement,
-                      size: 20,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.self_improvement,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Kata $index',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Kata $index',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              // Kata card content - show all information for favorites
-              CollapsibleKataCard(
-                kata: kata,
-                onDelete: () {}, // Empty callback instead of null
-                showAllInfo: true, // Show all information in favorites
-              ),
-            ],
-          ),
+            ),
+            CollapsibleKataCard(
+              key: ValueKey('favorite_kata_${kata.id}'),
+              kata: kata,
+              onDelete: () {}, // Empty callback instead of null
+              showAllInfo: true, // Show all information in favorites
+              useAdaptiveWidth: false,
+              showHeader: true,
+              cardMargin: EdgeInsets.zero,
+              cardElevation: 0,
+              onTap: () => _showKataDetailDialog(kata),
+            ),
+          ],
         ),
       ),
     );
@@ -610,14 +643,16 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
                 }
 
                 _speakForumPostContent(post, index);
-                Navigator.pushNamed(
-                  context,
-                  '/forum_post_detail',
-                  arguments: post.id,
-                );
+                context.push('/forum/post/${post.id}');
               },
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(
+                  context.responsiveValue(
+                    mobile: 16.0,
+                    tablet: 14.0,
+                    desktop: 12.0,
+                  ),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -765,46 +800,48 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen>
       label: 'Favoriete ohyo $index van ${ohyo.name}. ${ohyo.style.isNotEmpty && ohyo.style != 'Unknown' ? 'Stijl: ${ohyo.style}.' : ''} ${ohyo.description.isNotEmpty ? 'Beschrijving: ${ohyo.description}.' : ''} ${ohyo.imageUrls?.isNotEmpty == true ? 'Deze ohyo heeft ${ohyo.imageUrls?.length} afbeeldingen.' : ''} ${ohyo.videoUrls?.isNotEmpty == true ? 'Deze ohyo heeft ${ohyo.videoUrls?.length} video\'s.' : ''} Tik om te bekijken.',
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: InkWell(
-          onTap: () => _speakOhyoContent(ohyo, index),
-          child: Column(
-            children: [
-              // Card header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  ),
+        child: Column(
+          children: [
+            // Header label (like forum post card)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.sports_martial_arts,
-                      size: 20,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.sports_martial_arts,
+                    size: 20,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Ohyo $index',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Ohyo $index',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              // Ohyo card content - show all information for favorites
-              CollapsibleOhyoCard(
-                ohyo: ohyo,
-                onDelete: () {}, // Empty callback instead of null
-                showAllInfo: true, // Show all information in favorites
-              ),
-            ],
-          ),
+            ),
+            CollapsibleOhyoCard(
+              key: ValueKey('favorite_ohyo_${ohyo.id}'),
+              ohyo: ohyo,
+              onDelete: () {}, // Empty callback instead of null
+              showAllInfo: true, // Show all information in favorites
+              useAdaptiveWidth: false,
+              showHeader: true,
+              cardMargin: EdgeInsets.zero,
+              cardElevation: 0,
+              onTap: () => _showOhyoDetailDialog(ohyo),
+            ),
+          ],
         ),
       ),
     );

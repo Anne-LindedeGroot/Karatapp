@@ -13,6 +13,7 @@ import '../../widgets/avatar_widget.dart';
 import '../../services/unified_tts_service.dart';
 import '../../widgets/threaded_comment_widget.dart';
 import '../../utils/comment_threading_utils.dart';
+import '../../utils/responsive_utils.dart';
 
 class EditPostResult {
   final bool shouldSave;
@@ -482,6 +483,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               ),
               if (canModerate)
                 PopupMenuButton<String>(
+                  tooltip: 'Menu tonen',
                   onSelected: (value) async {
                     // Handle moderation actions
                     try {
@@ -1036,6 +1038,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                   shrinkWrap: true,
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  cacheExtent: context.isMobile ? 600 : 800,
                   itemCount: threadedComments.length + (_isLoadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
                     // Show loading indicator at the end
@@ -1313,6 +1316,11 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     return Scaffold(
         appBar: AppBar(
           title: const Text('Forum Post'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Terug',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
           actions: [
             Consumer(
               builder: (context, ref, child) {

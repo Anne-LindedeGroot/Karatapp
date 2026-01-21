@@ -14,6 +14,8 @@ import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 import 'interaction_provider.dart';
 import '../utils/search_utils.dart';
+import 'data_usage_provider.dart';
+import 'network_provider.dart';
 
 // OfflineOhyoService provider is now imported from offline_services_provider.dart
 
@@ -25,6 +27,52 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
   OhyoNotifier(this._errorBoundary, this._ref) : super(OhyoState.initial()) {
     // Don't auto-load ohyos on initialization - wait for explicit call
+  }
+
+  bool _isMobilePlatform() {
+    final platform = defaultTargetPlatform;
+    return platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+  }
+
+  int _getInitialPreloadCount() {
+    return _isMobilePlatform() ? 1 : 3;
+  }
+
+  void _scheduleOhyoCommentPrecache(List<Ohyo> ohyos) {
+    if (_offlineOhyoService == null) {
+      return;
+    }
+    final dataUsageState = _ref.read(dataUsageProvider);
+    if (!dataUsageState.shouldAllowDataUsage ||
+        dataUsageState.connectionType != ConnectionType.wifi) {
+      return;
+    }
+
+    final delay = _isMobilePlatform()
+        ? const Duration(seconds: 5)
+        : Duration.zero;
+
+    Future.delayed(delay, () async {
+      final interactionService = _ref.read(interactionServiceProvider);
+      for (final ohyo in ohyos) {
+        try {
+          final comments = await interactionService.getOhyoComments(ohyo.id);
+          if (comments.isNotEmpty) {
+            await _offlineOhyoService!.cacheOhyoComments(ohyo.id, comments);
+          }
+        } catch (_) {
+          // Ignore individual failures to avoid blocking
+        }
+      }
+    });
+  }
+
+  void _runMobileDeferred(Duration delay, VoidCallback action) {
+    if (!_isMobilePlatform()) {
+      action();
+      return;
+    }
+    Future.delayed(delay, action);
   }
 
   void initializeOfflineService(OfflineOhyoService offlineOhyoService) {
@@ -133,12 +181,17 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
     state = state.copyWith(isLoading: true, error: null);
 
     List<Ohyo>? cachedOhyos;
+    final networkState = _ref.read(networkProvider);
+    final isOffline = !networkState.isConnected;
 
     // First, try to load from cache if available
     if (_offlineOhyoService != null) {
       try {
-        cachedOhyos = await _offlineOhyoService!.getValidCachedOhyos();
+        cachedOhyos = isOffline
+            ? await _offlineOhyoService!.getCachedOhyos()
+            : await _offlineOhyoService!.getValidCachedOhyos();
         if (cachedOhyos != null && cachedOhyos.isNotEmpty) {
+          final cachedList = cachedOhyos;
           // Seed Hive cache with like counts from SharedPreferences cache
           // so interaction providers can show likes offline.
           final cachedOhyosForHive = cachedOhyos.map((ohyo) {
@@ -160,20 +213,37 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
           // Load cached ohyos first for immediate UI feedback
           state = state.copyWith(
-            ohyos: cachedOhyos,
-            filteredOhyos: cachedOhyos,
-            isLoading: true, // Keep loading true while we try to refresh from online
+            ohyos: cachedList,
+            filteredOhyos: cachedList,
+            // On mobile, show cached data immediately and refresh in background
+            isLoading: _isMobilePlatform() ? false : true,
             error: null,
             isOfflineMode: true,
           );
 
           // Preload images for cached ohyos (try cached images first, especially when offline)
-          if (cachedOhyos.isNotEmpty) {
-            await _preloadInitialOhyoImagesWithCache(cachedOhyos.take(3).toList());
+          if (cachedList.isNotEmpty) {
+            if (_isMobilePlatform()) {
+              _runMobileDeferred(
+                const Duration(seconds: 2),
+                () => _preloadInitialOhyoImagesWithCache(
+                  cachedList.take(_getInitialPreloadCount()).toList(),
+                ),
+              );
+            } else {
+              await _preloadInitialOhyoImagesWithCache(cachedList.take(3).toList());
+            }
           }
 
-          // Preload likes for all ohyos to ensure offline availability
-          await _preloadOhyoLikes(cachedOhyos);
+          // Preload likes for offline availability, but defer on mobile
+          if (_isMobilePlatform()) {
+            _runMobileDeferred(
+              const Duration(seconds: 4),
+              () => _preloadOhyoLikes(cachedList),
+            );
+          } else {
+            await _preloadOhyoLikes(cachedList);
+          }
         } else {
           // If SharedPreferences cache is empty/expired, try Hive storage
           try {
@@ -199,7 +269,8 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
               state = state.copyWith(
                 ohyos: cachedOhyos,
                 filteredOhyos: cachedOhyos,
-                isLoading: true, // Keep loading true while we try to refresh from online
+                // On mobile, show cached data immediately and refresh in background
+                isLoading: _isMobilePlatform() ? false : true,
                 error: null,
                 isOfflineMode: true,
               );
@@ -235,6 +306,23 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
           if (_offlineOhyoService != null) {
             await _offlineOhyoService!.cacheOhyos(onlineOhyos);
           }
+          // Ensure Hive cache exists for offline likes/comments visibility
+          final ohyosToCache = onlineOhyos.map((ohyo) {
+            return app_storage.CachedOhyo(
+              id: ohyo.id,
+              name: ohyo.name,
+              description: ohyo.description,
+              createdAt: ohyo.createdAt,
+              lastSynced: DateTime.now(),
+              imageUrls: ohyo.imageUrls ?? const [],
+              style: ohyo.style,
+              isFavorite: false,
+              needsSync: false,
+              isLiked: ohyo.isLiked,
+              likeCount: ohyo.likeCount,
+            );
+          }).toList();
+          await app_storage.LocalStorage.saveOhyos(ohyosToCache);
 
           // Update state with online data
           state = state.copyWith(
@@ -247,11 +335,30 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
           // Preload images for online ohyos
           if (onlineOhyos.isNotEmpty) {
-            await _preloadInitialOhyoImagesWithCache(onlineOhyos.take(3).toList());
+            if (_isMobilePlatform()) {
+              _runMobileDeferred(
+                const Duration(seconds: 2),
+                () => _preloadInitialOhyoImagesWithCache(
+                  onlineOhyos.take(_getInitialPreloadCount()).toList(),
+                ),
+              );
+            } else {
+              await _preloadInitialOhyoImagesWithCache(onlineOhyos.take(3).toList());
+            }
           }
 
-          // Preload likes for all ohyos to ensure offline availability
-          await _preloadOhyoLikes(onlineOhyos);
+          // Preload likes for offline availability, but defer on mobile
+          if (_isMobilePlatform()) {
+            _runMobileDeferred(
+              const Duration(seconds: 4),
+              () => _preloadOhyoLikes(onlineOhyos),
+            );
+          } else {
+            await _preloadOhyoLikes(onlineOhyos);
+          }
+
+          // Pre-cache comments for the first few ohyos for offline access
+          _scheduleOhyoCommentPrecache(onlineOhyos);
         },
         maxRetries: 3,
         initialDelay: const Duration(seconds: 1),
@@ -677,6 +784,8 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
     List<String>? videoUrls,
     bool? removeAllImages,
     List<String>? deletedImageUrls,
+    List<String>? orderedImageUrls,
+    int? existingImageCount,
   }) async {
     state = state.copyWith(isLoading: true, error: null);
 
@@ -703,23 +812,54 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
 
           // Delete specific images if provided
           if (deletedImageUrls != null && deletedImageUrls.isNotEmpty) {
-            // Extract filenames from URLs for deletion
-            final filenamesToDelete = deletedImageUrls.map((url) {
-              final uri = Uri.parse(url);
-              final segments = uri.pathSegments;
-              if (segments.length >= 2) {
-                return '${segments[segments.length - 2]}/${segments.last}';
-              }
-              return '';
-            }).where((name) => name.isNotEmpty).toList();
-
-            if (filenamesToDelete.isNotEmpty) {
-              await ImageUtils.deleteMultipleImagesFromSupabase(filenamesToDelete);
-            }
+            await ImageUtils.deleteMultipleImagesFromSupabase(
+              deletedImageUrls,
+              bucket: 'ohyo_images',
+            );
           }
 
+          List<String> uploadedUrls = [];
           if (newImages != null && newImages.isNotEmpty) {
-            await ImageUtils.uploadOhyoImages(newImages, ohyoId);
+            uploadedUrls = await ImageUtils.uploadOhyoImages(
+              newImages,
+              ohyoId,
+              startIndex: existingImageCount ?? 0,
+            );
+          }
+
+          if (orderedImageUrls != null && orderedImageUrls.isNotEmpty) {
+            await ImageUtils.reorderOhyoImages(ohyoId, orderedImageUrls);
+          }
+
+          final shouldRefreshImageUrls = (removeAllImages == true) ||
+              (newImages != null && newImages.isNotEmpty) ||
+              (deletedImageUrls != null && deletedImageUrls.isNotEmpty) ||
+              (orderedImageUrls != null && orderedImageUrls.isNotEmpty);
+
+          if (shouldRefreshImageUrls) {
+            try {
+              List<String> refreshedUrls = [];
+              if (removeAllImages == true) {
+                refreshedUrls = [];
+              } else if (orderedImageUrls != null && orderedImageUrls.isNotEmpty) {
+                // Trust the user's explicit order and append any newly uploaded images.
+                refreshedUrls = [
+                  ...orderedImageUrls.where((url) => url.trim().isNotEmpty),
+                  ...uploadedUrls,
+                ];
+              } else {
+                refreshedUrls = await ImageUtils.fetchOhyoImagesFromBucket(ohyoId, ref: _ref);
+              }
+
+              if (refreshedUrls.isNotEmpty || removeAllImages == true) {
+                await updateOhyoImageUrls(
+                  ohyoId: ohyoId,
+                  imageUrls: refreshedUrls,
+                );
+              }
+            } catch (_) {
+              // Ignore refresh failures to avoid blocking save
+            }
           }
 
           // Reload ohyos to get the updated list
@@ -776,6 +916,45 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
       );
       _errorBoundary.reportNetworkError(errorMessage);
       rethrow;
+    }
+  }
+
+  void updateOhyoImages(int ohyoId, List<String> newImageUrls) {
+    final updatedOhyos = state.ohyos.map((ohyo) {
+      if (ohyo.id == ohyoId) {
+        return ohyo.copyWith(imageUrls: newImageUrls);
+      }
+      return ohyo;
+    }).toList();
+
+    state = state.copyWith(
+      ohyos: updatedOhyos,
+      filteredOhyos: updatedOhyos,
+    );
+  }
+
+  Future<void> updateOhyoImageUrls({
+    required int ohyoId,
+    required List<String> imageUrls,
+  }) async {
+    try {
+      await RetryUtils.executeWithRetry(
+        () async {
+          await _supabase.from("ohyo").update({
+            'image_urls': imageUrls.isEmpty ? null : imageUrls,
+          }).eq('id', ohyoId);
+        },
+      );
+
+      updateOhyoImages(ohyoId, imageUrls);
+    } catch (e) {
+      final errorText = e.toString();
+      if (errorText.contains('image_urls') && errorText.contains('PGRST204')) {
+        debugPrint('⚠️ ohyo.image_urls column missing; skipping image order update.');
+        updateOhyoImages(ohyoId, imageUrls);
+        return;
+      }
+      updateOhyoImages(ohyoId, imageUrls);
     }
   }
 

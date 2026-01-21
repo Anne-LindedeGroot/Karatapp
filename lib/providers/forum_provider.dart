@@ -10,6 +10,7 @@ import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 import 'auth_provider.dart';
+import 'data_usage_provider.dart';
 
 // Provider for the ForumService instance
 final forumServiceProvider = Provider<ForumService>((ref) {
@@ -25,9 +26,44 @@ class ForumNotifier extends StateNotifier<ForumState> {
   final Ref _ref;
   OfflineForumService? _offlineForumService;
   OfflineQueueService? _offlineQueueService;
+  static const int _offlineCommentPrecacheLimit = 5;
 
   ForumNotifier(this._forumService, this._errorBoundary, this._ref) : super(const ForumState()) {
     loadPosts();
+  }
+
+  bool _isMobilePlatform() {
+    final platform = defaultTargetPlatform;
+    return platform == TargetPlatform.android || platform == TargetPlatform.iOS;
+  }
+
+  void _scheduleForumCommentPrecache(List<ForumPost> posts) {
+    final offlineService = _offlineForumService;
+    if (offlineService == null) {
+      return;
+    }
+
+    final dataUsageState = _ref.read(dataUsageProvider);
+    if (!dataUsageState.shouldAllowDataUsage) {
+      return;
+    }
+
+    final delay = _isMobilePlatform()
+        ? const Duration(seconds: 5)
+        : Duration.zero;
+
+    Future.delayed(delay, () async {
+      for (final post in posts.take(_offlineCommentPrecacheLimit)) {
+        try {
+          final comments = await _forumService.getComments(post.id);
+          if (comments.isNotEmpty) {
+            await offlineService.cachePostComments(post.id, comments);
+          }
+        } catch (_) {
+          // Ignore individual failures to avoid blocking other posts
+        }
+      }
+    });
   }
 
   void initializeOfflineService(OfflineForumService offlineForumService) {
@@ -57,9 +93,7 @@ class ForumNotifier extends StateNotifier<ForumState> {
   /// Fetch likes for a list of forum posts and return posts with updated like counts
   Future<List<ForumPost>> _fetchLikesForPosts(List<ForumPost> posts) async {
     try {
-      final updatedPosts = <ForumPost>[];
-
-      for (final post in posts) {
+      final futures = posts.map((post) async {
         try {
           // Fetch likes for this post
           final likesResponse = await Supabase.instance.client
@@ -69,19 +103,15 @@ class ForumNotifier extends StateNotifier<ForumState> {
               .eq('target_id', post.id);
 
           final likeCount = likesResponse.length;
-
-          // Create updated post with correct like count
-          final updatedPost = post.copyWith(likesCount: likeCount);
-
-          updatedPosts.add(updatedPost);
+          return post.copyWith(likesCount: likeCount);
         } catch (e) {
           debugPrint('⚠️ Failed to fetch likes for post ${post.id}: $e');
-          // Add post with original like count if fetching fails
-          updatedPosts.add(post);
+          // Return original post if fetching fails
+          return post;
         }
-      }
+      }).toList();
 
-      return updatedPosts;
+      return await Future.wait(futures);
     } catch (e) {
       debugPrint('⚠️ Failed to fetch likes for posts: $e');
       // Return original posts if fetching fails
@@ -182,7 +212,19 @@ class ForumNotifier extends StateNotifier<ForumState> {
 
         // Cache the online data to both SharedPreferences and Hive
         if (_offlineForumService != null) {
-          await _offlineForumService!.cacheForumPosts(posts);
+          await _offlineForumService!.cacheForumPosts(postsWithLikes);
+          // Also cache individual posts for offline detail viewing
+          Future.microtask(() async {
+            for (final post in posts) {
+              try {
+                await _offlineForumService!.cacheIndividualPost(post);
+              } catch (_) {
+                // Ignore individual cache failures
+              }
+            }
+          });
+          // Pre-cache comments for the first few posts for offline access
+          _scheduleForumCommentPrecache(posts);
         }
 
         // Also cache to Hive storage for consistency
@@ -254,6 +296,45 @@ class ForumNotifier extends StateNotifier<ForumState> {
           isOfflineMode: true,
         );
       } else {
+        // Fallback to SharedPreferences cached posts if Hive cache is empty
+        if (_offlineForumService != null) {
+          try {
+            final fallbackPosts = await _offlineForumService!.getCachedForumPosts();
+            if (fallbackPosts != null && fallbackPosts.isNotEmpty) {
+              final filteredPosts = _filterPosts(
+                fallbackPosts,
+                searchQuery ?? state.searchQuery,
+                category ?? state.selectedCategory,
+              );
+              // Persist fallback posts to Hive for future offline use
+              final cachedPostsToSave = fallbackPosts.map((post) {
+                return app_storage.CachedForumPost(
+                  id: post.id.toString(),
+                  title: post.title,
+                  content: post.content,
+                  authorId: post.authorId,
+                  authorName: post.authorName,
+                  createdAt: post.createdAt,
+                  lastSynced: DateTime.now(),
+                  likesCount: post.likesCount ?? 0,
+                  commentsCount: post.commentCount,
+                  needsSync: false,
+                  category: post.category.name,
+                );
+              }).toList();
+              await app_storage.LocalStorage.saveForumPosts(cachedPostsToSave);
+
+              state = state.copyWith(
+                posts: fallbackPosts,
+                filteredPosts: filteredPosts,
+                isLoading: false,
+                error: null,
+                isOfflineMode: true,
+              );
+              return;
+            }
+          } catch (_) {}
+        }
         // No cached data available
         debugPrint('📱 Forum provider: No cached data available - showing error');
         state = state.copyWith(
@@ -407,8 +488,53 @@ class ForumNotifier extends StateNotifier<ForumState> {
       }
     } else {
       // Offline mode - if we have cached data, we already returned it above
-      // If we don't have cached data, throw an error
-      throw Exception('Post niet beschikbaar offline - geen lokale gegevens gevonden');
+      // Fallback to cached list in local storage to avoid hard failure
+      try {
+        final cachedForumPosts = app_storage.LocalStorage.getAllForumPosts();
+        final cachedPost = cachedForumPosts.firstWhere(
+          (post) => post.id == postId.toString(),
+          orElse: () => app_storage.CachedForumPost(
+            id: postId.toString(),
+            title: 'Onbekend bericht',
+            content: '',
+            authorId: '',
+            authorName: 'Onbekend',
+            createdAt: DateTime.now(),
+            lastSynced: DateTime.now(),
+            likesCount: 0,
+            commentsCount: 0,
+            needsSync: false,
+            category: ForumCategory.general.name,
+          ),
+        );
+
+        final category = ForumCategory.values.firstWhere(
+          (cat) => cat.name == cachedPost.category,
+          orElse: () => ForumCategory.general,
+        );
+
+        final fallbackPost = ForumPost(
+          id: int.parse(cachedPost.id),
+          title: cachedPost.title,
+          content: cachedPost.content,
+          authorId: cachedPost.authorId,
+          authorName: cachedPost.authorName,
+          authorAvatar: null,
+          category: category,
+          createdAt: cachedPost.createdAt,
+          updatedAt: cachedPost.lastSynced,
+          isPinned: false,
+          isLocked: false,
+          commentCount: cachedPost.commentsCount,
+          likesCount: cachedPost.likesCount,
+          comments: const [],
+        );
+
+        state = state.copyWith(selectedPost: fallbackPost);
+        return fallbackPost;
+      } catch (e) {
+        throw Exception('Post niet beschikbaar offline - geen lokale gegevens gevonden');
+      }
     }
   }
 

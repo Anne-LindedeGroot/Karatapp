@@ -622,7 +622,10 @@ class ImageUtils {
   }
   
   /// Delete multiple specific images from the bucket
-  static Future<bool> deleteMultipleImagesFromSupabase(List<String> imageUrls) async {
+  static Future<bool> deleteMultipleImagesFromSupabase(
+    List<String> imageUrls, {
+    String bucket = 'kata_images',
+  }) async {
     if (imageUrls.isEmpty) return true;
 
     return await RetryUtils.executeWithRetry(
@@ -630,21 +633,15 @@ class ImageUtils {
         try {
           final supabase = Supabase.instance.client;
 
-          // Extract filenames from URLs
+          // Extract storage paths from URLs
           final fileNames = imageUrls.map((url) {
-            final uri = Uri.parse(url);
-            final pathSegments = uri.pathSegments;
-            if (pathSegments.length >= 2) {
-              // Format: /storage/v1/object/public/kata_images/{kataId}/{fileName}
-              return '${pathSegments[pathSegments.length - 2]}/${pathSegments.last}';
-            }
-            return '';
-          }).where((name) => name.isNotEmpty).toList();
+            return _extractStoragePath(url, bucket);
+          }).whereType<String>().where((name) => name.isNotEmpty).toList();
 
           if (fileNames.isNotEmpty) {
             // Delete the files from storage
             await supabase.storage
-                .from('kata_images')
+                .from(bucket)
                 .remove(fileNames);
 
             debugPrint('✅ Successfully deleted ${fileNames.length} images');
@@ -652,7 +649,7 @@ class ImageUtils {
 
           return true;
         } catch (e) {
-          debugPrint('Error deleting multiple images from bucket: $e');
+          debugPrint('Error deleting multiple images from bucket $bucket: $e');
           rethrow;
         }
       },
@@ -660,9 +657,28 @@ class ImageUtils {
       initialDelay: const Duration(seconds: 1),
       shouldRetry: RetryUtils.shouldRetryImageError,
       onRetry: (attempt, error) {
-        debugPrint('🔄 Retrying delete multiple images (attempt $attempt): $error');
+        debugPrint('🔄 Retrying delete multiple images (attempt $attempt) in $bucket: $error');
       },
     );
+  }
+
+  static String? _extractStoragePath(String url, String bucket) {
+    if (url.trim().isEmpty) return null;
+    if (url.startsWith('file://') || url.startsWith('/')) {
+      // Local path, not a storage object reference
+      return null;
+    }
+
+    try {
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      final bucketIndex = pathSegments.indexOf(bucket);
+      if (bucketIndex != -1 && pathSegments.length > bucketIndex + 2) {
+        return '${pathSegments[bucketIndex + 1]}/${pathSegments[bucketIndex + 2]}';
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   /// Delete all images for a specific kata ID
@@ -829,14 +845,19 @@ class ImageUtils {
   }
 
   /// Upload multiple images to Supabase Storage organized by ohyo ID
-  static Future<List<String>> uploadOhyoImages(List<File> imageFiles, int ohyoId) async {
+  static Future<List<String>> uploadOhyoImages(
+    List<File> imageFiles,
+    int ohyoId, {
+    int startIndex = 0,
+  }) async {
     return await RetryUtils.executeWithRetry(
       () async {
         List<String> uploadedUrls = [];
 
         for (int i = 0; i < imageFiles.length; i++) {
           final imageFile = imageFiles[i];
-          final fileName = generateUniqueFileName('ohyo_${ohyoId}_$i');
+          final orderIndex = i + startIndex;
+          final fileName = generateUniqueFileName('ohyo_${ohyoId}_$orderIndex');
           final url = await uploadOhyoImageToSupabase(imageFile, fileName, ohyoId);
 
           if (url != null) {
@@ -855,6 +876,47 @@ class ImageUtils {
         debugPrint('🔄 Retrying upload ohyo images (attempt $attempt): $error');
       },
     );
+  }
+
+  /// Reorder ohyo images by renaming files to include the new order index
+  static Future<void> reorderOhyoImages(int ohyoId, List<String> orderedUrls) async {
+    if (orderedUrls.isEmpty) return;
+
+    final supabase = Supabase.instance.client;
+
+    for (int i = 0; i < orderedUrls.length; i++) {
+      final url = orderedUrls[i];
+      if (url.trim().isEmpty) continue;
+      if (url.startsWith('/') || url.startsWith('file://')) {
+        // Skip local paths (offline previews)
+        continue;
+      }
+
+      final fileName = extractFileNameFromUrl(url);
+      if (fileName == null || fileName.isEmpty) continue;
+
+      final currentPath = '$ohyoId/$fileName';
+      final newFileName = generateUniqueFileName('ohyo_${ohyoId}_$i');
+      final newPath = '$ohyoId/$newFileName';
+
+      if (currentPath == newPath) continue;
+
+      try {
+        final fileData = await supabase.storage
+            .from('ohyo_images')
+            .download(currentPath);
+
+        await supabase.storage
+            .from('ohyo_images')
+            .uploadBinary(newPath, fileData);
+
+        await supabase.storage
+            .from('ohyo_images')
+            .remove([currentPath]);
+      } catch (e) {
+        debugPrint('Error reordering ohyo image $currentPath -> $newPath: $e');
+      }
+    }
   }
 
   /// Upload ohyo image to Supabase Storage organized by ohyo ID
@@ -996,6 +1058,22 @@ class ImageUtils {
             }
           }
 
+          // Check if there's a stored image order in the ohyo record
+          List<String>? storedOrder;
+          try {
+            final ohyoResponse = await supabase
+                .from('ohyo')
+                .select('image_urls')
+                .eq('id', ohyoId)
+                .single();
+
+            storedOrder = ohyoResponse['image_urls'] != null
+                ? List<String>.from(ohyoResponse['image_urls'] as List)
+                : null;
+          } catch (_) {
+            // Silent: Image order fetch failures are not logged
+          }
+
           // List all files in the ohyo's folder with proper error handling
           // Silent: File listing debug is not shown
           List<dynamic> response = [];
@@ -1101,14 +1179,39 @@ class ImageUtils {
             return [];
           }
 
-          // Sort by filename to maintain order (files with order prefix will be sorted correctly)
-          imageData.sort((a, b) => a['name']!.compareTo(b['name']!));
+          // If we have a stored order, use it to sort the images
+          if (storedOrder != null && storedOrder.isNotEmpty) {
+            final fileNameToData = <String, Map<String, String>>{};
+            for (final data in imageData) {
+              fileNameToData[data['name']!] = data;
+            }
 
-          // Extract just the URLs in the correct order
-          final urls = imageData.map((data) => data['url']!).toList();
-          // Silent: Image fetch success is not logged
-          // Silent: Image URLs are not logged to avoid spam
-          return urls;
+            final orderedUrls = <String>[];
+            for (final storedUrl in storedOrder) {
+              final storedFileName = extractFileNameFromUrl(storedUrl);
+              if (storedFileName != null && fileNameToData.containsKey(storedFileName)) {
+                orderedUrls.add(fileNameToData[storedFileName]!['url']!);
+              }
+            }
+
+            for (final data in imageData) {
+              if (!orderedUrls.contains(data['url'])) {
+                orderedUrls.add(data['url']!);
+              }
+            }
+
+            return orderedUrls;
+          } else {
+            // Fall back to sorting by filename numerically (ohyo_9_0, ohyo_9_1, ohyo_9_10, etc.)
+            imageData.sort((a, b) {
+              final nameA = a['name']!;
+              final nameB = b['name']!;
+              final orderA = _extractOrderNumber(nameA);
+              final orderB = _extractOrderNumber(nameB);
+              return orderA.compareTo(orderB);
+            });
+            return imageData.map((data) => data['url']!).toList();
+          }
         } catch (e) {
           debugPrint('❌ Error fetching ohyo images from bucket: $e');
 

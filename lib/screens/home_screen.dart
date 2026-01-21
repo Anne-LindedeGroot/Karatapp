@@ -22,9 +22,14 @@ import 'home/home_ohyo_list.dart';
 import 'home/home_screen_error_display.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key, this.initialTabIndex = 0});
+  const HomeScreen({
+    super.key,
+    this.initialTabIndex = 0,
+    this.initialSearchQuery,
+  });
 
   final int initialTabIndex;
+  final String? initialSearchQuery;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -35,6 +40,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _searchScrollController = ScrollController();
   late TabController _tabController;
+  bool _hasAppliedInitialSearch = false;
+  bool _hasInitializedKatas = false;
+  bool _hasInitializedOhyos = false;
 
   @override
   void initState() {
@@ -46,8 +54,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
     // Initialize kata and ohyo loading when home screen is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(kataNotifierProvider.notifier).initializeKataLoading();
-      ref.read(ohyoNotifierProvider.notifier).initializeOhyoLoading();
+      // Only load the active tab immediately for faster startup
+      if (widget.initialTabIndex == 0) {
+        _initializeKatasIfNeeded();
+      } else {
+        _initializeOhyosIfNeeded();
+      }
+      _applyInitialSearchIfNeeded();
     });
     // TTS announcement disabled - only speak when user clicks TTS button
     // WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -65,7 +78,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
     super.dispose();
   }
 
+  void _applyInitialSearchIfNeeded() {
+    if (_hasAppliedInitialSearch) {
+      return;
+    }
+    final initialQuery = widget.initialSearchQuery?.trim();
+    if (initialQuery == null || initialQuery.isEmpty) {
+      return;
+    }
+    _hasAppliedInitialSearch = true;
+    _searchController.text = initialQuery;
+    if (_tabController.index == 0) {
+      _filterKatas(initialQuery);
+    } else {
+      _filterOhyos(initialQuery);
+    }
+  }
+
   void _onTabChanged() {
+    if (_tabController.index == 0) {
+      _initializeKatasIfNeeded();
+    } else if (_tabController.index == 1) {
+      _initializeOhyosIfNeeded();
+    }
     // Clear search when switching tabs to avoid confusion
     if (_searchController.text.isNotEmpty) {
       _searchController.clear();
@@ -80,6 +115,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
         ref.read(ohyoNotifierProvider.notifier).resetOhyoTab();
       }
     }
+  }
+
+  void _initializeKatasIfNeeded() {
+    if (_hasInitializedKatas) {
+      return;
+    }
+    _hasInitializedKatas = true;
+    ref.read(kataNotifierProvider.notifier).initializeKataLoading();
+  }
+
+  void _initializeOhyosIfNeeded() {
+    if (_hasInitializedOhyos) {
+      return;
+    }
+    _hasInitializedOhyos = true;
+    ref.read(ohyoNotifierProvider.notifier).initializeOhyoLoading();
   }
 
   Future<void> _refreshKatas() async {

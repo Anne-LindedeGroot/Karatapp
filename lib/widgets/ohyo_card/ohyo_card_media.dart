@@ -22,6 +22,14 @@ class OhyoCardMedia extends StatelessWidget {
     required this.ohyo,
   });
 
+  int _getPreviewCacheWidth(BuildContext context) {
+    return context.isMobile ? 600 : 800;
+  }
+
+  int _getPreviewCacheHeight(BuildContext context) {
+    return context.isMobile ? 450 : 600;
+  }
+
   @override
   Widget build(BuildContext context) {
     return _buildMediaSection(context);
@@ -357,8 +365,8 @@ class OhyoCardMedia extends StatelessWidget {
                             fit: BoxFit.contain,
                             width: double.infinity,
                             height: double.infinity,
-                            memCacheWidth: 800,
-                            memCacheHeight: 600,
+                            memCacheWidth: _getPreviewCacheWidth(context),
+                            memCacheHeight: _getPreviewCacheHeight(context),
                             progressIndicatorBuilder: (context, url, downloadProgress) {
                               // Silent: Image loading progress not logged
                               if (downloadProgress.progress == null) {

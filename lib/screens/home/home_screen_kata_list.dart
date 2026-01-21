@@ -42,6 +42,7 @@ class HomeScreenKataList extends ConsumerWidget {
                 ResponsiveUtils.responsiveButtonHeight(context) +
                 context.responsiveSpacing(SpacingSize.lg),
           ),
+          cacheExtent: 600,
           itemCount: katas.length,
           itemBuilder: (context, index) {
             final kata = katas[index];

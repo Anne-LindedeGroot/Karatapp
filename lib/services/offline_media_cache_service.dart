@@ -319,6 +319,7 @@ class OfflineMediaCacheService {
   static Future<String?> cacheOhyoImage(int ohyoId, String fileName, String url, dynamic ref) async {
     try {
       if (_imagesDir == null) return null;
+      if (url.trim().isEmpty) return null;
 
       // Try to read network and data usage state, but don't fail if providers aren't available
       bool shouldCache = true;
@@ -340,15 +341,34 @@ class OfflineMediaCacheService {
       final hash = _generateUrlHash(stableKey);
       final file = File('${_imagesDir!.path}/$hash.jpg');
 
+      // If URL is a local file path, copy it into stable cache
+      final isLocalPath = url.startsWith('/') || url.startsWith('file://');
+      if (isLocalPath) {
+        final localPath = url.replaceFirst('file://', '');
+        final localFile = File(localPath);
+        if (await localFile.exists()) {
+          try {
+            await localFile.copy(file.path);
+            await _updateOhyoMetadata(ohyoId, fileName);
+            return file.path;
+          } catch (_) {
+            // If copy fails, fall through
+          }
+        }
+      }
+
       // Check if already cached
       if (await file.exists()) {
         // Still update metadata
         await _updateOhyoMetadata(ohyoId, fileName);
-        await _updateOhyoUrlMetadata(ohyoId, url);
+        if (!isLocalPath) {
+          await _updateOhyoUrlMetadata(ohyoId, url);
+        }
         return file.path;
       }
 
       // Download and cache the file
+      if (isLocalPath) return null;
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
         await file.writeAsBytes(response.bodyBytes);
@@ -388,7 +408,14 @@ class OfflineMediaCacheService {
       Map<String, dynamic> metadata = {};
 
       if (await metadataFile.exists()) {
-        metadata = json.decode(await metadataFile.readAsString());
+        try {
+          final content = await metadataFile.readAsString();
+          if (content.trim().isNotEmpty) {
+            metadata = json.decode(content) as Map<String, dynamic>;
+          }
+        } catch (_) {
+          metadata = {};
+        }
       }
 
       final ohyoKey = ohyoId.toString();
@@ -701,7 +728,14 @@ class OfflineMediaCacheService {
       Map<String, dynamic> metadata = {};
 
       if (await metadataFile.exists()) {
-        metadata = json.decode(await metadataFile.readAsString());
+        try {
+          final content = await metadataFile.readAsString();
+          if (content.trim().isNotEmpty) {
+            metadata = json.decode(content) as Map<String, dynamic>;
+          }
+        } catch (_) {
+          metadata = {};
+        }
       }
 
       final kataKey = kataId.toString();
@@ -820,6 +854,7 @@ class OfflineMediaCacheService {
   static Future<String?> cacheKataImage(int kataId, String fileName, String url, dynamic ref) async {
     try {
       if (_imagesDir == null) return null;
+      if (url.trim().isEmpty) return null;
 
       // Try to read network and data usage state, but don't fail if providers aren't available
       bool shouldCache = true;
@@ -842,8 +877,25 @@ class OfflineMediaCacheService {
       final extension = _getFileExtension(url, false);
       final file = File('${_imagesDir!.path}/$hash$extension');
 
+      // If URL is a local file path, copy it into stable cache
+      final isLocalPath = url.startsWith('/') || url.startsWith('file://');
+      if (isLocalPath) {
+        final localPath = url.replaceFirst('file://', '');
+        final localFile = File(localPath);
+        if (await localFile.exists()) {
+          try {
+            await localFile.copy(file.path);
+            await updateKataMetadata(kataId, url);
+            return file.path;
+          } catch (_) {
+            // If copy fails, fall through
+          }
+        }
+      }
+
       // Check if already cached
       if (await file.exists()) {
+        await updateKataMetadata(kataId, url);
         return file.path;
       }
 
@@ -852,6 +904,7 @@ class OfflineMediaCacheService {
       if (cachedByUrl != null) {
         try {
           await File(cachedByUrl).copy(file.path);
+          await updateKataMetadata(kataId, url);
           return file.path;
         } catch (_) {
           // Fallback to download if copy fails
@@ -859,9 +912,13 @@ class OfflineMediaCacheService {
       }
 
       // Download and cache the file
+      if (isLocalPath) return null;
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
         await file.writeAsBytes(response.bodyBytes);
+
+        // Update metadata for offline gallery access
+        await updateKataMetadata(kataId, url);
 
         // Record data usage (if provider is available)
         try {

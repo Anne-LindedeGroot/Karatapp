@@ -252,6 +252,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                     shrinkWrap: true,
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    cacheExtent: 600,
                     itemCount: threadedComments.length + (_isLoadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
                       // Show loading indicator at the end

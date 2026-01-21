@@ -15,9 +15,14 @@ import '../accessibility_demo_screen.dart';
 import '../../core/navigation/app_router.dart';
 
 class AuthWrapper extends ConsumerStatefulWidget {
-  const AuthWrapper({super.key, this.initialHomeTab = 0});
+  const AuthWrapper({
+    super.key,
+    this.initialHomeTab = 0,
+    this.initialSearchQuery,
+  });
 
   final int initialHomeTab;
+  final String? initialSearchQuery;
 
   @override
   ConsumerState<AuthWrapper> createState() => _AuthWrapperState();
@@ -25,6 +30,7 @@ class AuthWrapper extends ConsumerStatefulWidget {
 
 class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   late final int _initialHomeTab;
+  String? _initialSearchQuery;
   bool _hasTimedOut = false;
 
   /// Check if an error is a critical system error that should show full-screen
@@ -65,6 +71,7 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
   void initState() {
     super.initState();
     _initialHomeTab = widget.initialHomeTab;
+    _initialSearchQuery = widget.initialSearchQuery;
     // Set a timeout to prevent infinite loading (reduced for faster UX)
     Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
@@ -154,7 +161,10 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
     switch (currentLocation) {
       case AppRoutes.splash:
       case AppRoutes.home:
-        return HomeScreen(initialTabIndex: _initialHomeTab);
+        return HomeScreen(
+          initialTabIndex: _initialHomeTab,
+          initialSearchQuery: _initialSearchQuery,
+        );
       case AppRoutes.profile:
         return const ProfileScreen();
       case AppRoutes.forum:
@@ -184,12 +194,18 @@ class _AuthWrapperState extends ConsumerState<AuthWrapper> {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               context.go(AppRoutes.home);
             });
-            return HomeScreen(initialTabIndex: _initialHomeTab);
+            return HomeScreen(
+              initialTabIndex: _initialHomeTab,
+              initialSearchQuery: _initialSearchQuery,
+            );
           }
         }
 
         // Default to home screen for unknown routes
-        return HomeScreen(initialTabIndex: _initialHomeTab);
+        return HomeScreen(
+          initialTabIndex: _initialHomeTab,
+          initialSearchQuery: _initialSearchQuery,
+        );
     }
   }
 }

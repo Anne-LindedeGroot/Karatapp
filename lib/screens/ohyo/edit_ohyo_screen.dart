@@ -9,6 +9,7 @@ import '../../core/navigation/app_router.dart';
 import '../../widgets/enhanced_accessible_text.dart';
 import '../../providers/accessibility_provider.dart';
 import '../../widgets/media_source_bottom_sheet.dart';
+import '../../widgets/overflow_safe_widgets.dart';
 part 'edit_ohyo_screen_helpers.dart';
 
 class EditOhyoScreen extends ConsumerStatefulWidget {
@@ -96,11 +97,13 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
   Future<void> _loadCurrentImages() async {
     try {
       final imageUrls = await ImageUtils.fetchOhyoImagesFromBucket(widget.ohyo.id);
+      if (!mounted) return;
       setState(() {
         _currentImageUrls = imageUrls;
         _originalImageUrls = List.from(_currentImageUrls); // Store original URLs
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _currentImageUrls = widget.ohyo.imageUrls ?? [];
         _originalImageUrls = List.from(_currentImageUrls); // Store original URLs
@@ -221,6 +224,7 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
       }
       final item = _newSelectedImages.removeAt(oldIndex);
       _newSelectedImages.insert(newIndex, item);
+      _hasChanges = true;
     });
   }
 
@@ -241,6 +245,10 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
 
       // Identify deleted images
       final deletedImages = _originalImageUrls.where((url) => !_currentImageUrls.contains(url)).toList();
+      final removeAllImages = _currentImageUrls.isEmpty && _originalImageUrls.isNotEmpty;
+      final hasOrderChanged = _currentImageUrls.length == _originalImageUrls.length &&
+          _currentImageUrls.asMap().entries.any((entry) => entry.value != _originalImageUrls[entry.key]);
+      final shouldReorder = _currentImageUrls.isNotEmpty && (hasOrderChanged || deletedImages.isNotEmpty);
 
       // Update ohyo with new data
       debugPrint('Save: Starting ohyo update operation');
@@ -251,7 +259,10 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
         style: _styleController.text.trim(),
         newImages: _newSelectedImages,
         videoUrls: _videoUrls,
-        deletedImageUrls: deletedImages,
+        removeAllImages: removeAllImages,
+        deletedImageUrls: removeAllImages ? [] : deletedImages,
+        orderedImageUrls: shouldReorder ? _currentImageUrls : null,
+        existingImageCount: _currentImageUrls.length,
       );
       debugPrint('Save: Ohyo update operation completed successfully');
 
@@ -323,22 +334,22 @@ class _EditOhyoScreenState extends ConsumerState<EditOhyoScreen> {
             if (_hasChanges) {
               showDialog(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Niet-opgeslagen wijzigingen'),
-                  content: const Text(
-                    'Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je wilt teruggaan?'
+                builder: (context) => OverflowSafeDialog(
+                  title: 'Niet-opgeslagen wijzigingen',
+                  child: Text(
+                    'Je hebt niet-opgeslagen wijzigingen. Weet je zeker dat je wilt teruggaan?',
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Blijven'),
+                      child: Text('Blijven'),
                     ),
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).pop(); // Close dialog
                         context.goToHomeOhyo(); // Navigate to home ohyo tab
                       },
-                      child: const Text('Teruggaan'),
+                      child: Text('Teruggaan'),
                     ),
                   ],
                 ),

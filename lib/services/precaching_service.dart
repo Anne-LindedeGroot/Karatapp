@@ -11,7 +11,7 @@ class PreCachingService {
   static Timer? _backgroundTimer;
   static bool _isRunning = false;
   static const Duration _cacheInterval = Duration(hours: 6); // Cache every 6 hours
-  static const Duration _initialDelay = Duration(seconds: 30); // Start after 30 seconds
+  static Duration _initialDelay = const Duration(seconds: 30); // Start after 30 seconds
 
   static bool _isRefMounted(dynamic ref) {
     try {
@@ -28,9 +28,19 @@ class PreCachingService {
   /// Initialize the pre-caching service
   static void initialize() {
     // Start background caching after initial delay
+    _initialDelay = _getInitialDelay();
     Future.delayed(_initialDelay, () {
       _startBackgroundCaching();
     });
+  }
+
+  static Duration _getInitialDelay() {
+    final platform = defaultTargetPlatform;
+    if (platform == TargetPlatform.android || platform == TargetPlatform.iOS) {
+      // Defer longer on mobile to reduce startup work
+      return const Duration(minutes: 2);
+    }
+    return const Duration(seconds: 30);
   }
 
   /// Start background caching with periodic checks
