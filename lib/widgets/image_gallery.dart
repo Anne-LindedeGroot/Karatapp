@@ -32,6 +32,15 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
   int _currentIndex = 0;
   final Map<int, String> _resolvedUrls = {};
   late List<String> _imageUrls;
+  int _resolveGeneration = 0;
+
+  void _setImageUrls(List<String> urls) {
+    _resolvedUrls.clear();
+    _imageUrls = urls;
+    _currentIndex = 0;
+    _resolveGeneration += 1;
+    _pageController.jumpToPage(0);
+  }
 
   String? _extractFileNameFromUrl(String url) {
     try {
@@ -56,20 +65,78 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
     final networkState = ref.read(networkProvider);
     final isOffline = !networkState.isConnected;
 
-    if (isOffline && _imageUrls.isEmpty) {
+    if (isOffline) {
       if (widget.kataId != null) {
         final cached = await OfflineMediaCacheService.getCachedKataImageUrls(widget.kataId!);
         if (cached.isNotEmpty && mounted) {
           setState(() {
-            _imageUrls = cached;
+            _setImageUrls(cached);
           });
+        } else if (mounted) {
+          final offlineOnly = <String>[];
+          for (final url in _imageUrls) {
+            final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+            if (isLocalFile) {
+              offlineOnly.add(url);
+              continue;
+            }
+            final fileName = _extractFileNameFromUrl(url);
+            if (fileName != null) {
+              final stablePath = OfflineMediaCacheService.getCachedKataImagePath(
+                widget.kataId!,
+                fileName,
+              );
+              if (stablePath != null) {
+                offlineOnly.add(stablePath);
+                continue;
+              }
+            }
+            final cachedPath = OfflineMediaCacheService.getCachedFilePath(url, false);
+            if (cachedPath != null) {
+              offlineOnly.add(cachedPath);
+            }
+          }
+          if (offlineOnly.isNotEmpty) {
+            setState(() {
+              _setImageUrls(offlineOnly);
+            });
+          }
         }
       } else if (widget.ohyoId != null) {
         final cached = await OfflineMediaCacheService.getCachedOhyoImagePaths(widget.ohyoId!);
         if (cached.isNotEmpty && mounted) {
           setState(() {
-            _imageUrls = cached;
+            _setImageUrls(cached);
           });
+        } else if (mounted) {
+          final offlineOnly = <String>[];
+          for (final url in _imageUrls) {
+            final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+            if (isLocalFile) {
+              offlineOnly.add(url);
+              continue;
+            }
+            final fileName = _extractFileNameFromUrl(url);
+            if (fileName != null) {
+              final stablePath = OfflineMediaCacheService.getCachedOhyoImagePath(
+                widget.ohyoId!,
+                fileName,
+              );
+              if (stablePath != null) {
+                offlineOnly.add(stablePath);
+                continue;
+              }
+            }
+            final cachedPath = OfflineMediaCacheService.getCachedFilePath(url, false);
+            if (cachedPath != null) {
+              offlineOnly.add(cachedPath);
+            }
+          }
+          if (offlineOnly.isNotEmpty) {
+            setState(() {
+              _setImageUrls(offlineOnly);
+            });
+          }
         }
       }
     }
@@ -80,14 +147,14 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
           final urls = await ImageUtils.fetchKataImagesFromBucket(widget.kataId!, ref: ref);
           if (urls.isNotEmpty && mounted) {
             setState(() {
-              _imageUrls = urls;
+              _setImageUrls(urls);
             });
           }
         } else if (widget.ohyoId != null) {
           final urls = await ImageUtils.fetchOhyoImagesFromBucket(widget.ohyoId!, ref: ref);
           if (urls.isNotEmpty && mounted) {
             setState(() {
-              _imageUrls = urls;
+              _setImageUrls(urls);
             });
           }
         }
@@ -105,10 +172,15 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
     if (!mounted) return;
     final networkState = ref.read(networkProvider);
     final isOffline = !networkState.isConnected;
+    final currentGeneration = _resolveGeneration;
+    final snapshotUrls = List<String>.from(_imageUrls);
 
     // For each input URL, resolve it to a cached file if available, or keep the original URL
-    for (int i = 0; i < _imageUrls.length; i++) {
-      final originalUrl = _imageUrls[i];
+    for (int i = 0; i < snapshotUrls.length; i++) {
+      if (currentGeneration != _resolveGeneration) {
+        return;
+      }
+      final originalUrl = snapshotUrls[i];
 
       // Check if it's already a local file path
       final isLocalFile = originalUrl.startsWith('/') || originalUrl.startsWith('file://');
@@ -164,6 +236,9 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
       }
     }
 
+    if (!mounted || currentGeneration != _resolveGeneration) return;
+    setState(() {});
+
     // Pre-cache images if online (for future offline use)
     if (networkState.isConnected && widget.kataId != null) {
       debugPrint('🖼️ Online - pre-caching kata ${widget.kataId} images');
@@ -193,7 +268,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
 
   /// Build thumbnail image widget - handles both local files and network images
   Widget _buildThumbnailImage(int index, int cacheSize) {
-    final imageUrl = _resolvedUrls[index] ?? widget.imageUrls[index];
+    final imageUrl = _resolvedUrls[index] ?? _imageUrls[index];
     final isLocalFile = imageUrl.startsWith('/') || imageUrl.startsWith('file://');
 
     if (isLocalFile) {
@@ -212,7 +287,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
 
       return Image.file(
         file,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         cacheWidth: cacheSize,
         cacheHeight: cacheSize,
         errorBuilder: (context, error, stackTrace) => const Center(
@@ -226,7 +301,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
     } else {
       return CachedNetworkImage(
         imageUrl: imageUrl,
-        fit: BoxFit.cover,
+        fit: BoxFit.contain,
         memCacheWidth: cacheSize,
         memCacheHeight: cacheSize,
         placeholder: (context, url) => const Center(
@@ -401,7 +476,7 @@ class _ImageGalleryState extends ConsumerState<ImageGallery> {
                 
                 // Next image button
                 IconButton(
-                  onPressed: _currentIndex < widget.imageUrls.length - 1 ? () {
+                  onPressed: _currentIndex < _imageUrls.length - 1 ? () {
                     _pageController.nextPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,

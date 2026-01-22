@@ -600,6 +600,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                         child: isLocalFile
                             ? Image.file(
                                 File(cachedPath.replaceFirst('file://', '')),
+                                key: ValueKey(cachedPath),
                                 fit: BoxFit.contain,
                                 width: double.infinity,
                                 height: double.infinity,
@@ -625,6 +626,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                                 },
                               )
                             : CachedNetworkImage(
+                                key: ValueKey(cachedPath),
                                 imageUrl: cachedPath,
                                 fit: BoxFit.contain,
                                 width: double.infinity,
@@ -718,6 +720,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                     child: isLocalFile
                         ? Image.file(
                             File(resolvedUrl.replaceFirst('file://', '')),
+                            key: ValueKey(resolvedUrl),
                             fit: BoxFit.contain,
                             width: double.infinity,
                             height: double.infinity,
@@ -743,6 +746,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
                             },
                           )
                         : CachedNetworkImage(
+                            key: ValueKey(resolvedUrl),
                             imageUrl: resolvedUrl,
                             fit: BoxFit.contain,
                             width: double.infinity,

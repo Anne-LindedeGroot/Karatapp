@@ -16,6 +16,22 @@ class OfflineMediaCacheService {
   static Directory? _cacheDir;
   static Directory? _imagesDir;
 
+  static String _extractFileNameFromValue(String value) {
+    if (value.trim().isEmpty) return value;
+    try {
+      final uri = Uri.parse(value);
+      if (uri.pathSegments.isNotEmpty) {
+        return uri.pathSegments.last;
+      }
+    } catch (_) {
+      // Fall through to simple parsing.
+    }
+    if (value.contains('/')) {
+      return value.split('/').last;
+    }
+    return value;
+  }
+
   /// Get the cache directory (must call initialize() first)
   static Directory? getCacheDirectory() {
     return _cacheDir;
@@ -743,16 +759,45 @@ class OfflineMediaCacheService {
 
       // Handle both single URL and list of URLs
       if (urlsOrUrl is List<String>) {
-        urlsToStore = urlsOrUrl;
+        final seen = <String>{};
+        final normalized = <String>[];
+        for (final entry in urlsOrUrl) {
+          final fileName = _extractFileNameFromValue(entry);
+          final key = fileName.isNotEmpty ? fileName : entry;
+          if (seen.add(key)) {
+            normalized.add(fileName.isNotEmpty ? fileName : entry);
+          }
+        }
+        urlsToStore = normalized;
       } else if (urlsOrUrl is String) {
         // For single URL, add to existing list or create new list
         final existingUrls = metadata[kataKey] as List<dynamic>? ?? [];
         final existingUrlStrings = existingUrls.map((url) => url.toString()).toList();
-        if (!existingUrlStrings.contains(urlsOrUrl)) {
-          urlsToStore = [...existingUrlStrings, urlsOrUrl];
-        } else {
-          urlsToStore = existingUrlStrings;
+        final fileName = _extractFileNameFromValue(urlsOrUrl);
+        final key = fileName.isNotEmpty ? fileName : urlsOrUrl;
+        final updated = <String>[];
+        bool replaced = false;
+        for (final existing in existingUrlStrings) {
+          final existingFileName = _extractFileNameFromValue(existing);
+          final existingKey = existingFileName.isNotEmpty ? existingFileName : existing;
+          if (!replaced && existingKey == key) {
+            updated.add(fileName.isNotEmpty ? fileName : urlsOrUrl);
+            replaced = true;
+          } else {
+            updated.add(existingFileName.isNotEmpty ? existingFileName : existing);
+          }
         }
+        if (!replaced) {
+          updated.add(fileName.isNotEmpty ? fileName : urlsOrUrl);
+        }
+        final deduped = <String>[];
+        final seen = <String>{};
+        for (final entry in updated) {
+          if (seen.add(entry)) {
+            deduped.add(entry);
+          }
+        }
+        urlsToStore = deduped;
       } else {
         debugPrint('Invalid parameter type for updateKataMetadata');
         return;
@@ -785,10 +830,11 @@ class OfflineMediaCacheService {
             final metadata = json.decode(content);
             final kataKey = kataId.toString();
             if (metadata.containsKey(kataKey)) {
-              final storedUrls = metadata[kataKey] as List<dynamic>;
-              for (final url in storedUrls) {
-                // Check if this URL is cached locally
-                final cachedPath = getCachedFilePath(url.toString(), false);
+            final storedUrls = metadata[kataKey] as List<dynamic>;
+            for (final url in storedUrls) {
+              final entry = url.toString();
+              // Check if this URL is cached locally
+              final cachedPath = getCachedFilePath(entry, false);
                 if (cachedPath != null) {
                   urls.add(cachedPath);
                   continue;
@@ -796,10 +842,11 @@ class OfflineMediaCacheService {
 
                 // Fallback to stable kata cache (handles signed URL changes)
                 try {
-                  final uri = Uri.parse(url.toString());
-                  final fileName = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
-                  if (fileName != null) {
-                    final stablePath = getCachedKataImagePath(kataId, fileName);
+                final fileName = entry.contains('http')
+                    ? Uri.parse(entry).pathSegments.last
+                    : _extractFileNameFromValue(entry);
+                if (fileName.isNotEmpty) {
+                  final stablePath = getCachedKataImagePath(kataId, fileName);
                     if (stablePath != null) {
                       urls.add(stablePath);
                     }

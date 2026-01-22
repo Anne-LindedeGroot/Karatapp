@@ -48,6 +48,48 @@ class OhyoCardMedia extends StatelessWidget {
     }
   }
 
+  String? _getCachedOhyoImagePath(String url, int ohyoId) {
+    if (url.startsWith('/') || url.startsWith('file://')) {
+      return url;
+    }
+    final cachedPath = OfflineMediaCacheService.getCachedFilePath(url, false);
+    if (cachedPath != null) {
+      return cachedPath;
+    }
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        final fileName = uri.pathSegments.last;
+        final stablePath = OfflineMediaCacheService.getCachedOhyoImagePath(ohyoId, fileName);
+        if (stablePath != null) {
+          return stablePath;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Widget _buildOfflineImagesPlaceholder(BuildContext context) {
+    return Container(
+      height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8.0),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.photo, size: 36, color: Colors.grey),
+            SizedBox(height: 8),
+            Text('Afbeeldingen zijn offline nog niet beschikbaar'),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMediaSection(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
@@ -59,6 +101,17 @@ class OhyoCardMedia extends StatelessWidget {
         final videoUrls = ohyo.videoUrls ?? [];
         final hasVideos = videoUrls.isNotEmpty;
 
+        final networkState = ref.read(networkProvider);
+        final isOffline = !networkState.isConnected;
+        final hasCachedImages = isOffline
+            ? ohyoImages.any((url) => _getCachedOhyoImagePath(url, ohyo.id) != null)
+            : hasImages;
+        final previewCachedPath = isOffline
+            ? ohyoImages
+                .map((url) => _getCachedOhyoImagePath(url, ohyo.id))
+                .firstWhere((path) => path != null, orElse: () => null)
+            : null;
+
         // Load images if needed - immediately for offline support
         if (!hasImages) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -66,7 +119,6 @@ class OhyoCardMedia extends StatelessWidget {
           });
         } else {
           // If we have images but might be offline, check if we need to load cached versions
-          final networkState = ref.read(networkProvider);
           final hasNetworkUrls = ohyoImages.any((url) => !url.startsWith('/') && !url.startsWith('file://'));
           if (!networkState.isConnected && hasNetworkUrls) {
             // We're offline and have network URLs - try to load cached versions immediately
@@ -77,9 +129,15 @@ class OhyoCardMedia extends StatelessWidget {
           }
         }
 
+        final showImages = isOffline ? hasCachedImages : hasImages;
+        final showVideos = isOffline ? false : hasVideos;
+
         // Always show image gallery, even if only videos are available (since videos can be viewed offline)
         // Only show loading placeholder if no media at all
-        if (!hasImages && !hasVideos) {
+        if (!showImages && !showVideos) {
+          if (isOffline) {
+            return _buildOfflineImagesPlaceholder(context);
+          }
           return Container(
             height: context.responsiveValue(mobile: 180.0, tablet: 220.0, desktop: 250.0),
             width: double.infinity,
@@ -114,11 +172,11 @@ class OhyoCardMedia extends StatelessWidget {
     return Column(
       children: [
         // Main media display - always prioritize images over videos for better offline experience
-        if (hasImages || hasVideos)
+        if (showImages || showVideos)
           GestureDetector(
             onTap: () {
               // Always open image gallery if images are available, otherwise videos
-              if (hasImages) {
+              if (isOffline) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -129,7 +187,18 @@ class OhyoCardMedia extends StatelessWidget {
                     ),
                   ),
                 );
-              } else if (hasVideos) {
+              } else if (showImages) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ImageGallery(
+                      imageUrls: ohyoImages,
+                      title: '${ohyo.name} - Images',
+                      ohyoId: ohyo.id,
+                    ),
+                  ),
+                );
+              } else if (showVideos) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -142,7 +211,15 @@ class OhyoCardMedia extends StatelessWidget {
                 );
               }
             },
-                child: _buildMainMediaDisplay(context, hasImages, hasVideos, ohyoImages, videoUrls),
+                child: _buildMainMediaDisplay(
+                  context,
+                  showImages,
+                  showVideos,
+                  ohyoImages,
+                  videoUrls,
+                  isOffline: isOffline,
+                  offlinePreviewPath: previewCachedPath,
+                ),
           ),
 
         // Navigation buttons - stacked vertically for full width
@@ -222,7 +299,7 @@ class OhyoCardMedia extends StatelessWidget {
                 if (hasImages && hasVideos) SizedBox(height: context.responsiveSpacing(SpacingSize.xs)),
 
             // Videos button
-                if (hasVideos)
+            if (showVideos)
                   Consumer(
                     builder: (context, ref, child) {
                       // Check offline availability for videos
@@ -308,7 +385,15 @@ class OhyoCardMedia extends StatelessWidget {
     );
   }
 
-  Widget _buildMainMediaDisplay(BuildContext context, bool hasImages, bool hasVideos, List<String> imageUrls, List<String> videoUrls) {
+  Widget _buildMainMediaDisplay(
+    BuildContext context,
+    bool hasImages,
+    bool hasVideos,
+    List<String> imageUrls,
+    List<String> videoUrls, {
+    required bool isOffline,
+    String? offlinePreviewPath,
+  }) {
     // ALWAYS show images FIRST in the card preview when available
     // Only show video if there are NO images
     if (hasImages) {
@@ -323,103 +408,111 @@ class OhyoCardMedia extends StatelessWidget {
         child: Stack(
           children: [
             // Main media display - use offline cache service to resolve URL
-            Consumer(
-              builder: (context, ref, child) => FutureBuilder<String>(
-                future: OfflineMediaCacheService.getMediaUrl(imageUrls.first, false, ref),
-                builder: (context, snapshot) {
-                  final resolvedUrl = snapshot.data ?? imageUrls.first;
+            if (isOffline && offlinePreviewPath == null)
+              _buildOfflineImagesPlaceholder(context)
+            else
+              Consumer(
+                builder: (context, ref, child) {
+                  final previewPath = offlinePreviewPath;
+                  return FutureBuilder<String>(
+                    future: isOffline && previewPath != null
+                        ? Future.value(previewPath)
+                        : OfflineMediaCacheService.getMediaUrl(imageUrls.first, false, ref),
+                    builder: (context, snapshot) {
+                    final resolvedUrl = snapshot.data ?? imageUrls.first;
 
-                  final isLocalFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
+                    final isLocalFile = resolvedUrl.startsWith('/') || resolvedUrl.startsWith('file://');
 
-                  return ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: isLocalFile
-                        ? Image.file(
-                            File(resolvedUrl.replaceFirst('file://', '')),
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                            height: double.infinity,
-                            errorBuilder: (context, error, stackTrace) {
-                              print('❌ Image failed to load: $resolvedUrl');
-                              print('❌ Error details: $error');
-                              return Container(
-                                width: double.infinity,
-                                height: double.infinity,
-                                color: Colors.grey[200],
-                                child: const Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Afbeelding laden mislukt',
-                                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          )
-                        : CachedNetworkImage(
-                            imageUrl: resolvedUrl,
-                            fit: BoxFit.contain,
-                            width: double.infinity,
-                            height: double.infinity,
-                            memCacheWidth: _getPreviewCacheWidth(context),
-                            memCacheHeight: _getPreviewCacheHeight(context),
-                            progressIndicatorBuilder: (context, url, downloadProgress) {
-                              // Silent: Image loading progress not logged
-                              if (downloadProgress.progress == null) {
-                                return Shimmer.fromColors(
-                                  baseColor: Colors.grey[300]!,
-                                  highlightColor: Colors.grey[100]!,
-                                  child: Container(
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    color: Colors.white,
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: isLocalFile
+                          ? Image.file(
+                              File(resolvedUrl.replaceFirst('file://', '')),
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (context, error, stackTrace) {
+                                print('❌ Image failed to load: $resolvedUrl');
+                                print('❌ Error details: $error');
+                                return Container(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  color: Colors.grey[200],
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Afbeelding laden mislukt',
+                                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                                      ),
+                                    ],
                                   ),
                                 );
-                              }
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  value: downloadProgress.progress,
-                                  color: Colors.blue,
-                                ),
-                              );
-                            },
-                            errorWidget: (context, url, error) {
-                              print('❌ Image failed to load: $url');
-                              print('❌ Error details: $error');
-                              return Container(
-                                width: double.infinity,
-                                height: double.infinity,
-                                color: Colors.grey[200],
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.broken_image, size: 50, color: Colors.grey),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Afbeelding laden mislukt',
-                                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                              },
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: resolvedUrl,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              height: double.infinity,
+                              memCacheWidth: _getPreviewCacheWidth(context),
+                              memCacheHeight: _getPreviewCacheHeight(context),
+                              progressIndicatorBuilder: (context, url, downloadProgress) {
+                                // Silent: Image loading progress not logged
+                                if (downloadProgress.progress == null) {
+                                  return Shimmer.fromColors(
+                                    baseColor: Colors.grey[300]!,
+                                    highlightColor: Colors.grey[100]!,
+                                    child: Container(
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      color: Colors.white,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      error.toString().length > 50
-                                          ? '${error.toString().substring(0, 50)}...'
-                                          : error.toString(),
-                                      style: const TextStyle(color: Colors.red, fontSize: 10),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
+                                  );
+                                }
+                                return Center(
+                                  child: CircularProgressIndicator(
+                                    value: downloadProgress.progress,
+                                    color: Colors.blue,
+                                  ),
+                                );
+                              },
+                              errorWidget: (context, url, error) {
+                                print('❌ Image failed to load: $url');
+                                print('❌ Error details: $error');
+                                return Container(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  color: Colors.grey[200],
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Afbeelding laden mislukt',
+                                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        error.toString().length > 50
+                                            ? '${error.toString().substring(0, 50)}...'
+                                            : error.toString(),
+                                        style: const TextStyle(color: Colors.red, fontSize: 10),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    );
+                    },
                   );
                 },
               ),
-            ),
 
             // Media type indicators
             Positioned(

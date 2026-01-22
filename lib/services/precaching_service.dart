@@ -5,6 +5,7 @@ import '../providers/data_usage_provider.dart';
 import '../providers/kata_provider.dart';
 import '../providers/ohyo_provider.dart';
 import 'offline_media_cache_service.dart';
+import '../utils/image_utils.dart';
 
 /// Service for pre-caching media files in the background
 class PreCachingService {
@@ -179,6 +180,21 @@ class PreCachingService {
       // Pre-cache images for each ohyo
       for (final ohyo in allOhyos) {
         if (!_isRefMounted(ref)) return;
+        // Prefer bucket listing so we always get the full set of images
+        List<String> bucketUrls = [];
+        try {
+          bucketUrls = await ImageUtils.fetchOhyoImagesFromBucket(ohyo.id, ref: ref);
+        } catch (_) {
+          // Fall back to stored URLs if bucket listing fails.
+        }
+
+        if (bucketUrls.isNotEmpty) {
+          totalImages += bucketUrls.length;
+          cachedImages += bucketUrls.length;
+          debugPrint('📸 Cached ${bucketUrls.length} images for ohyo: ${ohyo.name}');
+          continue;
+        }
+
         if (ohyo.imageUrls != null && ohyo.imageUrls!.isNotEmpty) {
           debugPrint('📸 Caching images for ohyo: ${ohyo.name} (${ohyo.imageUrls!.length} images)');
 

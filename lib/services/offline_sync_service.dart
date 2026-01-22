@@ -1590,6 +1590,20 @@ class OfflineSyncNotifier extends StateNotifier<OfflineSyncState> {
           break;
         }
         debugPrint('📹 Ohyo ${ohyo.id}: ${ohyo.name} with ${ohyo.imageUrls.length} images');
+
+        List<String> bucketUrls = [];
+        try {
+          bucketUrls = await ImageUtils.fetchOhyoImagesFromBucket(ohyo.id, ref: ref);
+        } catch (_) {
+          // Fall back to stored URLs if bucket listing fails.
+        }
+
+        if (bucketUrls.isNotEmpty) {
+          debugPrint('📹 Cached ${bucketUrls.length} images from bucket for ohyo ${ohyo.id}');
+          await Future.delayed(const Duration(milliseconds: 100));
+          continue;
+        }
+
         if (ohyo.imageUrls.isNotEmpty) {
           debugPrint('📹 Caching ${ohyo.imageUrls.length} images for ohyo ${ohyo.id}');
           // Use cacheOhyoImage for stable key-based caching

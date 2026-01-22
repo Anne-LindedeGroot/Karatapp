@@ -43,7 +43,7 @@ class MediaGallery extends ConsumerStatefulWidget {
 
   /// Helper method to build image widget with offline cache support
   static Widget _buildCachedImage(String imageUrl, WidgetRef ref, {
-    BoxFit fit = BoxFit.cover,
+    BoxFit fit = BoxFit.contain,
     Widget? placeholder,
     Widget? errorWidget,
     int? cacheWidth,
@@ -378,7 +378,7 @@ class _MediaGalleryState extends ConsumerState<MediaGallery>
                     child: MediaGallery._buildCachedImage(
                       widget.imageUrls[index],
                       ref,
-                      fit: BoxFit.cover,
+                      fit: BoxFit.contain,
                     cacheWidth: thumbnailCacheSize,
                     cacheHeight: thumbnailCacheSize,
                     ),
