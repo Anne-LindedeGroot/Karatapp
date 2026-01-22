@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,6 +7,7 @@ import '../models/interaction_models.dart';
 import '../services/forum_service.dart';
 import '../services/offline_forum_service.dart';
 import '../services/offline_queue_service.dart';
+import '../services/offline_media_cache_service.dart';
 import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
@@ -58,10 +60,23 @@ class ForumNotifier extends StateNotifier<ForumState> {
           final comments = await _forumService.getComments(post.id);
           if (comments.isNotEmpty) {
             await offlineService.cachePostComments(post.id, comments);
+            _precacheForumImages([
+              ...comments.expand((comment) => comment.imageUrls),
+              ...comments.expand((comment) => comment.fileUrls),
+            ]);
           }
         } catch (_) {
           // Ignore individual failures to avoid blocking other posts
         }
+      }
+    });
+  }
+
+  void _precacheForumImages(List<String> imageUrls) {
+    if (imageUrls.isEmpty) return;
+    Future.microtask(() {
+      for (final url in imageUrls) {
+        OfflineMediaCacheService.cacheMediaFile(url, false, _ref).catchError((_) => null);
       }
     });
   }
@@ -166,6 +181,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
             authorId: cachedPost.authorId,
             authorName: cachedPost.authorName,
             authorAvatar: null, // Not stored in cached version
+            imageUrls: cachedPost.imageUrls,
+            fileUrls: cachedPost.fileUrls,
             category: category, // Use stored category
             createdAt: cachedPost.createdAt,
             updatedAt: cachedPost.lastSynced, // Use lastSynced as updatedAt
@@ -210,6 +227,12 @@ class ForumNotifier extends StateNotifier<ForumState> {
         // Fetch likes for all posts to ensure accurate like counts
         final postsWithLikes = await _fetchLikesForPosts(posts);
 
+        // Pre-cache post images for offline viewing (best effort)
+        _precacheForumImages([
+          ...postsWithLikes.expand((post) => post.imageUrls),
+          ...postsWithLikes.expand((post) => post.fileUrls),
+        ]);
+
         // Cache the online data to both SharedPreferences and Hive
         if (_offlineForumService != null) {
           await _offlineForumService!.cacheForumPosts(postsWithLikes);
@@ -241,6 +264,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
             commentsCount: post.commentCount,
             needsSync: false,
             category: post.category.name, // Store category name
+            imageUrls: post.imageUrls,
+            fileUrls: post.fileUrls,
           );
         }).toList();
 
@@ -320,6 +345,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
                   commentsCount: post.commentCount,
                   needsSync: false,
                   category: post.category.name,
+                  imageUrls: post.imageUrls,
+                  fileUrls: post.fileUrls,
                 );
               }).toList();
               await app_storage.LocalStorage.saveForumPosts(cachedPostsToSave);
@@ -367,6 +394,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
     required String title,
     required String content,
     required ForumCategory category,
+    List<File> imageFiles = const [],
+    List<File> fileFiles = const [],
   }) async {
     // Check if we're online
     final isOnline = await _isOnline();
@@ -384,9 +413,43 @@ class ForumNotifier extends StateNotifier<ForumState> {
         content: content,
         category: category,
       );
+      var postWithImages = newPost;
+
+      if (imageFiles.isNotEmpty) {
+        try {
+          final uploadedUrls = await _forumService.uploadForumPostImages(
+            postId: newPost.id,
+            imageFiles: imageFiles,
+          );
+          if (uploadedUrls.isNotEmpty) {
+            postWithImages = await _forumService.updatePostImages(
+              postId: newPost.id,
+              imageUrls: uploadedUrls,
+            );
+          }
+        } catch (_) {
+          // If image upload fails, keep the post without images
+        }
+      }
+      if (fileFiles.isNotEmpty) {
+        try {
+          final uploadedUrls = await _forumService.uploadForumPostFiles(
+            postId: newPost.id,
+            files: fileFiles,
+          );
+          if (uploadedUrls.isNotEmpty) {
+            postWithImages = await _forumService.updatePostFiles(
+              postId: newPost.id,
+              fileUrls: uploadedUrls,
+            );
+          }
+        } catch (_) {
+          // If file upload fails, keep the post without files
+        }
+      }
 
       // Add the new post to the current list
-      final updatedPosts = [newPost, ...state.posts];
+      final updatedPosts = [postWithImages, ...state.posts];
       final filteredPosts = _filterPosts(updatedPosts, state.searchQuery, state.selectedCategory);
 
       state = state.copyWith(
@@ -396,7 +459,7 @@ class ForumNotifier extends StateNotifier<ForumState> {
         error: null,
       );
 
-      return newPost;
+      return postWithImages;
     } catch (e) {
       final errorMessage = 'Failed to create post: ${e.toString()}';
       state = state.copyWith(
@@ -505,6 +568,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
             commentsCount: 0,
             needsSync: false,
             category: ForumCategory.general.name,
+            imageUrls: const [],
+            fileUrls: const [],
           ),
         );
 
@@ -520,6 +585,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
           authorId: cachedPost.authorId,
           authorName: cachedPost.authorName,
           authorAvatar: null,
+          imageUrls: cachedPost.imageUrls,
+          fileUrls: cachedPost.fileUrls,
           category: category,
           createdAt: cachedPost.createdAt,
           updatedAt: cachedPost.lastSynced,
@@ -595,6 +662,11 @@ class ForumNotifier extends StateNotifier<ForumState> {
           offset: offset,
         );
 
+        _precacheForumImages([
+          ...comments.expand((comment) => comment.imageUrls),
+          ...comments.expand((comment) => comment.fileUrls),
+        ]);
+
         // Cache the comments for offline use (cache all comments, not just the paginated ones)
         if (_offlineForumService != null && offset == 0) {
           try {
@@ -604,6 +676,10 @@ class ForumNotifier extends StateNotifier<ForumState> {
               offset: 0,
             );
             await _offlineForumService!.cachePostComments(postId, allComments);
+            _precacheForumImages([
+              ...allComments.expand((comment) => comment.imageUrls),
+              ...allComments.expand((comment) => comment.fileUrls),
+            ]);
           } catch (e) {
             // If we can't get all comments, at least cache what we have
             await _offlineForumService!.cachePostComments(postId, comments);
@@ -638,6 +714,11 @@ class ForumNotifier extends StateNotifier<ForumState> {
         offset: offset,
       );
 
+      _precacheForumImages([
+        ...comments.expand((comment) => comment.imageUrls),
+        ...comments.expand((comment) => comment.fileUrls),
+      ]);
+
       // Cache the updated comments
       if (_offlineForumService != null) {
         try {
@@ -647,6 +728,10 @@ class ForumNotifier extends StateNotifier<ForumState> {
             offset: 0,
           );
           await _offlineForumService!.cachePostComments(postId, allComments);
+          _precacheForumImages([
+            ...allComments.expand((comment) => comment.imageUrls),
+            ...allComments.expand((comment) => comment.fileUrls),
+          ]);
         } catch (e) {
           await _offlineForumService!.cachePostComments(postId, comments);
         }
@@ -677,6 +762,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
     required int postId,
     required String content,
     int? parentCommentId,
+    List<File> imageFiles = const [],
+    List<File> fileFiles = const [],
   }) async {
     // Check if we're online
     final isOnline = await _isOnline();
@@ -688,11 +775,45 @@ class ForumNotifier extends StateNotifier<ForumState> {
 
       // Online mode - try to add comment directly
       try {
-        final comment = await _forumService.addComment(
+        var comment = await _forumService.addComment(
           postId: postId,
           content: content,
           parentCommentId: parentCommentId,
         );
+        if (imageFiles.isNotEmpty) {
+          try {
+            final uploadedUrls = await _forumService.uploadForumCommentImages(
+              commentId: comment.id,
+              imageFiles: imageFiles,
+            );
+            if (uploadedUrls.isNotEmpty) {
+              comment = await _forumService.updateComment(
+                commentId: comment.id,
+                content: comment.content,
+                imageUrls: uploadedUrls,
+              );
+            }
+          } catch (_) {
+            // If image upload fails, keep the comment without images
+          }
+        }
+        if (fileFiles.isNotEmpty) {
+          try {
+            final uploadedUrls = await _forumService.uploadForumCommentFiles(
+              commentId: comment.id,
+              files: fileFiles,
+            );
+            if (uploadedUrls.isNotEmpty) {
+              comment = await _forumService.updateComment(
+                commentId: comment.id,
+                content: comment.content,
+                fileUrls: uploadedUrls,
+              );
+            }
+          } catch (_) {
+            // If file upload fails, keep the comment without files
+          }
+        }
 
         // If we have the selected post loaded, update its comments
         if (state.selectedPost != null && state.selectedPost!.id == postId) {

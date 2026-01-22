@@ -17,6 +17,8 @@ class ForumPost {
   final String authorId;
   final String authorName;
   final String? authorAvatar;
+  final List<String> imageUrls;
+  final List<String> fileUrls;
   final ForumCategory category;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -33,6 +35,8 @@ class ForumPost {
     required this.authorId,
     required this.authorName,
     this.authorAvatar,
+    this.imageUrls = const [],
+    this.fileUrls = const [],
     required this.category,
     required this.createdAt,
     required this.updatedAt,
@@ -51,6 +55,14 @@ class ForumPost {
       authorId: json['author_id'] as String,
       authorName: json['author_name'] as String,
       authorAvatar: json['author_avatar'] as String?,
+      imageUrls: (json['image_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
+      fileUrls: (json['file_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
       category: ForumCategory.values.firstWhere(
         (cat) => cat.name == json['category'],
         orElse: () => ForumCategory.general,
@@ -76,6 +88,8 @@ class ForumPost {
       'author_id': authorId,
       'author_name': authorName,
       'author_avatar': authorAvatar,
+      'image_urls': imageUrls,
+      'file_urls': fileUrls,
       'category': category.name,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
@@ -93,6 +107,8 @@ class ForumPost {
     String? authorId,
     String? authorName,
     String? authorAvatar,
+    List<String>? imageUrls,
+    List<String>? fileUrls,
     ForumCategory? category,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -109,6 +125,8 @@ class ForumPost {
       authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
+      imageUrls: imageUrls ?? this.imageUrls,
+      fileUrls: fileUrls ?? this.fileUrls,
       category: category ?? this.category,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -128,6 +146,8 @@ class ForumComment {
   final String authorId;
   final String authorName;
   final String? authorAvatar;
+  final List<String> imageUrls;
+  final List<String> fileUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int? parentCommentId; // For nested replies
@@ -139,6 +159,8 @@ class ForumComment {
     required this.authorId,
     required this.authorName,
     this.authorAvatar,
+    this.imageUrls = const [],
+    this.fileUrls = const [],
     required this.createdAt,
     required this.updatedAt,
     this.parentCommentId,
@@ -152,6 +174,14 @@ class ForumComment {
       authorId: json['author_id'] as String,
       authorName: json['author_name'] as String,
       authorAvatar: json['author_avatar'] as String?,
+      imageUrls: (json['image_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
+      fileUrls: (json['file_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       parentCommentId: json['parent_comment_id'] as int?,
@@ -166,6 +196,8 @@ class ForumComment {
       'author_id': authorId,
       'author_name': authorName,
       'author_avatar': authorAvatar,
+      'image_urls': imageUrls,
+      'file_urls': fileUrls,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'parent_comment_id': parentCommentId,
@@ -179,6 +211,8 @@ class ForumComment {
     String? authorId,
     String? authorName,
     String? authorAvatar,
+    List<String>? imageUrls,
+    List<String>? fileUrls,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? parentCommentId,
@@ -190,6 +224,8 @@ class ForumComment {
       authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
+      imageUrls: imageUrls ?? this.imageUrls,
+      fileUrls: fileUrls ?? this.fileUrls,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       parentCommentId: parentCommentId ?? this.parentCommentId,

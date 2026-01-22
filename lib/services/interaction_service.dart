@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -12,6 +13,8 @@ class InteractionService {
   late final SupabaseClient _client = Supabase.instance.client;
   final RoleService _roleService = RoleService();
   final Uuid _uuid = const Uuid();
+  static const String _kataCommentImagesBucket = 'kata_comment_images';
+  static const String _ohyoCommentImagesBucket = 'ohyo_comment_images';
 
   // Offline services - will be injected
   OfflineQueueService? _offlineQueueService;
@@ -37,6 +40,82 @@ class InteractionService {
     
     // Fallback: check if avatar_url exists (for backward compatibility)
     return metadata['avatar_url'] as String?;
+  }
+
+  Future<void> _ensureBucket(String bucket) async {
+    try {
+      await _client.storage.getBucket(bucket);
+    } catch (e) {
+      throw Exception(
+        'Storage bucket $bucket not found or not accessible. '
+        'Please create it in Supabase Storage and make it public.',
+      );
+    }
+  }
+
+  String _getFileExtension(File file) {
+    final path = file.path;
+    final dotIndex = path.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == path.length - 1) {
+      return '.jpg';
+    }
+    return path.substring(dotIndex);
+  }
+
+  Future<List<String>> _uploadCommentImages({
+    required String bucket,
+    required String folder,
+    required String prefix,
+    required int id,
+    required List<File> imageFiles,
+  }) async {
+    if (imageFiles.isEmpty) return [];
+    await _ensureBucket(bucket);
+
+    final uploadedUrls = <String>[];
+    for (var i = 0; i < imageFiles.length; i++) {
+      final file = imageFiles[i];
+      if (!await file.exists()) continue;
+      final extension = _getFileExtension(file);
+      final fileName =
+          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_$i$extension';
+      final filePath = '$folder/$fileName';
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) continue;
+
+      await _client.storage.from(bucket).uploadBinary(filePath, bytes);
+      final publicUrl = _client.storage.from(bucket).getPublicUrl(filePath);
+      uploadedUrls.add(publicUrl);
+    }
+    return uploadedUrls;
+  }
+
+  String? _extractStoragePathFromUrl(String url, String bucket) {
+    try {
+      final uri = Uri.parse(url);
+      final segments = uri.pathSegments;
+      final bucketIndex = segments.indexOf(bucket);
+      if (bucketIndex == -1 || bucketIndex + 1 >= segments.length) {
+        return null;
+      }
+      return segments.sublist(bucketIndex + 1).join('/');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _deleteCommentImages(String bucket, List<String> urls) async {
+    if (urls.isEmpty) return;
+    final paths = urls
+        .map((url) => _extractStoragePathFromUrl(url, bucket))
+        .whereType<String>()
+        .toList();
+    if (paths.isEmpty) return;
+    try {
+      await _client.storage.from(bucket).remove(paths);
+    } catch (_) {
+      // Best-effort cleanup only
+    }
   }
 
   void initializeOfflineServices(
@@ -94,6 +173,7 @@ class InteractionService {
     required int kataId,
     required String content,
     int? parentCommentId,
+    List<String> imageUrls = const [],
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -113,6 +193,7 @@ class InteractionService {
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
         if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+        if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
       };
 
       final response = await _client
@@ -132,6 +213,7 @@ class InteractionService {
     required int commentId,
     required String content,
     int? version,
+    List<String>? imageUrls,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -172,10 +254,13 @@ class InteractionService {
         throw Exception('You do not have permission to edit this comment');
       }
 
-      final updateData = {
+      final Map<String, dynamic> updateData = {
         'content': content,
         'updated_at': DateTime.now().toIso8601String(),
       };
+      if (imageUrls != null) {
+        updateData['image_urls'] = imageUrls;
+      }
 
       // Increment version if provided
       if (version != null) {
@@ -206,7 +291,7 @@ class InteractionService {
       // Get comment details and check permissions
       final existingComment = await _client
           .from('kata_comments')
-          .select('author_id, kata_id')
+          .select('author_id, kata_id, image_urls')
           .eq('id', commentId)
           .single();
 
@@ -232,9 +317,28 @@ class InteractionService {
           .from('kata_comments')
           .delete()
           .eq('id', commentId);
+      final imageUrls =
+          (existingComment['image_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const <String>[];
+      await _deleteCommentImages(_kataCommentImagesBucket, imageUrls);
     } catch (e) {
       throw Exception('Failed to delete kata comment: $e');
     }
+  }
+
+  Future<List<String>> uploadKataCommentImages({
+    required int commentId,
+    required List<File> imageFiles,
+  }) async {
+    return _uploadCommentImages(
+      bucket: _kataCommentImagesBucket,
+      folder: 'comments/$commentId',
+      prefix: 'kata_comment',
+      id: commentId,
+      imageFiles: imageFiles,
+    );
   }
 
   // LIKES
@@ -664,6 +768,7 @@ class InteractionService {
     required int ohyoId,
     required String content,
     int? parentCommentId,
+    List<String> imageUrls = const [],
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -683,6 +788,7 @@ class InteractionService {
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
         if (parentCommentId != null) 'parent_comment_id': parentCommentId,
+        if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
       };
 
       final response = await _client
@@ -702,6 +808,7 @@ class InteractionService {
     required int commentId,
     required String content,
     int? version,
+    List<String>? imageUrls,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -742,10 +849,13 @@ class InteractionService {
         throw Exception('You do not have permission to edit this comment');
       }
 
-      final updateData = {
+      final Map<String, dynamic> updateData = {
         'content': content,
         'updated_at': DateTime.now().toIso8601String(),
       };
+      if (imageUrls != null) {
+        updateData['image_urls'] = imageUrls;
+      }
 
       // Increment version if provided
       if (version != null) {
@@ -768,13 +878,39 @@ class InteractionService {
   // Delete an ohyo comment
   Future<void> deleteOhyoComment(int commentId) async {
     try {
+      final existingComment = await _client
+          .from('ohyo_comments')
+          .select('image_urls')
+          .eq('id', commentId)
+          .maybeSingle();
+
       await _client
           .from('ohyo_comments')
           .delete()
           .eq('id', commentId);
+
+      final imageUrls =
+          (existingComment?['image_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const <String>[];
+      await _deleteCommentImages(_ohyoCommentImagesBucket, imageUrls);
     } catch (e) {
       throw Exception('Failed to delete ohyo comment: $e');
     }
+  }
+
+  Future<List<String>> uploadOhyoCommentImages({
+    required int commentId,
+    required List<File> imageFiles,
+  }) async {
+    return _uploadCommentImages(
+      bucket: _ohyoCommentImagesBucket,
+      folder: 'comments/$commentId',
+      prefix: 'ohyo_comment',
+      id: commentId,
+      imageFiles: imageFiles,
+    );
   }
 
   // OHYO LIKES

@@ -1,5 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/forum_models.dart';
 import '../../models/interaction_models.dart';
 import '../../providers/forum_provider.dart';
@@ -14,6 +18,10 @@ import '../../services/unified_tts_service.dart';
 import '../../widgets/threaded_comment_widget.dart';
 import '../../utils/comment_threading_utils.dart';
 import '../../utils/responsive_utils.dart';
+import '../../utils/image_utils.dart';
+import '../../widgets/media_source_bottom_sheet.dart';
+import '../../widgets/image_gallery.dart';
+import '../../services/offline_media_cache_service.dart';
 
 class EditPostResult {
   final bool shouldSave;
@@ -43,6 +51,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   ForumPost? _post;
   bool _isLoading = true;
   ForumComment? _replyingToComment;
+  final List<File> _selectedCommentImages = [];
+  final List<File> _selectedCommentFiles = [];
 
   // Pagination state
   List<ForumComment> _comments = [];
@@ -161,6 +171,93 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     _startReplyToComment(comment);
   }
 
+  Future<void> _pickCommentImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _selectedCommentImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureCommentImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _selectedCommentImages.add(image);
+    });
+  }
+
+  void _removeCommentImage(File image) {
+    setState(() {
+      _selectedCommentImages.remove(image);
+    });
+  }
+
+  void _showCommentImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureCommentImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickCommentImagesFromGallery();
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _pickCommentFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _selectedCommentFiles.addAll(files);
+    });
+  }
+
+  void _removeCommentFile(File file) {
+    setState(() {
+      _selectedCommentFiles.remove(file);
+    });
+  }
+
+  String _extractFileName(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        return uri.pathSegments.last;
+      }
+    } catch (_) {}
+    return url;
+  }
+
+  Future<void> _openAttachment(String url) async {
+    final isConnected = ref.read(isConnectedProvider);
+    String openUrl = url;
+    if (!isConnected) {
+      final cachedPath = OfflineMediaCacheService.getCachedFilePath(url, false);
+      if (cachedPath != null) {
+        openUrl = Uri.file(cachedPath).toString();
+      }
+    }
+    final uri = Uri.parse(openUrl);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
 
   Future<void> _submitComment() async {
     if (_commentController.text.trim().isEmpty) {
@@ -200,14 +297,17 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     });
 
     try {
-      await ref
-          .read(forumNotifierProvider.notifier)
-          .addComment(
+      await ref.read(forumNotifierProvider.notifier).addComment(
             postId: widget.postId,
             content: _commentController.text.trim(),
+            parentCommentId: _replyingToComment?.id,
+            imageFiles: _selectedCommentImages,
+            fileFiles: _selectedCommentFiles,
           );
 
       _commentController.clear();
+      _selectedCommentImages.clear();
+      _selectedCommentFiles.clear();
       _commentFocusNode.unfocus();
 
       // Reload the post to get updated comments
@@ -958,13 +1058,106 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     );
   }
 
+  Widget _buildPostImageThumbnail(String url) {
+    final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+    if (isLocalFile) {
+      final file = url.startsWith('file://') ? File.fromUri(Uri.parse(url)) : File(url);
+      return Image.file(
+        file,
+        width: 90,
+        height: 90,
+        fit: BoxFit.cover,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: 90,
+      height: 90,
+      fit: BoxFit.cover,
+      memCacheWidth: 180,
+      memCacheHeight: 180,
+      placeholder: (context, _) => Container(
+        width: 90,
+        height: 90,
+        color: Colors.grey.withValues(alpha: 0.1),
+      ),
+      errorWidget: (context, _, __) => Container(
+        width: 90,
+        height: 90,
+        color: Colors.grey.withValues(alpha: 0.1),
+        child: const Icon(Icons.broken_image, size: 18),
+      ),
+    );
+  }
+
+  Widget _buildPostImagePreview(List<String> imageUrls) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: List.generate(imageUrls.length, (index) {
+        final url = imageUrls[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ImageGallery(
+                  imageUrls: imageUrls,
+                  initialIndex: index,
+                  title: 'Afbeeldingen',
+                ),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: _buildPostImageThumbnail(url),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildFileAttachments(List<String> fileUrls) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: fileUrls.map((url) {
+        final fileName = _extractFileName(url);
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.description_outlined),
+          title: Text(
+            fileName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: const Icon(Icons.open_in_new, size: 18),
+          onTap: () => _openAttachment(url),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildPostContent(ForumPost post) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      child: Text(
-        post.content,
-        style: const TextStyle(fontSize: 16, height: 1.6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            post.content,
+            style: const TextStyle(fontSize: 16, height: 1.6),
+          ),
+          if (post.imageUrls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildPostImagePreview(post.imageUrls),
+          ],
+          if (post.fileUrls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildFileAttachments(post.fileUrls),
+          ],
+        ],
       ),
     );
   }
@@ -1078,6 +1271,8 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                         getAuthorAvatar: (comment) => comment.authorAvatar,
                         getContent: (comment) => comment.content,
                         getCreatedAt: (comment) => comment.createdAt,
+                        getImageUrls: (comment) => comment.imageUrls,
+                        getFileUrls: (comment) => comment.fileUrls,
                         showReplyButton: true,
                         maxDepth: 5,
                     );
@@ -1470,6 +1665,114 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
                                 ],
                               ),
                             ),
+                          Row(
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: isConnected ? _showCommentImageSourceSheet : null,
+                                icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                                label: const Text('Afbeelding'),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _selectedCommentImages.isEmpty
+                                      ? 'Geen afbeeldingen geselecteerd'
+                                      : '${_selectedCommentImages.length} afbeelding(en) geselecteerd',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_selectedCommentImages.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _selectedCommentImages.map((image) {
+                                return Stack(
+                                  alignment: Alignment.topRight,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.file(
+                                        image,
+                                        width: 70,
+                                        height: 70,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () => _removeCommentImage(image),
+                                      child: Container(
+                                        margin: const EdgeInsets.all(4),
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.6),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 14,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: isConnected ? _pickCommentFiles : null,
+                                icon: const Icon(Icons.attach_file, size: 18),
+                                label: const Text('Bestand'),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _selectedCommentFiles.isEmpty
+                                      ? 'Geen bestanden geselecteerd'
+                                      : '${_selectedCommentFiles.length} bestand(en) geselecteerd',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_selectedCommentFiles.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Column(
+                              children: _selectedCommentFiles.map((file) {
+                                final fileName = file.path.split('/').last;
+                                return ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: const Icon(Icons.description_outlined),
+                                  title: Text(
+                                    fileName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => _removeCommentFile(file),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
                           Row(
                             children: [
                               Expanded(
@@ -1981,6 +2284,8 @@ class ReplyForumCommentScreen extends ConsumerStatefulWidget {
 
 class _ReplyForumCommentScreenState extends ConsumerState<ReplyForumCommentScreen> {
   final TextEditingController _replyController = TextEditingController();
+  final List<File> _selectedReplyImages = [];
+  final List<File> _selectedReplyFiles = [];
 
   @override
   void initState() {
@@ -2000,6 +2305,70 @@ class _ReplyForumCommentScreenState extends ConsumerState<ReplyForumCommentScree
   void dispose() {
     _replyController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickReplyImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _selectedReplyImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureReplyImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _selectedReplyImages.add(image);
+    });
+  }
+
+  void _removeReplyImage(File image) {
+    setState(() {
+      _selectedReplyImages.remove(image);
+    });
+  }
+
+  void _showReplyImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureReplyImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickReplyImagesFromGallery();
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _pickReplyFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _selectedReplyFiles.addAll(files);
+    });
+  }
+
+  void _removeReplyFile(File file) {
+    setState(() {
+      _selectedReplyFiles.remove(file);
+    });
   }
 
   @override
@@ -2079,6 +2448,115 @@ class _ReplyForumCommentScreenState extends ConsumerState<ReplyForumCommentScree
                       autofocus: true,
                       customTTSLabel: 'Reactie invoerveld',
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _showReplyImageSourceSheet,
+                          icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                          label: const Text('Afbeelding'),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedReplyImages.isEmpty
+                                ? 'Geen afbeeldingen geselecteerd'
+                                : '${_selectedReplyImages.length} afbeelding(en) geselecteerd',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_selectedReplyImages.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _selectedReplyImages.map((image) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  image,
+                                  width: 70,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _removeReplyImage(image),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _pickReplyFiles,
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: const Text('Bestand'),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedReplyFiles.isEmpty
+                                ? 'Geen bestanden geselecteerd'
+                                : '${_selectedReplyFiles.length} bestand(en) geselecteerd',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_selectedReplyFiles.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Column(
+                        children: _selectedReplyFiles.map((file) {
+                          final fileName = file.path.split('/').last;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.description_outlined),
+                            title: Text(
+                              fileName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => _removeReplyFile(file),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2118,6 +2596,8 @@ class _ReplyForumCommentScreenState extends ConsumerState<ReplyForumCommentScree
                                     postId: widget.forumPostId,
                                     content: _replyController.text.trim(),
                                     parentCommentId: widget.originalComment.id,
+                                    imageFiles: _selectedReplyImages,
+                                    fileFiles: _selectedReplyFiles,
                                   );
                               if (context.mounted) {
                                 Navigator.pop(context, true);

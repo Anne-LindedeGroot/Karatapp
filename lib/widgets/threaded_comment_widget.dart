@@ -1,10 +1,14 @@
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/interaction_models.dart';
 import '../utils/comment_threading_utils.dart';
 import '../providers/auth_provider.dart';
 import 'avatar_widget.dart';
+import 'image_gallery.dart';
 
 /// Generic threaded comment widget that can display nested comments
 /// Supports ForumComment, KataComment, and OhyoComment
@@ -25,6 +29,8 @@ class ThreadedCommentWidget<T> extends StatefulWidget {
   final String? Function(T) getAuthorAvatar;
   final String Function(T) getContent;
   final DateTime Function(T) getCreatedAt;
+  final List<String> Function(T)? getImageUrls;
+  final List<String> Function(T)? getFileUrls;
   final bool showReplyButton;
   final int maxDepth;
   final bool isCollapsed;
@@ -48,6 +54,8 @@ class ThreadedCommentWidget<T> extends StatefulWidget {
     required this.getAuthorAvatar,
     required this.getContent,
     required this.getCreatedAt,
+    this.getImageUrls,
+    this.getFileUrls,
     this.showReplyButton = true,
     this.maxDepth = 5,
     this.isCollapsed = false,
@@ -73,6 +81,53 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
     if (oldWidget.isCollapsed != widget.isCollapsed) {
       _isCollapsed = widget.isCollapsed;
     }
+  }
+
+  Widget _buildCommentImageThumbnail(String url) {
+    final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+    if (isLocalFile) {
+      final file = url.startsWith('file://') ? File.fromUri(Uri.parse(url)) : File(url);
+      return Image.file(
+        file,
+        width: 70,
+        height: 70,
+        fit: BoxFit.cover,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: 70,
+      height: 70,
+      fit: BoxFit.cover,
+      memCacheWidth: 140,
+      memCacheHeight: 140,
+      placeholder: (context, _) => Container(
+        width: 70,
+        height: 70,
+        color: Colors.grey.withValues(alpha: 0.1),
+      ),
+      errorWidget: (context, _, __) => Container(
+        width: 70,
+        height: 70,
+        color: Colors.grey.withValues(alpha: 0.1),
+        child: const Icon(Icons.broken_image, size: 16),
+      ),
+    );
+  }
+
+  String _extractFileName(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        return uri.pathSegments.last;
+      }
+    } catch (_) {}
+    return url;
+  }
+
+  Future<void> _openAttachment(String url) async {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -135,6 +190,8 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
     final comment = widget.threadedComment.comment;
     final commentId = widget.getCommentId(comment);
     final commentState = widget.getCommentState(commentId);
+    final imageUrls = widget.getImageUrls?.call(comment) ?? const <String>[];
+    final fileUrls = widget.getFileUrls?.call(comment) ?? const <String>[];
 
     return Consumer(
       builder: (context, ref, child) {
@@ -293,6 +350,55 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
                   softWrap: true,
                   overflow: TextOverflow.visible,
                 ),
+                if (imageUrls.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: List.generate(imageUrls.length, (index) {
+                      final url = imageUrls[index];
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ImageGallery(
+                                imageUrls: imageUrls,
+                                initialIndex: index,
+                                title: 'Afbeeldingen',
+                              ),
+                            ),
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: _buildCommentImageThumbnail(url),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+                if (fileUrls.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Column(
+                    children: fileUrls.map((url) {
+                      final fileName = _extractFileName(url);
+                      return ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.description_outlined, size: 18),
+                        title: Text(
+                          fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        trailing: const Icon(Icons.open_in_new, size: 16),
+                        onTap: () => _openAttachment(url),
+                      );
+                    }).toList(),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 // Like and dislike buttons and counts
                 Row(

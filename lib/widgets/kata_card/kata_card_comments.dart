@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/kata_model.dart';
@@ -12,6 +13,8 @@ import '../../services/unified_tts_service.dart';
 import '../conflict_resolution_dialog.dart';
 import '../threaded_comment_widget.dart';
 import '../../utils/comment_threading_utils.dart';
+import '../../utils/image_utils.dart';
+import '../media_source_bottom_sheet.dart';
 
 class KataCardComments extends ConsumerStatefulWidget {
   final Kata kata;
@@ -34,6 +37,7 @@ class KataCardComments extends ConsumerStatefulWidget {
 class _KataCardCommentsState extends ConsumerState<KataCardComments> {
   final TextEditingController commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final List<File> _selectedImages = [];
 
   // Pagination state
   List<KataComment> _comments = [];
@@ -56,6 +60,47 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
     commentController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _selectedImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _selectedImages.add(image);
+    });
+  }
+
+  void _removeSelectedImage(File image) {
+    setState(() {
+      _selectedImages.remove(image);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
   }
 
   void _onScroll() {
@@ -302,6 +347,7 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
                         getAuthorAvatar: (comment) => comment.authorAvatar,
                         getContent: (comment) => comment.content,
                         getCreatedAt: (comment) => comment.createdAt,
+                        getImageUrls: (comment) => comment.imageUrls,
                         showReplyButton: true,
                         maxDepth: 5,
                       );
@@ -325,87 +371,165 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: EnhancedAccessibleTextField(
-                    controller: commentController,
-                    decoration: InputDecoration(
-                      hintText: 'Voeg een reactie toe...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
-                      ),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      filled: true,
-                      fillColor: isDark 
-                          ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-                          : Colors.grey[100],
-                      counterText: "",
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _showImageSourceSheet,
+                      icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                      label: const Text('Afbeelding'),
                     ),
-                    maxLines: 1,
-                    minLines: 1,
-                    maxLength: 500,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) async {
-                      // Trigger send
-                      final notifier = ref.read(kataInteractionProvider(widget.kata.id).notifier);
-                      if (commentController.text.trim().isNotEmpty) {
-                        await notifier.addComment(commentController.text.trim());
-                        commentController.clear();
-                      }
-                    },
-                    customTTSLabel: 'Reactie invoerveld',
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _selectedImages.isEmpty
+                            ? 'Geen afbeeldingen geselecteerd'
+                            : '${_selectedImages.length} afbeelding(en) geselecteerd',
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Consumer(
-                  builder: (context, ref, child) {
-                    final isSubmitting = ref.watch(kataInteractionProvider(widget.kata.id)).isLoading;
-
-                    return IconButton(
-                      onPressed: isSubmitting ? null : () async {
-                        if (commentController.text.trim().isNotEmpty) {
-                          try {
-                            await ref.read(kataInteractionProvider(widget.kata.id).notifier)
-                                .addComment(commentController.text.trim());
-                            commentController.clear();
-                            if (mounted && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Reactie succesvol toegevoegd!'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Fout bij toevoegen reactie: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      },
-                      icon: isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(
-                            Icons.send,
-                            color: theme.colorScheme.primary,
+                if (_selectedImages.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _selectedImages.map((image) {
+                      return Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              image,
+                              width: 70,
+                              height: 70,
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                    );
-                  },
+                          InkWell(
+                            onTap: () => _removeSelectedImage(image),
+                            child: Container(
+                              margin: const EdgeInsets.all(4),
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: EnhancedAccessibleTextField(
+                        controller: commentController,
+                        decoration: InputDecoration(
+                          hintText: 'Voeg een reactie toe...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          isDense: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          filled: true,
+                          fillColor: isDark
+                              ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                              : Colors.grey[100],
+                          counterText: "",
+                        ),
+                        maxLines: 1,
+                        minLines: 1,
+                        maxLength: 500,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) async {
+                          final notifier = ref.read(kataInteractionProvider(widget.kata.id).notifier);
+                          if (commentController.text.trim().isNotEmpty) {
+                            await notifier.addComment(
+                              commentController.text.trim(),
+                              imageFiles: _selectedImages,
+                            );
+                            commentController.clear();
+                            _selectedImages.clear();
+                          }
+                        },
+                        customTTSLabel: 'Reactie invoerveld',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final isSubmitting = ref.watch(kataInteractionProvider(widget.kata.id)).isLoading;
+
+                        return IconButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  if (commentController.text.trim().isNotEmpty) {
+                                    try {
+                                      await ref
+                                          .read(kataInteractionProvider(widget.kata.id).notifier)
+                                          .addComment(
+                                            commentController.text.trim(),
+                                            imageFiles: _selectedImages,
+                                          );
+                                      commentController.clear();
+                                      _selectedImages.clear();
+                                      if (mounted && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Reactie succesvol toegevoegd!'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (mounted && context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Fout bij toevoegen reactie: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  }
+                                },
+                          icon: isSubmitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(
+                                  Icons.send,
+                                  color: theme.colorScheme.primary,
+                                ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -674,6 +798,7 @@ class ReplyKataCommentScreen extends ConsumerStatefulWidget {
 
 class _ReplyKataCommentScreenState extends ConsumerState<ReplyKataCommentScreen> {
   final TextEditingController _replyController = TextEditingController();
+  final List<File> _selectedImages = [];
 
   @override
   void initState() {
@@ -693,6 +818,47 @@ class _ReplyKataCommentScreenState extends ConsumerState<ReplyKataCommentScreen>
   void dispose() {
     _replyController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _selectedImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _selectedImages.add(image);
+    });
+  }
+
+  void _removeSelectedImage(File image) {
+    setState(() {
+      _selectedImages.remove(image);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -772,6 +938,69 @@ class _ReplyKataCommentScreenState extends ConsumerState<ReplyKataCommentScreen>
                       autofocus: true,
                       customTTSLabel: 'Reactie invoerveld',
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _showImageSourceSheet,
+                          icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                          label: const Text('Afbeelding'),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedImages.isEmpty
+                                ? 'Geen afbeeldingen geselecteerd'
+                                : '${_selectedImages.length} afbeelding(en) geselecteerd',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_selectedImages.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _selectedImages.map((image) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  image,
+                                  width: 70,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _removeSelectedImage(image),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -810,6 +1039,7 @@ class _ReplyKataCommentScreenState extends ConsumerState<ReplyKataCommentScreen>
                                     .addComment(
                                       _replyController.text.trim(),
                                       parentCommentId: widget.originalComment.id,
+                                      imageFiles: _selectedImages,
                                     );
                                 if (context.mounted) {
                                   Navigator.pop(context, true);

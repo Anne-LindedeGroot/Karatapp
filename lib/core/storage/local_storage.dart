@@ -137,6 +137,12 @@ class CachedForumPost extends HiveObject {
   @HiveField(10)
   final String category; // Store category as string (ForumCategory.name)
 
+  @HiveField(11)
+  final List<String> imageUrls;
+
+  @HiveField(12)
+  final List<String> fileUrls;
+
   CachedForumPost({
     required this.id,
     required this.title,
@@ -149,6 +155,8 @@ class CachedForumPost extends HiveObject {
     this.commentsCount = 0,
     this.needsSync = false,
     required this.category,
+    this.imageUrls = const [],
+    this.fileUrls = const [],
   });
 }
 

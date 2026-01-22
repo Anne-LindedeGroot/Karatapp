@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/forum_models.dart';
 
 class ForumService {
   final SupabaseClient _client = Supabase.instance.client;
+  static const String _forumImagesBucket = 'forum_images';
+  static const String _forumFilesBucket = 'forum_files';
 
   // Helper function to get user avatar from metadata
   // Returns avatar URL for custom avatars, or avatar ID for preset avatars
@@ -25,6 +28,135 @@ class ForumService {
     
     // Fallback: check if avatar_url exists (for backward compatibility)
     return metadata['avatar_url'] as String?;
+  }
+
+  Future<void> _ensureForumImagesBucket() async {
+    try {
+      await _client.storage.getBucket(_forumImagesBucket);
+    } catch (e) {
+      throw Exception(
+        'Storage bucket $_forumImagesBucket not found or not accessible. '
+        'Please create it in Supabase Storage and make it public.',
+      );
+    }
+  }
+
+  String _getFileExtension(File file) {
+    final path = file.path;
+    final dotIndex = path.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == path.length - 1) {
+      return '.jpg';
+    }
+    return path.substring(dotIndex);
+  }
+
+  String? _extractStoragePathFromUrl(String url, String bucket) {
+    try {
+      final uri = Uri.parse(url);
+      final segments = uri.pathSegments;
+      final bucketIndex = segments.indexOf(bucket);
+      if (bucketIndex == -1 || bucketIndex + 1 >= segments.length) {
+        return null;
+      }
+      return segments.sublist(bucketIndex + 1).join('/');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<String>> _uploadForumImages({
+    required String folder,
+    required String prefix,
+    required int id,
+    required List<File> imageFiles,
+  }) async {
+    if (imageFiles.isEmpty) return [];
+    await _ensureForumImagesBucket();
+
+    final uploadedUrls = <String>[];
+    for (var i = 0; i < imageFiles.length; i++) {
+      final file = imageFiles[i];
+      if (!await file.exists()) continue;
+      final extension = _getFileExtension(file);
+      final fileName =
+          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_$i$extension';
+      final filePath = '$folder/$fileName';
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) continue;
+
+      await _client.storage.from(_forumImagesBucket).uploadBinary(filePath, bytes);
+      final publicUrl =
+          _client.storage.from(_forumImagesBucket).getPublicUrl(filePath);
+      uploadedUrls.add(publicUrl);
+    }
+    return uploadedUrls;
+  }
+
+  Future<void> _deleteForumImages(List<String> urls) async {
+    if (urls.isEmpty) return;
+    final paths = urls
+        .map((url) => _extractStoragePathFromUrl(url, _forumImagesBucket))
+        .whereType<String>()
+        .toList();
+    if (paths.isEmpty) return;
+    try {
+      await _client.storage.from(_forumImagesBucket).remove(paths);
+    } catch (_) {
+      // Best-effort cleanup only
+    }
+  }
+
+  Future<void> _ensureForumFilesBucket() async {
+    try {
+      await _client.storage.getBucket(_forumFilesBucket);
+    } catch (e) {
+      throw Exception(
+        'Storage bucket $_forumFilesBucket not found or not accessible. '
+        'Please create it in Supabase Storage and make it public.',
+      );
+    }
+  }
+
+  Future<List<String>> _uploadForumFiles({
+    required String folder,
+    required String prefix,
+    required int id,
+    required List<File> files,
+  }) async {
+    if (files.isEmpty) return [];
+    await _ensureForumFilesBucket();
+
+    final uploadedUrls = <String>[];
+    for (var i = 0; i < files.length; i++) {
+      final file = files[i];
+      if (!await file.exists()) continue;
+      final extension = _getFileExtension(file);
+      final fileName =
+          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_$i$extension';
+      final filePath = '$folder/$fileName';
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) continue;
+
+      await _client.storage.from(_forumFilesBucket).uploadBinary(filePath, bytes);
+      final publicUrl =
+          _client.storage.from(_forumFilesBucket).getPublicUrl(filePath);
+      uploadedUrls.add(publicUrl);
+    }
+    return uploadedUrls;
+  }
+
+  Future<void> _deleteForumFiles(List<String> urls) async {
+    if (urls.isEmpty) return;
+    final paths = urls
+        .map((url) => _extractStoragePathFromUrl(url, _forumFilesBucket))
+        .whereType<String>()
+        .toList();
+    if (paths.isEmpty) return;
+    try {
+      await _client.storage.from(_forumFilesBucket).remove(paths);
+    } catch (_) {
+      // Best-effort cleanup only
+    }
   }
 
   // Check if user is the app host using the user_roles table
@@ -159,6 +291,8 @@ class ForumService {
     required String title,
     required String content,
     required ForumCategory category,
+    List<String> imageUrls = const [],
+    List<String> fileUrls = const [],
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -176,6 +310,8 @@ class ForumService {
         'author_id': user.id,
         'author_name': userName,
         'author_avatar': userAvatar,
+        if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
+        if (fileUrls.isNotEmpty) 'file_urls': fileUrls,
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
         'is_pinned': false,
@@ -196,6 +332,86 @@ class ForumService {
     } catch (e) {
       throw Exception('Failed to create post: $e');
     }
+  }
+
+  Future<List<String>> uploadForumPostImages({
+    required int postId,
+    required List<File> imageFiles,
+  }) async {
+    return _uploadForumImages(
+      folder: 'posts/$postId',
+      prefix: 'post',
+      id: postId,
+      imageFiles: imageFiles,
+    );
+  }
+
+  Future<List<String>> uploadForumPostFiles({
+    required int postId,
+    required List<File> files,
+  }) async {
+    return _uploadForumFiles(
+      folder: 'posts/$postId',
+      prefix: 'post',
+      id: postId,
+      files: files,
+    );
+  }
+
+  Future<List<String>> uploadForumCommentImages({
+    required int commentId,
+    required List<File> imageFiles,
+  }) async {
+    return _uploadForumImages(
+      folder: 'comments/$commentId',
+      prefix: 'comment',
+      id: commentId,
+      imageFiles: imageFiles,
+    );
+  }
+
+  Future<List<String>> uploadForumCommentFiles({
+    required int commentId,
+    required List<File> files,
+  }) async {
+    return _uploadForumFiles(
+      folder: 'comments/$commentId',
+      prefix: 'comment',
+      id: commentId,
+      files: files,
+    );
+  }
+
+  Future<ForumPost> updatePostImages({
+    required int postId,
+    required List<String> imageUrls,
+  }) async {
+    final response = await _client
+        .from('forum_posts')
+        .update({
+          'image_urls': imageUrls,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', postId)
+        .select()
+        .single();
+    return ForumPost.fromJson(response);
+  }
+
+  Future<ForumPost> updatePostFiles({
+    required int postId,
+    required List<String> fileUrls,
+  }) async {
+    final response = await _client
+        .from('forum_posts')
+        .update({
+          'file_urls': fileUrls,
+          'updated_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', postId)
+        .select()
+        .single();
+    return ForumPost.fromJson(response);
   }
 
   // Update a forum post (only author or host can do this)
@@ -283,6 +499,40 @@ class ForumService {
         throw Exception('You do not have permission to delete this post');
       }
 
+      // Best-effort: collect image URLs for post + comments before delete
+      final postMediaResponse = await _client
+          .from('forum_posts')
+          .select('image_urls, file_urls')
+          .eq('id', postId)
+          .maybeSingle();
+      final postImageUrls =
+          (postMediaResponse?['image_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              <String>[];
+      final postFileUrls =
+          (postMediaResponse?['file_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              <String>[];
+
+      final commentMediaResponse = await _client
+          .from('forum_comments')
+          .select('image_urls, file_urls')
+          .eq('post_id', postId);
+      final commentImageUrls = List<Map<String, dynamic>>.from(commentMediaResponse)
+          .expand((row) => (row['image_urls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+              const <String>[])
+          .toList();
+      final commentFileUrls = List<Map<String, dynamic>>.from(commentMediaResponse)
+          .expand((row) => (row['file_urls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+              const <String>[])
+          .toList();
+
       // Delete comments first (due to foreign key constraints)
       await _client
           .from('forum_comments')
@@ -296,6 +546,10 @@ class ForumService {
           .delete()
           .eq('id', postId)
           .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+
+      // Clean up images after deleting the records
+      await _deleteForumImages([...postImageUrls, ...commentImageUrls]);
+      await _deleteForumFiles([...postFileUrls, ...commentFileUrls]);
     } catch (e) {
       throw Exception('Failed to delete post: $e');
     }
@@ -306,6 +560,8 @@ class ForumService {
     required int postId,
     required String content,
     int? parentCommentId,
+    List<String> imageUrls = const [],
+    List<String> fileUrls = const [],
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -347,6 +603,8 @@ class ForumService {
         'author_id': user.id,
         'author_name': userName,
         'author_avatar': userAvatar,
+        if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
+        if (fileUrls.isNotEmpty) 'file_urls': fileUrls,
       };
 
       // Only add parent_comment_id if it's not null
@@ -460,7 +718,7 @@ class ForumService {
       // Get the comment and post details to check permissions
       final allComments = await _client
           .from('forum_comments')
-          .select('author_id, post_id, id');
+          .select('author_id, post_id, id, image_urls, file_urls');
 
       final comments = List<Map<String, dynamic>>.from(allComments);
       final commentList = comments.where((comment) => comment['id'] == commentId).toList();
@@ -471,6 +729,16 @@ class ForumService {
 
       final comment = commentList.first;
       final isCommentAuthor = comment['author_id'] == user.id;
+      final commentImageUrls =
+          (comment['image_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              <String>[];
+      final commentFileUrls =
+          (comment['file_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              <String>[];
 
       // Get the post to check if user is post author
       final allPosts = await _client
@@ -505,6 +773,10 @@ class ForumService {
           .delete()
           .eq('id', commentId)
           .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
+
+      // Clean up images after deleting
+      await _deleteForumImages(commentImageUrls);
+      await _deleteForumFiles(commentFileUrls);
     } catch (e) {
       throw Exception('Failed to delete comment: $e');
     }
@@ -514,6 +786,8 @@ class ForumService {
   Future<ForumComment> updateComment({
     required int commentId,
     required String content,
+    List<String>? imageUrls,
+    List<String>? fileUrls,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -540,10 +814,16 @@ class ForumService {
         throw Exception('You can only edit your own comments');
       }
 
-      final updateData = {
+      final Map<String, dynamic> updateData = {
         'content': content,
         'updated_at': DateTime.now().toIso8601String(),
       };
+      if (imageUrls != null) {
+        updateData['image_urls'] = imageUrls;
+      }
+      if (fileUrls != null) {
+        updateData['file_urls'] = fileUrls;
+      }
 
       final response = await _client
           .from('forum_comments')

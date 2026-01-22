@@ -7,6 +7,7 @@ class OhyoComment {
   final String authorId;
   final String authorName;
   final String? authorAvatar;
+  final List<String> imageUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int? parentCommentId; // For nested replies
@@ -21,6 +22,7 @@ class OhyoComment {
     required this.authorId,
     required this.authorName,
     this.authorAvatar,
+    this.imageUrls = const [],
     required this.createdAt,
     required this.updatedAt,
     this.parentCommentId,
@@ -37,6 +39,10 @@ class OhyoComment {
       authorId: json['author_id'] as String,
       authorName: json['author_name'] as String,
       authorAvatar: json['author_avatar'] as String?,
+      imageUrls: (json['image_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       parentCommentId: json['parent_comment_id'] as int?,
@@ -54,6 +60,7 @@ class OhyoComment {
       'author_id': authorId,
       'author_name': authorName,
       'author_avatar': authorAvatar,
+      'image_urls': imageUrls,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'parent_comment_id': parentCommentId,
@@ -72,6 +79,7 @@ class KataComment {
   final String authorId;
   final String authorName;
   final String? authorAvatar;
+  final List<String> imageUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int? parentCommentId; // For nested replies
@@ -86,6 +94,7 @@ class KataComment {
     required this.authorId,
     required this.authorName,
     this.authorAvatar,
+    this.imageUrls = const [],
     required this.createdAt,
     required this.updatedAt,
     this.parentCommentId,
@@ -102,6 +111,10 @@ class KataComment {
       authorId: json['author_id'] as String,
       authorName: json['author_name'] as String,
       authorAvatar: json['author_avatar'] as String?,
+      imageUrls: (json['image_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
       parentCommentId: json['parent_comment_id'] as int?,
@@ -119,6 +132,7 @@ class KataComment {
       'author_id': authorId,
       'author_name': authorName,
       'author_avatar': authorAvatar,
+      'image_urls': imageUrls,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'parent_comment_id': parentCommentId,

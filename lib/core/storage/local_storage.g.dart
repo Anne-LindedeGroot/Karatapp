@@ -156,13 +156,15 @@ class CachedForumPostAdapter extends TypeAdapter<CachedForumPost> {
       commentsCount: fields[8] as int,
       needsSync: fields[9] as bool,
       category: fields[10] as String,
+      imageUrls: (fields[11] as List?)?.cast<String>() ?? const [],
+      fileUrls: (fields[12] as List?)?.cast<String>() ?? const [],
     );
   }
 
   @override
   void write(BinaryWriter writer, CachedForumPost obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -184,7 +186,11 @@ class CachedForumPostAdapter extends TypeAdapter<CachedForumPost> {
       ..writeByte(9)
       ..write(obj.needsSync)
       ..writeByte(10)
-      ..write(obj.category);
+      ..write(obj.category)
+      ..writeByte(11)
+      ..write(obj.imageUrls)
+      ..writeByte(12)
+      ..write(obj.fileUrls);
   }
 
   @override

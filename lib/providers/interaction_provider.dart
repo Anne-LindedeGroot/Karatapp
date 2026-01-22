@@ -6,6 +6,7 @@ import '../services/interaction_service.dart';
 import '../services/offline_queue_service.dart';
 import '../services/comment_cache_service.dart';
 import '../services/conflict_resolution_service.dart';
+import '../services/offline_media_cache_service.dart';
 import '../core/storage/local_storage.dart' as app_storage;
 import 'error_boundary_provider.dart';
 import 'auth_provider.dart';
@@ -173,13 +174,46 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
            errorString.contains('host');
   }
 
-  Future<void> addComment(String content, {int? parentCommentId}) async {
+  void _precacheCommentImages(List<String> urls) {
+    if (urls.isEmpty) return;
+    Future.microtask(() {
+      for (final url in urls) {
+        OfflineMediaCacheService.cacheMediaFile(url, false, _ref)
+            .catchError((_) => null);
+      }
+    });
+  }
+
+  Future<void> addComment(
+    String content, {
+    int? parentCommentId,
+    List<File> imageFiles = const [],
+  }) async {
     try {
-      final newComment = await _interactionService.addKataComment(
+      var newComment = await _interactionService.addKataComment(
         kataId: kataId,
         content: content,
         parentCommentId: parentCommentId,
       );
+
+      if (imageFiles.isNotEmpty) {
+        try {
+          final uploadedUrls = await _interactionService.uploadKataCommentImages(
+            commentId: newComment.id,
+            imageFiles: imageFiles,
+          );
+          if (uploadedUrls.isNotEmpty) {
+            newComment = await _interactionService.updateKataComment(
+              commentId: newComment.id,
+              content: newComment.content,
+              imageUrls: uploadedUrls,
+            );
+            _precacheCommentImages(uploadedUrls);
+          }
+        } catch (_) {
+          // If upload fails, keep the comment without images
+        }
+      }
 
       final updatedComments = [...state.comments, newComment];
       state = state.copyWith(
@@ -311,11 +345,15 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
     int offset = 0,
   }) async {
     try {
-      return await _interactionService.getKataCommentsPaginated(
+      final comments = await _interactionService.getKataCommentsPaginated(
         kataId: kataId,
         limit: limit,
         offset: offset,
       );
+      _precacheCommentImages(
+        comments.expand((comment) => comment.imageUrls).toList(),
+      );
+      return comments;
     } catch (e) {
       final errorMessage = 'Failed to load comments: ${e.toString()}';
       state = state.copyWith(error: errorMessage);
@@ -746,13 +784,46 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
            errorString.contains('host');
   }
 
-  Future<void> addComment(String content, {int? parentCommentId}) async {
+  void _precacheCommentImages(List<String> urls) {
+    if (urls.isEmpty) return;
+    Future.microtask(() {
+      for (final url in urls) {
+        OfflineMediaCacheService.cacheMediaFile(url, false, _ref)
+            .catchError((_) => null);
+      }
+    });
+  }
+
+  Future<void> addComment(
+    String content, {
+    int? parentCommentId,
+    List<File> imageFiles = const [],
+  }) async {
     try {
-      final newComment = await _interactionService.addOhyoComment(
+      var newComment = await _interactionService.addOhyoComment(
         ohyoId: ohyoId,
         content: content,
         parentCommentId: parentCommentId,
       );
+
+      if (imageFiles.isNotEmpty) {
+        try {
+          final uploadedUrls = await _interactionService.uploadOhyoCommentImages(
+            commentId: newComment.id,
+            imageFiles: imageFiles,
+          );
+          if (uploadedUrls.isNotEmpty) {
+            newComment = await _interactionService.updateOhyoComment(
+              commentId: newComment.id,
+              content: newComment.content,
+              imageUrls: uploadedUrls,
+            );
+            _precacheCommentImages(uploadedUrls);
+          }
+        } catch (_) {
+          // If upload fails, keep the comment without images
+        }
+      }
 
       final updatedComments = [...state.comments, newComment];
       state = state.copyWith(
@@ -888,11 +959,15 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
     int offset = 0,
   }) async {
     try {
-      return await _interactionService.getOhyoCommentsPaginated(
+      final comments = await _interactionService.getOhyoCommentsPaginated(
         ohyoId: ohyoId,
         limit: limit,
         offset: offset,
       );
+      _precacheCommentImages(
+        comments.expand((comment) => comment.imageUrls).toList(),
+      );
+      return comments;
     } catch (e) {
       final errorMessage = 'Failed to load comments: ${e.toString()}';
       state = state.copyWith(error: errorMessage);

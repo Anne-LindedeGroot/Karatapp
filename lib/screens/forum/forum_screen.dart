@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/forum_models.dart';
 import '../../providers/forum_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -10,6 +12,7 @@ import '../../providers/network_provider.dart';
 import '../../widgets/avatar_widget.dart';
 import '../../widgets/skeleton_forum_post.dart';
 import '../../widgets/responsive_layout.dart';
+import '../../widgets/image_gallery.dart';
 import '../../utils/responsive_utils.dart';
 import '../../core/navigation/app_router.dart';
 import 'forum_post_detail_screen.dart';

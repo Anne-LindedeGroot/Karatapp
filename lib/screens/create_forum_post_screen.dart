@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/forum_models.dart';
 import '../providers/forum_provider.dart';
 import '../providers/accessibility_provider.dart';
 import '../widgets/enhanced_accessible_text.dart';
+import '../widgets/media_source_bottom_sheet.dart';
+import '../utils/image_utils.dart';
 
 class CreateForumPostScreen extends ConsumerStatefulWidget {
   const CreateForumPostScreen({super.key});
@@ -18,6 +22,8 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
   final _contentController = TextEditingController();
   ForumCategory _selectedCategory = ForumCategory.general;
   bool _isSubmitting = false;
+  final List<File> _selectedImages = [];
+  final List<File> _selectedFiles = [];
 
   @override
   void initState() {
@@ -91,6 +97,8 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
         category: _selectedCategory,
+        imageFiles: _selectedImages,
+        fileFiles: _selectedFiles,
       );
 
       if (mounted) {
@@ -118,6 +126,70 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
         });
       }
     }
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _selectedImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _selectedImages.add(image);
+    });
+  }
+
+  void _removeSelectedImage(File image) {
+    setState(() {
+      _selectedImages.remove(image);
+    });
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _selectedFiles.addAll(files);
+    });
+  }
+
+  void _removeSelectedFile(File file) {
+    setState(() {
+      _selectedFiles.remove(file);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
   }
 
   Color _getCategoryColor(ForumCategory category) {
@@ -347,6 +419,103 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
                         maxLength: 5000,
                         customTTSLabel: 'Inhoud invoerveld',
                       ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Afbeeldingen (optioneel)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _showImageSourceSheet,
+                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                        label: Text(
+                          _selectedImages.isEmpty
+                              ? 'Afbeeldingen toevoegen'
+                              : 'Meer afbeeldingen toevoegen',
+                        ),
+                      ),
+                      if (_selectedImages.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _selectedImages.map((image) {
+                            return Stack(
+                              alignment: Alignment.topRight,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(
+                                    image,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: () => _removeSelectedImage(image),
+                                  child: Container(
+                                    margin: const EdgeInsets.all(4),
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.6),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Bestanden (pdf/doc) (optioneel)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _pickFiles,
+                        icon: const Icon(Icons.attach_file),
+                        label: Text(
+                          _selectedFiles.isEmpty
+                              ? 'Bestanden toevoegen'
+                              : 'Meer bestanden toevoegen',
+                        ),
+                      ),
+                      if (_selectedFiles.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Column(
+                          children: _selectedFiles.map((file) {
+                            final fileName = file.path.split('/').last;
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.description_outlined),
+                              title: Text(
+                                fileName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => _removeSelectedFile(file),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                       const SizedBox(height: 24),
 
                       // Guidelines

@@ -44,6 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Release signing
+/android/key.properties
+*.jks
+
 #SpellChecker
 /.vscode/settings.json
 /cspell.json

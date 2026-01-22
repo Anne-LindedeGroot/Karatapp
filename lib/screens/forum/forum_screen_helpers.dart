@@ -332,6 +332,66 @@ extension _ForumScreenHelpers on _ForumScreenState {
     );
   }
 
+  Widget _buildPostImageThumbnail(String url) {
+    final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+    if (isLocalFile) {
+      final file = url.startsWith('file://') ? File.fromUri(Uri.parse(url)) : File(url);
+      return Image.file(
+        file,
+        width: 70,
+        height: 70,
+        fit: BoxFit.cover,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: 70,
+      height: 70,
+      fit: BoxFit.cover,
+      memCacheWidth: 140,
+      memCacheHeight: 140,
+      placeholder: (context, _) => Container(
+        width: 70,
+        height: 70,
+        color: Colors.grey.withValues(alpha: 0.1),
+      ),
+      errorWidget: (context, _, __) => Container(
+        width: 70,
+        height: 70,
+        color: Colors.grey.withValues(alpha: 0.1),
+        child: const Icon(Icons.broken_image, size: 16),
+      ),
+    );
+  }
+
+  Widget _buildPostImagePreview(List<String> imageUrls) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: List.generate(imageUrls.length, (index) {
+        final url = imageUrls[index];
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ImageGallery(
+                  imageUrls: imageUrls,
+                  initialIndex: index,
+                  title: 'Afbeeldingen',
+                ),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: _buildPostImageThumbnail(url),
+          ),
+        );
+      }),
+    );
+  }
+
   Widget _buildPostCard(ForumPost post) {
     final currentUser = ref.watch(authUserProvider);
     final canModerateAsync = ref.watch(canModerateProvider);
@@ -518,7 +578,12 @@ extension _ForumScreenHelpers on _ForumScreenState {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              if (post.imageUrls.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _buildPostImagePreview(post.imageUrls),
+                const SizedBox(height: 12),
+              ] else
+                const SizedBox(height: 12),
               
               // Footer with author and stats - redesigned for better spacing
               Column(

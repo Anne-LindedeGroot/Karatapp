@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/ohyo_model.dart';
@@ -11,6 +12,8 @@ import '../../services/unified_tts_service.dart';
 import '../conflict_resolution_dialog.dart';
 import '../threaded_comment_widget.dart';
 import '../../utils/comment_threading_utils.dart';
+import '../../utils/image_utils.dart';
+import '../media_source_bottom_sheet.dart';
 
 class OhyoCardComments extends ConsumerStatefulWidget {
   final Ohyo ohyo;
@@ -33,6 +36,7 @@ class OhyoCardComments extends ConsumerStatefulWidget {
 class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final List<File> _selectedImages = [];
 
   // Pagination state
   List<OhyoComment> _comments = [];
@@ -55,6 +59,47 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
     _commentController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _selectedImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _selectedImages.add(image);
+    });
+  }
+
+  void _removeSelectedImage(File image) {
+    setState(() {
+      _selectedImages.remove(image);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
   }
 
   void _onScroll() {
@@ -292,6 +337,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                         getAuthorAvatar: (comment) => comment.authorAvatar,
                         getContent: (comment) => comment.content,
                         getCreatedAt: (comment) => comment.createdAt,
+                        getImageUrls: (comment) => comment.imageUrls,
                         showReplyButton: true,
                         maxDepth: 5,
                       );
@@ -330,6 +376,69 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
       padding: const EdgeInsets.all(12.0),
       child: Column(
         children: [
+          Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: _showImageSourceSheet,
+                icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                label: const Text('Afbeelding'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _selectedImages.isEmpty
+                      ? 'Geen afbeeldingen geselecteerd'
+                      : '${_selectedImages.length} afbeelding(en) geselecteerd',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+          if (_selectedImages.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _selectedImages.map((image) {
+                return Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        image,
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => _removeSelectedImage(image),
+                      child: Container(
+                        margin: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ],
+          const SizedBox(height: 8),
           Consumer(
             builder: (context, ref, child) {
               return EnhancedAccessibleTextField(
@@ -360,8 +469,12 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                       if (_commentController.text.trim().isNotEmpty) {
                         try {
                           await ref.read(ohyoInteractionProvider(widget.ohyo.id).notifier)
-                              .addComment(_commentController.text.trim());
+                              .addComment(
+                                _commentController.text.trim(),
+                                imageFiles: _selectedImages,
+                              );
                           _commentController.clear();
+                          _selectedImages.clear();
                           if (mounted && context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -642,6 +755,7 @@ class ReplyOhyoCommentScreen extends ConsumerStatefulWidget {
 
 class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen> {
   final TextEditingController _replyController = TextEditingController();
+  final List<File> _selectedImages = [];
 
   @override
   void initState() {
@@ -661,6 +775,47 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
   void dispose() {
     _replyController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _selectedImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _selectedImages.add(image);
+    });
+  }
+
+  void _removeSelectedImage(File image) {
+    setState(() {
+      _selectedImages.remove(image);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -740,6 +895,69 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
                       autofocus: true,
                       customTTSLabel: 'Reactie invoerveld',
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _showImageSourceSheet,
+                          icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                          label: const Text('Afbeelding'),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedImages.isEmpty
+                                ? 'Geen afbeeldingen geselecteerd'
+                                : '${_selectedImages.length} afbeelding(en) geselecteerd',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_selectedImages.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _selectedImages.map((image) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  image,
+                                  width: 70,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _removeSelectedImage(image),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -778,6 +996,7 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
                                     .addComment(
                                       _replyController.text.trim(),
                                       parentCommentId: widget.originalComment.id,
+                                      imageFiles: _selectedImages,
                                     );
                                 if (context.mounted) {
                                   Navigator.pop(context, true);
