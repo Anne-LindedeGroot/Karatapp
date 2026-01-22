@@ -683,6 +683,8 @@ class _DataUsageSettingsScreenState extends ConsumerState<DataUsageSettingsScree
         return 'Wi-Fi';
       case ConnectionType.cellular:
         return '4G/5G';
+      case ConnectionType.none:
+        return 'Offline';
       case ConnectionType.unknown:
         return 'Onbekend';
     }

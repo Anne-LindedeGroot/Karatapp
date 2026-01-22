@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +24,7 @@ enum DataUsageMode {
 enum ConnectionType {
   wifi,
   cellular,
+  none,
   unknown,
 }
 
@@ -172,7 +174,8 @@ class DataUsageNotifier extends StateNotifier<DataUsageState> {
   static const String _lastResetKey = 'data_usage_last_reset';
   static const String _sessionCountKey = 'data_usage_session_count';
 
-  Timer? _periodicTimer;
+  final Connectivity _connectivity = Connectivity();
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   DataUsageNotifier() : super(DataUsageState(
     mode: DataUsageMode.unlimited,
@@ -194,12 +197,12 @@ class DataUsageNotifier extends StateNotifier<DataUsageState> {
     isOfflineMode: false,
   )) {
     _loadSettings();
-    _startPeriodicUpdates();
+    _startConnectivityUpdates();
   }
 
   @override
   void dispose() {
-    _periodicTimer?.cancel();
+    _connectivitySub?.cancel();
     super.dispose();
   }
 
@@ -307,20 +310,49 @@ class DataUsageNotifier extends StateNotifier<DataUsageState> {
     }
   }
 
-  /// Start periodic updates for connection monitoring
-  void _startPeriodicUpdates() {
-    _periodicTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      _updateConnectionType();
+  void _startConnectivityUpdates() {
+    _updateConnectionType();
+    _connectivitySub = _connectivity.onConnectivityChanged.listen((results) {
+      _applyConnectionType(results);
     });
   }
 
-  /// Update connection type (simplified - in real app you'd use connectivity_plus)
-  void _updateConnectionType() {
-    // This is a simplified version - in a real app you'd use connectivity_plus
-    // to detect actual connection type
-    final newConnectionType = ConnectionType.unknown; // Placeholder
-    if (state.connectionType != newConnectionType) {
-      state = state.copyWith(connectionType: newConnectionType);
+  Future<void> _updateConnectionType() async {
+    final results = await _connectivity.checkConnectivity();
+    _applyConnectionType(results);
+  }
+
+  void _applyConnectionType(List<ConnectivityResult> results) {
+    if (results.isEmpty) {
+      _setConnectionType(ConnectionType.none);
+      return;
+    }
+
+    if (results.contains(ConnectivityResult.wifi) ||
+        results.contains(ConnectivityResult.ethernet)) {
+      _setConnectionType(ConnectionType.wifi);
+      return;
+    }
+
+    if (results.contains(ConnectivityResult.mobile)) {
+      _setConnectionType(ConnectionType.cellular);
+      return;
+    }
+
+    if (results.contains(ConnectivityResult.none)) {
+      _setConnectionType(ConnectionType.none);
+      return;
+    }
+
+    _setConnectionType(ConnectionType.unknown);
+  }
+
+  void _setConnectionType(ConnectionType type) {
+    if (state.connectionType != type) {
+      state = state.copyWith(
+        connectionType: type,
+        isOfflineMode: type == ConnectionType.none,
+      );
     }
   }
 
@@ -380,6 +412,7 @@ class DataUsageNotifier extends StateNotifier<DataUsageState> {
   /// Record data usage
   Future<void> recordDataUsage(int bytes, {String type = 'general'}) async {
     if (bytes <= 0) return;
+    if (state.connectionType != ConnectionType.cellular) return;
 
     final currentStats = state.stats;
     DataUsageStats newStats;
