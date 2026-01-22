@@ -857,6 +857,10 @@ class OhyoNotifier extends StateNotifier<OhyoState> {
                   imageUrls: refreshedUrls,
                 );
               }
+
+              if (refreshedUrls.isNotEmpty) {
+                await ImageUtils.saveOhyoImageOrder(ohyoId, refreshedUrls);
+              }
             } catch (_) {
               // Ignore refresh failures to avoid blocking save
             }

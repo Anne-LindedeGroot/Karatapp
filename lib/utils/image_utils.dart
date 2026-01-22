@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -878,6 +879,34 @@ class ImageUtils {
     );
   }
 
+  /// Persist ohyo image order to storage as a lightweight manifest file.
+  static Future<void> saveOhyoImageOrder(int ohyoId, List<String> orderedUrls) async {
+    if (orderedUrls.isEmpty) return;
+
+    final fileNames = orderedUrls
+        .map(extractFileNameFromUrl)
+        .whereType<String>()
+        .where((name) => name.isNotEmpty)
+        .toList();
+
+    if (fileNames.isEmpty) return;
+
+    try {
+      final supabase = Supabase.instance.client;
+      final bytes = utf8.encode(json.encode(fileNames));
+      await supabase.storage.from('ohyo_images').uploadBinary(
+        '$ohyoId/_order.json',
+        bytes,
+        fileOptions: const FileOptions(
+          upsert: true,
+          cacheControl: '60',
+        ),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Failed to save ohyo order manifest for $ohyoId: $e');
+    }
+  }
+
   /// Reorder ohyo images by renaming files to include the new order index
   static Future<void> reorderOhyoImages(int ohyoId, List<String> orderedUrls) async {
     if (orderedUrls.isEmpty) return;
@@ -1060,6 +1089,7 @@ class ImageUtils {
 
           // Check if there's a stored image order in the ohyo record
           List<String>? storedOrder;
+          List<String>? storedOrderFileNames;
           try {
             final ohyoResponse = await supabase
                 .from('ohyo')
@@ -1072,6 +1102,19 @@ class ImageUtils {
                 : null;
           } catch (_) {
             // Silent: Image order fetch failures are not logged
+          }
+
+          // Try to load order manifest from storage as a fallback
+          try {
+            final bytes = await supabase.storage
+                .from('ohyo_images')
+                .download('$ohyoId/_order.json');
+            final decoded = json.decode(utf8.decode(bytes));
+            if (decoded is List) {
+              storedOrderFileNames = decoded.map((value) => value.toString()).toList();
+            }
+          } catch (_) {
+            // Silent: order manifest may not exist
           }
 
           // List all files in the ohyo's folder with proper error handling
@@ -1180,17 +1223,26 @@ class ImageUtils {
           }
 
           // If we have a stored order, use it to sort the images
-          if (storedOrder != null && storedOrder.isNotEmpty) {
+          if ((storedOrder != null && storedOrder.isNotEmpty) ||
+              (storedOrderFileNames != null && storedOrderFileNames.isNotEmpty)) {
             final fileNameToData = <String, Map<String, String>>{};
             for (final data in imageData) {
               fileNameToData[data['name']!] = data;
             }
 
             final orderedUrls = <String>[];
-            for (final storedUrl in storedOrder) {
-              final storedFileName = extractFileNameFromUrl(storedUrl);
-              if (storedFileName != null && fileNameToData.containsKey(storedFileName)) {
-                orderedUrls.add(fileNameToData[storedFileName]!['url']!);
+            if (storedOrderFileNames != null && storedOrderFileNames.isNotEmpty) {
+              for (final storedFileName in storedOrderFileNames) {
+                if (fileNameToData.containsKey(storedFileName)) {
+                  orderedUrls.add(fileNameToData[storedFileName]!['url']!);
+                }
+              }
+            } else if (storedOrder != null && storedOrder.isNotEmpty) {
+              for (final storedUrl in storedOrder) {
+                final storedFileName = extractFileNameFromUrl(storedUrl);
+                if (storedFileName != null && fileNameToData.containsKey(storedFileName)) {
+                  orderedUrls.add(fileNameToData[storedFileName]!['url']!);
+                }
               }
             }
 
