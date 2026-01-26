@@ -31,6 +31,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
   bool _imageLoadingFailed = false;
   bool _isOfflineError = false;
   bool _isDisposed = false;
+  ProviderContainer? _container;
 
   bool _hasCachedKataImage(String url) {
     if (OfflineMediaCacheService.getCachedFilePath(url, false) != null) {
@@ -73,12 +74,18 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _container ??= ProviderScope.containerOf(context, listen: false);
+  }
+
+  @override
   void didUpdateWidget(KataCardMedia oldWidget) {
     super.didUpdateWidget(oldWidget);
     // If we previously had offline errors and now we're online, retry
     if (_isOfflineError && _imageLoadingFailed) {
-      final networkState = ref.read(networkProvider);
-      if (networkState.isConnected) {
+      final networkState = _container?.read(networkProvider) ?? ref.read(networkProvider);
+      if (networkState?.isConnected == true) {
         debugPrint('Connection restored, retrying image load for kata ${widget.kata.id}');
         Future.delayed(const Duration(seconds: 1), () {
           if (mounted && !_isDisposed) {
@@ -99,6 +106,8 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
     if (_imageLoadingAttempted) return; // Prevent multiple attempts
 
     if (!mounted || _isDisposed) return; // Check if widget is still mounted
+    final container = _container;
+    if (container == null) return;
 
     setState(() {
       _imageLoadingAttempted = true;
@@ -109,7 +118,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
       if (!mounted || _isDisposed) return;
 
       // Get current kata from provider
-      final kataState = ref.read(kataNotifierProvider);
+      final kataState = container.read(kataNotifierProvider);
       final currentKata = kataState.katas.firstWhere(
         (k) => k.id == widget.kata.id,
         orElse: () => widget.kata,
@@ -118,7 +127,7 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
       if (!mounted || _isDisposed) return;
 
       // Check network status
-      final networkState = ref.read(networkProvider);
+      final networkState = container.read(networkProvider);
       final isOffline = !networkState.isConnected;
 
       if (isOffline) {
@@ -129,7 +138,9 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
           if (cachedImageUrls.isNotEmpty && mounted) {
             debugPrint('Found ${cachedImageUrls.length} cached images for kata ${currentKata.id}');
             // Update the provider state with cached images
-            ref.read(kataNotifierProvider.notifier).updateKataCachedImages(currentKata.id, cachedImageUrls);
+            container
+                .read(kataNotifierProvider.notifier)
+                .updateKataCachedImages(currentKata.id, cachedImageUrls);
 
             setState(() {
               _imageLoadingFailed = false;
@@ -154,11 +165,13 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
 
       // Online - try to load from server
       if (!mounted || _isDisposed) return;
-      await ref.read(kataNotifierProvider.notifier).loadKataImages(currentKata.id, ref: ref);
+      await container
+          .read(kataNotifierProvider.notifier)
+          .loadKataImages(currentKata.id, ref: ref);
 
       // Check if images actually loaded
       if (!mounted || _isDisposed) return;
-      final updatedKata = ref.read(kataNotifierProvider).katas
+      final updatedKata = container.read(kataNotifierProvider).katas
           .firstWhere((k) => k.id == currentKata.id, orElse: () => currentKata);
 
       if (mounted && (updatedKata.imageUrls?.isEmpty ?? true)) {
@@ -170,7 +183,9 @@ class _KataCardMediaState extends ConsumerState<KataCardMedia> {
       debugPrint('Failed to load images for kata ${widget.kata.id}: $e');
       if (!mounted || _isDisposed) return;
 
-      final networkState = ref.read(networkProvider);
+      final container = _container;
+      if (container == null) return;
+      final networkState = container.read(networkProvider);
       setState(() {
         _imageLoadingFailed = true;
         _isOfflineError = !networkState.isConnected;

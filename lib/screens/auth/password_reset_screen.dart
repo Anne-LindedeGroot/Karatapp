@@ -9,35 +9,22 @@ import '../../supabase_client.dart';
 import '../../core/navigation/app_router.dart';
 
 class PasswordResetScreen extends ConsumerStatefulWidget {
-  final String? initialEmail;
-
-  const PasswordResetScreen({super.key, this.initialEmail});
+  const PasswordResetScreen({super.key});
 
   @override
   ConsumerState<PasswordResetScreen> createState() => _PasswordResetScreenState();
 }
 
 class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
-  final _emailController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  bool _isSendingLink = false;
   bool _isSavingPassword = false;
   bool _isNewPasswordVisible = false;
   bool _isConfirmPasswordVisible = false;
 
   @override
-  void initState() {
-    super.initState();
-    if (widget.initialEmail != null && widget.initialEmail!.isNotEmpty) {
-      _emailController.text = widget.initialEmail!;
-    }
-  }
-
-  @override
   void dispose() {
-    _emailController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -55,47 +42,6 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
       await accessibilityNotifier.speak(text);
     } catch (e) {
       debugPrint('PasswordResetScreen TTS Error: $e');
-    }
-  }
-
-  Future<void> _sendResetLink() async {
-    final email = _emailController.text.trim();
-    if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vul een e-mailadres in')),
-      );
-      return;
-    }
-
-    setState(() {
-      _isSendingLink = true;
-    });
-
-    try {
-      await ref.read(authNotifierProvider.notifier).sendPasswordResetEmail(email);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Reset link verstuurd. Controleer je e-mail.'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reset mislukt: ${e.toString()}'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSendingLink = false;
-        });
-      }
     }
   }
 
@@ -120,7 +66,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     if (session == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Open de reset-link uit je e-mail om het wachtwoord te wijzigen.'),
+          content: Text('Open de reset-link om het wachtwoord te wijzigen.'),
         ),
       );
       return;
@@ -164,6 +110,15 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     return GlobalTTSOverlay(
       child: Scaffold(
         appBar: AppBar(
+          leading: BackButton(
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                context.goToLogin();
+              }
+            },
+          ),
           title: const Text('Wachtwoord reset'),
         ),
         body: SafeArea(
@@ -180,39 +135,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                   ),
                   const SizedBox(height: 8),
                   const EnhancedAccessibleText(
-                    'Stuur eerst een reset-link, open daarna de link om je nieuwe wachtwoord in te stellen in de app.',
-                  ),
-                  SizedBox(height: context.responsiveSpacing(SpacingSize.md)),
-                  EnhancedAccessibleTextField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'E-mail',
-                      prefixIcon: Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: const [AutofillHints.email, AutofillHints.username],
-                    customTTSLabel: 'E-mail invoerveld voor wachtwoord reset',
-                  ),
-                  SizedBox(height: context.responsiveSpacing(SpacingSize.sm)),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _isSendingLink
-                          ? null
-                          : () {
-                              _speakIfEnabled('Reset link sturen');
-                              _sendResetLink();
-                            },
-                      child: _isSendingLink
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Reset link sturen'),
-                    ),
+                    'Stel hieronder je nieuwe wachtwoord in.',
                   ),
                   SizedBox(height: context.responsiveSpacing(SpacingSize.lg)),
                   const EnhancedAccessibleText(

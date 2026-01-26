@@ -13,6 +13,7 @@ import 'error_boundary_provider.dart';
 import 'offline_services_provider.dart';
 import 'auth_provider.dart';
 import 'data_usage_provider.dart';
+import 'network_provider.dart';
 
 // Provider for the ForumService instance
 final forumServiceProvider = Provider<ForumService>((ref) {
@@ -141,10 +142,36 @@ class ForumNotifier extends StateNotifier<ForumState> {
   /// Check if the device is currently online
   Future<bool> _isOnline() async {
     try {
-      // Use a quick network check
-      await _forumService.getPosts(limit: 1);
+      final networkState = _ref.read(networkProvider);
+      if (networkState.isConnected) {
+        return true;
+      }
+      if (networkState.isDisconnected) {
+        return false;
+      }
+    } catch (_) {
+      // Ignore and fall back to direct check.
+    }
+
+    try {
+      await _ref.read(networkProvider.notifier).checkConnection();
+      final refreshedState = _ref.read(networkProvider);
+      if (refreshedState.isConnected) {
+        return true;
+      }
+      if (refreshedState.isDisconnected) {
+        return false;
+      }
+    } catch (_) {
+      // Ignore and fall back to direct check.
+    }
+
+    try {
+      await Supabase.instance.client.auth
+          .getUser()
+          .timeout(const Duration(seconds: 3));
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }
@@ -205,15 +232,13 @@ class ForumNotifier extends StateNotifier<ForumState> {
       debugPrint('❌ Error loading cached forum posts: $e');
     }
 
-    // Check network connectivity
-    try {
-      debugPrint('📡 Forum provider: Checking network connectivity...');
-      await _forumService.getPosts(limit: 1); // Quick connectivity check
-      isOnline = true;
+    // Check network connectivity (avoid storage-related failures)
+    debugPrint('📡 Forum provider: Checking network connectivity...');
+    isOnline = await _isOnline();
+    if (isOnline) {
       debugPrint('📡 Forum provider: Network check passed - device is online');
-    } catch (e) {
-      isOnline = false;
-      debugPrint('📡 Forum provider: Network check failed - device is offline: $e');
+    } else {
+      debugPrint('📡 Forum provider: Network check failed - device is offline');
     }
 
     if (isOnline) {
@@ -438,15 +463,21 @@ class ForumNotifier extends StateNotifier<ForumState> {
             files: fileFiles,
           );
           if (uploadedUrls.isNotEmpty) {
-            postWithImages = await _forumService.updatePostFiles(
+            final updatedPost = await _forumService.updatePostFiles(
               postId: newPost.id,
               fileUrls: uploadedUrls,
             );
+            postWithImages = updatedPost.copyWith(imageUrls: postWithImages.imageUrls);
           }
         } catch (_) {
           // If file upload fails, keep the post without files
         }
       }
+
+      _precacheForumImages([
+        ...postWithImages.imageUrls,
+        ...postWithImages.fileUrls,
+      ]);
 
       // Add the new post to the current list
       final updatedPosts = [postWithImages, ...state.posts];
@@ -807,6 +838,7 @@ class ForumNotifier extends StateNotifier<ForumState> {
               comment = await _forumService.updateComment(
                 commentId: comment.id,
                 content: comment.content,
+                imageUrls: comment.imageUrls,
                 fileUrls: uploadedUrls,
               );
             }
@@ -814,6 +846,11 @@ class ForumNotifier extends StateNotifier<ForumState> {
             // If file upload fails, keep the comment without files
           }
         }
+
+        _precacheForumImages([
+          ...comment.imageUrls,
+          ...comment.fileUrls,
+        ]);
 
         // If we have the selected post loaded, update its comments
         if (state.selectedPost != null && state.selectedPost!.id == postId) {

@@ -81,9 +81,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.passwordReset,
         name: 'passwordReset',
         builder: (context, state) {
-          final email = state.uri.queryParameters['email'];
           return GlobalErrorBoundary(
-            child: PasswordResetScreen(initialEmail: email),
+            child: PasswordResetScreen(),
           );
         },
       ),

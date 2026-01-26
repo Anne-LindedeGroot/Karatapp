@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/interaction_models.dart';
 import '../utils/comment_threading_utils.dart';
 import '../providers/auth_provider.dart';
+import '../providers/network_provider.dart';
+import '../services/offline_media_cache_service.dart';
 import 'avatar_widget.dart';
 import 'image_gallery.dart';
 
@@ -106,7 +108,7 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
         height: 70,
         color: Colors.grey.withValues(alpha: 0.1),
       ),
-      errorWidget: (context, _, __) => Container(
+      errorWidget: (context, _, _) => Container(
         width: 70,
         height: 70,
         color: Colors.grey.withValues(alpha: 0.1),
@@ -126,7 +128,19 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
   }
 
   Future<void> _openAttachment(String url) async {
-    final uri = Uri.parse(url);
+    String openUrl = url;
+    final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+    if (!isLocalFile) {
+      final container = ProviderScope.containerOf(context, listen: false);
+      final isConnected = container.read(isConnectedProvider);
+      if (!isConnected) {
+        final cachedPath = OfflineMediaCacheService.getCachedFilePath(url, false);
+        if (cachedPath != null) {
+          openUrl = Uri.file(cachedPath).toString();
+        }
+      }
+    }
+    final uri = Uri.parse(openUrl);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 

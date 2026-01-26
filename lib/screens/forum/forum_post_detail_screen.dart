@@ -260,7 +260,10 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
 
 
   Future<void> _submitComment() async {
-    if (_commentController.text.trim().isEmpty) {
+    final trimmedContent = _commentController.text.trim();
+    final hasAttachments =
+        _selectedCommentImages.isNotEmpty || _selectedCommentFiles.isNotEmpty;
+    if (trimmedContent.isEmpty && !hasAttachments) {
       return;
     }
 
@@ -299,7 +302,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     try {
       await ref.read(forumNotifierProvider.notifier).addComment(
             postId: widget.postId,
-            content: _commentController.text.trim(),
+            content: trimmedContent,
             parentCommentId: _replyingToComment?.id,
             imageFiles: _selectedCommentImages,
             fileFiles: _selectedCommentFiles,
@@ -1081,7 +1084,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         height: 90,
         color: Colors.grey.withValues(alpha: 0.1),
       ),
-      errorWidget: (context, _, __) => Container(
+      errorWidget: (context, _, _) => Container(
         width: 90,
         height: 90,
         color: Colors.grey.withValues(alpha: 0.1),
@@ -1317,7 +1320,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Post "${post.title}" deleted successfully'),
+              content: Text('Bericht "${post.title}" succesvol verwijderd'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1369,7 +1372,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Comment deleted successfully'),
+              content: Text('Reactie succesvol verwijderd'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1422,7 +1425,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Post updated successfully'),
+              content: Text('Bericht succesvol bijgewerkt'),
               backgroundColor: Colors.green,
             ),
           );
@@ -1469,7 +1472,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Comment updated successfully'),
+              content: Text('Reactie succesvol bijgewerkt'),
               backgroundColor: Colors.green,
             ),
           );
@@ -2589,28 +2592,32 @@ class _ReplyForumCommentScreenState extends ConsumerState<ReplyForumCommentScree
 
                       return ElevatedButton(
                         onPressed: isSubmitting ? null : () async {
-                          if (_replyController.text.trim().isNotEmpty) {
-                            try {
-                              await ref.read(forumNotifierProvider.notifier)
-                                  .addComment(
-                                    postId: widget.forumPostId,
-                                    content: _replyController.text.trim(),
-                                    parentCommentId: widget.originalComment.id,
-                                    imageFiles: _selectedReplyImages,
-                                    fileFiles: _selectedReplyFiles,
-                                  );
-                              if (context.mounted) {
-                                Navigator.pop(context, true);
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Fout bij toevoegen reactie: $e'),
-                                    backgroundColor: Colors.red,
-                                  ),
+                          final trimmedContent = _replyController.text.trim();
+                          final hasAttachments =
+                              _selectedReplyImages.isNotEmpty || _selectedReplyFiles.isNotEmpty;
+                          if (trimmedContent.isEmpty && !hasAttachments) {
+                            return;
+                          }
+                          try {
+                            await ref.read(forumNotifierProvider.notifier)
+                                .addComment(
+                                  postId: widget.forumPostId,
+                                  content: trimmedContent,
+                                  parentCommentId: widget.originalComment.id,
+                                  imageFiles: _selectedReplyImages,
+                                  fileFiles: _selectedReplyFiles,
                                 );
-                              }
+                            if (context.mounted) {
+                              Navigator.pop(context, true);
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Fout bij toevoegen reactie: $e'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
                             }
                           }
                         },

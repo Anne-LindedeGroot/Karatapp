@@ -60,13 +60,13 @@ extension _ForumScreenHelpers on _ForumScreenState {
     if (difference.inDays > 7) {
       return '${date.day}/${date.month}/${date.year}';
     } else if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
+      return '${difference.inDays}d geleden';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
+      return '${difference.inHours}u geleden';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
+      return '${difference.inMinutes}m geleden';
     } else {
-      return 'Just now';
+      return 'Zojuist';
     }
   }
 
@@ -355,7 +355,7 @@ extension _ForumScreenHelpers on _ForumScreenState {
         height: 70,
         color: Colors.grey.withValues(alpha: 0.1),
       ),
-      errorWidget: (context, _, __) => Container(
+      errorWidget: (context, _, _) => Container(
         width: 70,
         height: 70,
         color: Colors.grey.withValues(alpha: 0.1),

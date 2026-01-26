@@ -69,6 +69,38 @@ class OhyoComment {
       'conflict_reason': conflictReason,
     };
   }
+
+  OhyoComment copyWith({
+    int? id,
+    int? ohyoId,
+    String? content,
+    String? authorId,
+    String? authorName,
+    String? authorAvatar,
+    List<String>? imageUrls,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    int? parentCommentId,
+    int? version,
+    bool? hasConflict,
+    String? conflictReason,
+  }) {
+    return OhyoComment(
+      id: id ?? this.id,
+      ohyoId: ohyoId ?? this.ohyoId,
+      content: content ?? this.content,
+      authorId: authorId ?? this.authorId,
+      authorName: authorName ?? this.authorName,
+      authorAvatar: authorAvatar ?? this.authorAvatar,
+      imageUrls: imageUrls ?? this.imageUrls,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      parentCommentId: parentCommentId ?? this.parentCommentId,
+      version: version ?? this.version,
+      hasConflict: hasConflict ?? this.hasConflict,
+      conflictReason: conflictReason ?? this.conflictReason,
+    );
+  }
 }
 
 // Model for kata comments (separate from forum comments)
@@ -140,6 +172,38 @@ class KataComment {
       'has_conflict': hasConflict,
       'conflict_reason': conflictReason,
     };
+  }
+
+  KataComment copyWith({
+    int? id,
+    int? kataId,
+    String? content,
+    String? authorId,
+    String? authorName,
+    String? authorAvatar,
+    List<String>? imageUrls,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    int? parentCommentId,
+    int? version,
+    bool? hasConflict,
+    String? conflictReason,
+  }) {
+    return KataComment(
+      id: id ?? this.id,
+      kataId: kataId ?? this.kataId,
+      content: content ?? this.content,
+      authorId: authorId ?? this.authorId,
+      authorName: authorName ?? this.authorName,
+      authorAvatar: authorAvatar ?? this.authorAvatar,
+      imageUrls: imageUrls ?? this.imageUrls,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      parentCommentId: parentCommentId ?? this.parentCommentId,
+      version: version ?? this.version,
+      hasConflict: hasConflict ?? this.hasConflict,
+      conflictReason: conflictReason ?? this.conflictReason,
+    );
   }
 }
 

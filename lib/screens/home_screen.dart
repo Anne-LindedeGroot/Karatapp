@@ -340,6 +340,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     final kataState = ref.watch(kataNotifierProvider);
     final ohyoState = ref.watch(ohyoNotifierProvider);
     final katas = kataState.filteredKatas;
@@ -442,46 +443,50 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
             },
           ),
         ),
-        floatingActionButton: Consumer(
-          builder: (context, ref, child) {
-            final userRoleAsync = ref.watch(currentUserRoleProvider);
+        floatingActionButton: isKeyboardOpen
+            ? null
+            : Consumer(
+                builder: (context, ref, child) {
+                  final userRoleAsync = ref.watch(currentUserRoleProvider);
 
-            return userRoleAsync.when(
-              data: (role) => Semantics(
-                label: _tabController.index == 0 ? 'Nieuwe kata toevoegen' : 'Nieuwe ohyo toevoegen',
-                button: true,
-                child: FloatingActionButton(
-                  heroTag: "home_fab",
-                  onPressed: () {
-                    if (_tabController.index == 0) {
-                      context.goToCreateKata();
-                    } else {
-                      // Check permissions for ohyo creation (same as kata)
-                      if (role != UserRole.host) {
-                        _showPermissionDeniedDialog(context);
-                      } else {
-                        context.goToCreateOhyo();
-                      }
-                    }
-                  },
-                  child: const Icon(Icons.add),
-                ),
+                  return userRoleAsync.when(
+                    data: (role) => Semantics(
+                      label: _tabController.index == 0
+                          ? 'Nieuwe kata toevoegen'
+                          : 'Nieuwe ohyo toevoegen',
+                      button: true,
+                      child: FloatingActionButton(
+                        heroTag: "home_fab",
+                        onPressed: () {
+                          if (_tabController.index == 0) {
+                            context.goToCreateKata();
+                          } else {
+                            // Check permissions for ohyo creation (same as kata)
+                            if (role != UserRole.host) {
+                              _showPermissionDeniedDialog(context);
+                            } else {
+                              context.goToCreateOhyo();
+                            }
+                          }
+                        },
+                        child: const Icon(Icons.add),
+                      ),
+                    ),
+                    loading: () => const FloatingActionButton(
+                      heroTag: "home_fab",
+                      onPressed: null,
+                      child: CircularProgressIndicator(),
+                    ),
+                    error: (error, stack) => FloatingActionButton(
+                      heroTag: "home_fab",
+                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Fout bij laden gebruikersrol: $error')),
+                      ),
+                      child: const Icon(Icons.error),
+                    ),
+                  );
+                },
               ),
-              loading: () => const FloatingActionButton(
-                heroTag: "home_fab",
-                onPressed: null,
-                child: CircularProgressIndicator(),
-              ),
-              error: (error, stack) => FloatingActionButton(
-                heroTag: "home_fab",
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Fout bij laden gebruikersrol: $error')),
-                ),
-                child: const Icon(Icons.error),
-              ),
-            );
-          },
-        ),
         floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
       ),
     );

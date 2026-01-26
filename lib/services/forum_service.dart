@@ -5,8 +5,17 @@ import '../models/forum_models.dart';
 
 class ForumService {
   final SupabaseClient _client = Supabase.instance.client;
-  static const String _forumImagesBucket = 'forum_images';
-  static const String _forumFilesBucket = 'forum_files';
+  static const List<String> _forumImagesBucketCandidates = [
+    'FORUM_IMAGES',
+    'forum_images',
+  ];
+  static const List<String> _forumFilesBucketCandidates = [
+    'FORUM_FILES',
+    'forum_files',
+  ];
+  static const int _signedUrlExpirySeconds = 31536000; // 1 year
+  String? _resolvedForumImagesBucket;
+  String? _resolvedForumFilesBucket;
 
   // Helper function to get user avatar from metadata
   // Returns avatar URL for custom avatars, or avatar ID for preset avatars
@@ -30,14 +39,27 @@ class ForumService {
     return metadata['avatar_url'] as String?;
   }
 
-  Future<void> _ensureForumImagesBucket() async {
+  Future<String> _resolveForumImagesBucket() async {
+    if (_resolvedForumImagesBucket != null) {
+      return _resolvedForumImagesBucket!;
+    }
+    for (final bucket in _forumImagesBucketCandidates) {
+      try {
+        await _client.storage.getBucket(bucket);
+        _resolvedForumImagesBucket = bucket;
+        return bucket;
+      } catch (_) {}
+    }
+    throw Exception(
+      'Storage bucket for forum images not found or not accessible.',
+    );
+  }
+
+  Future<String?> _tryResolveForumImagesBucket() async {
     try {
-      await _client.storage.getBucket(_forumImagesBucket);
-    } catch (e) {
-      throw Exception(
-        'Storage bucket $_forumImagesBucket not found or not accessible. '
-        'Please create it in Supabase Storage and make it public.',
-      );
+      return await _resolveForumImagesBucket();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -64,6 +86,55 @@ class ForumService {
     }
   }
 
+  String? _extractBucketFromUrl(String url) {
+    try {
+      final segments = Uri.parse(url).pathSegments;
+      final publicIndex = segments.indexOf('public');
+      if (publicIndex != -1 && publicIndex + 1 < segments.length) {
+        return segments[publicIndex + 1];
+      }
+      final signIndex = segments.indexOf('sign');
+      if (signIndex != -1 && signIndex + 1 < segments.length) {
+        return segments[signIndex + 1];
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<String> _maybeSignUrl(String url, String bucket) async {
+    final isHttpUrl = url.startsWith('http://') || url.startsWith('https://');
+    if (!isHttpUrl) {
+      try {
+        return await _client.storage.from(bucket).createSignedUrl(
+              url,
+              _signedUrlExpirySeconds,
+            );
+      } catch (_) {
+        return url;
+      }
+    }
+    if (!url.contains('/storage/v1/object/')) {
+      return url;
+    }
+
+    final resolvedBucket = _extractBucketFromUrl(url) ?? bucket;
+    final path = _extractStoragePathFromUrl(url, resolvedBucket);
+    if (path == null || path.isEmpty) return url;
+    try {
+      return await _client.storage.from(resolvedBucket).createSignedUrl(
+            path,
+            _signedUrlExpirySeconds,
+          );
+    } catch (_) {
+      return url;
+    }
+  }
+
+  Future<List<String>> _ensureSignedUrls(List<String> urls, String bucket) async {
+    if (urls.isEmpty) return urls;
+    return Future.wait(urls.map((url) => _maybeSignUrl(url, bucket)));
+  }
+
   Future<List<String>> _uploadForumImages({
     required String folder,
     required String prefix,
@@ -71,7 +142,7 @@ class ForumService {
     required List<File> imageFiles,
   }) async {
     if (imageFiles.isEmpty) return [];
-    await _ensureForumImagesBucket();
+    final bucket = await _resolveForumImagesBucket();
 
     final uploadedUrls = <String>[];
     for (var i = 0; i < imageFiles.length; i++) {
@@ -84,36 +155,56 @@ class ForumService {
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) continue;
 
-      await _client.storage.from(_forumImagesBucket).uploadBinary(filePath, bytes);
-      final publicUrl =
-          _client.storage.from(_forumImagesBucket).getPublicUrl(filePath);
-      uploadedUrls.add(publicUrl);
+      await _client.storage.from(bucket).uploadBinary(filePath, bytes);
+      String url;
+      try {
+        url = await _client.storage
+            .from(bucket)
+            .createSignedUrl(filePath, _signedUrlExpirySeconds);
+      } catch (_) {
+        url = _client.storage.from(bucket).getPublicUrl(filePath);
+      }
+      uploadedUrls.add(url);
     }
     return uploadedUrls;
   }
 
   Future<void> _deleteForumImages(List<String> urls) async {
     if (urls.isEmpty) return;
+    final bucket = await _resolveForumImagesBucket();
     final paths = urls
-        .map((url) => _extractStoragePathFromUrl(url, _forumImagesBucket))
+        .map((url) => _extractStoragePathFromUrl(url, bucket))
         .whereType<String>()
         .toList();
     if (paths.isEmpty) return;
     try {
-      await _client.storage.from(_forumImagesBucket).remove(paths);
+      await _client.storage.from(bucket).remove(paths);
     } catch (_) {
       // Best-effort cleanup only
     }
   }
 
-  Future<void> _ensureForumFilesBucket() async {
+  Future<String> _resolveForumFilesBucket() async {
+    if (_resolvedForumFilesBucket != null) {
+      return _resolvedForumFilesBucket!;
+    }
+    for (final bucket in _forumFilesBucketCandidates) {
+      try {
+        await _client.storage.getBucket(bucket);
+        _resolvedForumFilesBucket = bucket;
+        return bucket;
+      } catch (_) {}
+    }
+    throw Exception(
+      'Storage bucket for forum files not found or not accessible.',
+    );
+  }
+
+  Future<String?> _tryResolveForumFilesBucket() async {
     try {
-      await _client.storage.getBucket(_forumFilesBucket);
-    } catch (e) {
-      throw Exception(
-        'Storage bucket $_forumFilesBucket not found or not accessible. '
-        'Please create it in Supabase Storage and make it public.',
-      );
+      return await _resolveForumFilesBucket();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -124,7 +215,7 @@ class ForumService {
     required List<File> files,
   }) async {
     if (files.isEmpty) return [];
-    await _ensureForumFilesBucket();
+    final bucket = await _resolveForumFilesBucket();
 
     final uploadedUrls = <String>[];
     for (var i = 0; i < files.length; i++) {
@@ -137,23 +228,30 @@ class ForumService {
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) continue;
 
-      await _client.storage.from(_forumFilesBucket).uploadBinary(filePath, bytes);
-      final publicUrl =
-          _client.storage.from(_forumFilesBucket).getPublicUrl(filePath);
-      uploadedUrls.add(publicUrl);
+      await _client.storage.from(bucket).uploadBinary(filePath, bytes);
+      String url;
+      try {
+        url = await _client.storage
+            .from(bucket)
+            .createSignedUrl(filePath, _signedUrlExpirySeconds);
+      } catch (_) {
+        url = _client.storage.from(bucket).getPublicUrl(filePath);
+      }
+      uploadedUrls.add(url);
     }
     return uploadedUrls;
   }
 
   Future<void> _deleteForumFiles(List<String> urls) async {
     if (urls.isEmpty) return;
+    final bucket = await _resolveForumFilesBucket();
     final paths = urls
-        .map((url) => _extractStoragePathFromUrl(url, _forumFilesBucket))
+        .map((url) => _extractStoragePathFromUrl(url, bucket))
         .whereType<String>()
         .toList();
     if (paths.isEmpty) return;
     try {
-      await _client.storage.from(_forumFilesBucket).remove(paths);
+      await _client.storage.from(bucket).remove(paths);
     } catch (_) {
       // Best-effort cleanup only
     }
@@ -251,8 +349,21 @@ class ForumService {
           .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
       final posts = List<Map<String, dynamic>>.from(response);
-      
-      return posts.map((postData) => ForumPost.fromJson(postData)).toList();
+
+      final imagesBucket = await _tryResolveForumImagesBucket();
+      final filesBucket = await _tryResolveForumFilesBucket();
+      final mappedPosts = await Future.wait(posts.map((postData) async {
+        final post = ForumPost.fromJson(postData);
+        final imageUrls = imagesBucket == null
+            ? post.imageUrls
+            : await _ensureSignedUrls(post.imageUrls, imagesBucket);
+        final fileUrls = filesBucket == null
+            ? post.fileUrls
+            : await _ensureSignedUrls(post.fileUrls, filesBucket);
+        return post.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
+      }));
+
+      return mappedPosts;
     } catch (e) {
       throw Exception('Failed to load forum posts: $e');
     }
@@ -276,11 +387,34 @@ class ForumService {
           .eq('post_id', postId)
           .order('created_at', ascending: true);
 
-      final postComments = List<Map<String, dynamic>>.from(commentsResponse)
-          .map((comment) => ForumComment.fromJson(comment))
-          .toList();
+      final imagesBucket = await _tryResolveForumImagesBucket();
+      final filesBucket = await _tryResolveForumFilesBucket();
+      final postComments = await Future.wait(
+        List<Map<String, dynamic>>.from(commentsResponse).map((comment) async {
+          final parsed = ForumComment.fromJson(comment);
+          final imageUrls = imagesBucket == null
+              ? parsed.imageUrls
+              : await _ensureSignedUrls(parsed.imageUrls, imagesBucket);
+          final fileUrls = filesBucket == null
+              ? parsed.fileUrls
+              : await _ensureSignedUrls(parsed.fileUrls, filesBucket);
+          return parsed.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
+        }),
+      );
 
-      return ForumPost.fromJson(postResponse).copyWith(comments: postComments);
+      final post = ForumPost.fromJson(postResponse);
+      final postImageUrls = imagesBucket == null
+          ? post.imageUrls
+          : await _ensureSignedUrls(post.imageUrls, imagesBucket);
+      final postFileUrls = filesBucket == null
+          ? post.fileUrls
+          : await _ensureSignedUrls(post.fileUrls, filesBucket);
+
+      return post.copyWith(
+        comments: postComments,
+        imageUrls: postImageUrls,
+        fileUrls: postFileUrls,
+      );
     } catch (e) {
       throw Exception('Failed to load post: $e');
     }
@@ -656,9 +790,20 @@ class ForumService {
           .range(offset, offset + limit - 1)
           .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
-      final comments = List<Map<String, dynamic>>.from(response)
-          .map((comment) => ForumComment.fromJson(comment))
-          .toList();
+      final imagesBucket = await _tryResolveForumImagesBucket();
+      final filesBucket = await _tryResolveForumFilesBucket();
+      final comments = await Future.wait(
+        List<Map<String, dynamic>>.from(response).map((comment) async {
+          final parsed = ForumComment.fromJson(comment);
+          final imageUrls = imagesBucket == null
+              ? parsed.imageUrls
+              : await _ensureSignedUrls(parsed.imageUrls, imagesBucket);
+          final fileUrls = filesBucket == null
+              ? parsed.fileUrls
+              : await _ensureSignedUrls(parsed.fileUrls, filesBucket);
+          return parsed.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
+        }),
+      );
 
       return comments;
     } catch (e) {
@@ -675,10 +820,22 @@ class ForumService {
           .order('created_at', ascending: true);
 
       final allComments = List<Map<String, dynamic>>.from(response);
-      final postComments = allComments
-          .where((comment) => comment['post_id'] == postId)
-          .map((comment) => ForumComment.fromJson(comment))
-          .toList();
+      final imagesBucket = await _tryResolveForumImagesBucket();
+      final filesBucket = await _tryResolveForumFilesBucket();
+      final postComments = await Future.wait(
+        allComments
+            .where((comment) => comment['post_id'] == postId)
+            .map((comment) async {
+          final parsed = ForumComment.fromJson(comment);
+          final imageUrls = imagesBucket == null
+              ? parsed.imageUrls
+              : await _ensureSignedUrls(parsed.imageUrls, imagesBucket);
+          final fileUrls = filesBucket == null
+              ? parsed.fileUrls
+              : await _ensureSignedUrls(parsed.fileUrls, filesBucket);
+          return parsed.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
+        }),
+      );
 
       return postComments;
     } catch (e) {

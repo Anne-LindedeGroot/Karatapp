@@ -38,6 +38,7 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
   final TextEditingController commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<File> _selectedImages = [];
+  ProviderSubscription<KataInteractionState>? _commentsSubscription;
 
   // Pagination state
   List<KataComment> _comments = [];
@@ -53,13 +54,44 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
     _comments = List.from(widget.initialComments);
     _currentOffset = widget.initialComments.length;
     _hasMoreComments = widget.initialComments.length == _commentsPerPage;
+
+    _listenToComments();
+  }
+
+  @override
+  void didUpdateWidget(KataCardComments oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.kata.id != widget.kata.id) {
+      _comments = List.from(widget.initialComments);
+      _currentOffset = widget.initialComments.length;
+      _hasMoreComments = widget.initialComments.length == _commentsPerPage;
+      _listenToComments();
+    }
   }
 
   @override
   void dispose() {
+    _commentsSubscription?.close();
     commentController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _listenToComments() {
+    _commentsSubscription?.close();
+    _commentsSubscription = ref.listenManual<KataInteractionState>(
+      kataInteractionProvider(widget.kata.id),
+      (previous, next) {
+        if (!mounted) return;
+        if (next.comments.isEmpty) return;
+        if (next.comments.length == _comments.length) return;
+        setState(() {
+          _comments = List.from(next.comments);
+          _currentOffset = next.comments.length;
+          _hasMoreComments = next.comments.length >= _commentsPerPage;
+        });
+      },
+    );
   }
 
   Future<void> _pickImagesFromGallery() async {
@@ -348,6 +380,7 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
                         getContent: (comment) => comment.content,
                         getCreatedAt: (comment) => comment.createdAt,
                         getImageUrls: (comment) => comment.imageUrls,
+                        getFileUrls: (_) => const [],
                         showReplyButton: true,
                         maxDepth: 5,
                       );
@@ -465,13 +498,25 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) async {
                           final notifier = ref.read(kataInteractionProvider(widget.kata.id).notifier);
-                          if (commentController.text.trim().isNotEmpty) {
-                            await notifier.addComment(
-                              commentController.text.trim(),
-                              imageFiles: _selectedImages,
-                            );
-                            commentController.clear();
-                            _selectedImages.clear();
+                          final trimmedContent = commentController.text.trim();
+                          final hasImages = _selectedImages.isNotEmpty;
+                          if (trimmedContent.isEmpty && !hasImages) {
+                            return;
+                          }
+                          await notifier.addComment(
+                            trimmedContent,
+                            imageFiles: _selectedImages,
+                          );
+                          commentController.clear();
+                          _selectedImages.clear();
+                          final latestComments =
+                              ref.read(kataInteractionProvider(widget.kata.id)).comments;
+                          if (latestComments.isNotEmpty) {
+                            setState(() {
+                              _comments = List.from(latestComments);
+                              _currentOffset = latestComments.length;
+                              _hasMoreComments = latestComments.length >= _commentsPerPage;
+                            });
                           }
                         },
                         customTTSLabel: 'Reactie invoerveld',
@@ -486,33 +531,45 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
                           onPressed: isSubmitting
                               ? null
                               : () async {
-                                  if (commentController.text.trim().isNotEmpty) {
-                                    try {
-                                      await ref
-                                          .read(kataInteractionProvider(widget.kata.id).notifier)
-                                          .addComment(
-                                            commentController.text.trim(),
-                                            imageFiles: _selectedImages,
-                                          );
-                                      commentController.clear();
-                                      _selectedImages.clear();
-                                      if (mounted && context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Reactie succesvol toegevoegd!'),
-                                            backgroundColor: Colors.green,
-                                          ),
+                                  final trimmedContent = commentController.text.trim();
+                                  final hasImages = _selectedImages.isNotEmpty;
+                                  if (trimmedContent.isEmpty && !hasImages) {
+                                    return;
+                                  }
+                                  try {
+                                    await ref
+                                        .read(kataInteractionProvider(widget.kata.id).notifier)
+                                        .addComment(
+                                          trimmedContent,
+                                          imageFiles: _selectedImages,
                                         );
-                                      }
-                                    } catch (e) {
-                                      if (mounted && context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Fout bij toevoegen reactie: $e'),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
-                                      }
+                                    commentController.clear();
+                                    _selectedImages.clear();
+                                    final latestComments =
+                                        ref.read(kataInteractionProvider(widget.kata.id)).comments;
+                                    if (latestComments.isNotEmpty) {
+                                      setState(() {
+                                        _comments = List.from(latestComments);
+                                        _currentOffset = latestComments.length;
+                                        _hasMoreComments = latestComments.length >= _commentsPerPage;
+                                      });
+                                    }
+                                    if (mounted && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Reactie succesvol toegevoegd!'),
+                                          backgroundColor: Colors.green,
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (mounted && context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Fout bij toevoegen reactie: $e'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
                                     }
                                   }
                                 },
@@ -1033,26 +1090,29 @@ class _ReplyKataCommentScreenState extends ConsumerState<ReplyKataCommentScreen>
 
                       return ElevatedButton(
                         onPressed: isSubmitting ? null : () async {
-                            if (_replyController.text.trim().isNotEmpty) {
-                              try {
-                                await ref.read(kataInteractionProvider(widget.kataId).notifier)
-                                    .addComment(
-                                      _replyController.text.trim(),
-                                      parentCommentId: widget.originalComment.id,
-                                      imageFiles: _selectedImages,
-                                    );
-                                if (context.mounted) {
-                                  Navigator.pop(context, true);
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Fout bij toevoegen reactie: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
+                            final trimmedContent = _replyController.text.trim();
+                            final hasImages = _selectedImages.isNotEmpty;
+                            if (trimmedContent.isEmpty && !hasImages) {
+                              return;
+                            }
+                            try {
+                              await ref.read(kataInteractionProvider(widget.kataId).notifier)
+                                  .addComment(
+                                    trimmedContent,
+                                    parentCommentId: widget.originalComment.id,
+                                    imageFiles: _selectedImages,
                                   );
-                                }
+                              if (context.mounted) {
+                                Navigator.pop(context, true);
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Fout bij toevoegen reactie: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
                               }
                             }
                           },

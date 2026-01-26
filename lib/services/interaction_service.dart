@@ -13,8 +13,17 @@ class InteractionService {
   late final SupabaseClient _client = Supabase.instance.client;
   final RoleService _roleService = RoleService();
   final Uuid _uuid = const Uuid();
-  static const String _kataCommentImagesBucket = 'kata_comment_images';
-  static const String _ohyoCommentImagesBucket = 'ohyo_comment_images';
+  static const List<String> _kataCommentImagesBucketCandidates = [
+    'KATA_COMMENT_IMAGES',
+    'kata_comment_images',
+  ];
+  static const List<String> _ohyoCommentImagesBucketCandidates = [
+    'OHYO_COMMENT_IMAGES',
+    'ohyo_comment_images',
+  ];
+  static const int _signedUrlExpirySeconds = 31536000; // 1 year
+  String? _resolvedKataCommentImagesBucket;
+  String? _resolvedOhyoCommentImagesBucket;
 
   // Offline services - will be injected
   OfflineQueueService? _offlineQueueService;
@@ -62,6 +71,50 @@ class InteractionService {
     return path.substring(dotIndex);
   }
 
+  Future<String> _resolveKataCommentImagesBucket() async {
+    if (_resolvedKataCommentImagesBucket != null) {
+      return _resolvedKataCommentImagesBucket!;
+    }
+    for (final bucket in _kataCommentImagesBucketCandidates) {
+      try {
+        await _client.storage.getBucket(bucket);
+        _resolvedKataCommentImagesBucket = bucket;
+        return bucket;
+      } catch (_) {}
+    }
+    throw Exception('Storage bucket for kata comment images not found or not accessible.');
+  }
+
+  Future<String?> _tryResolveKataCommentImagesBucket() async {
+    try {
+      return await _resolveKataCommentImagesBucket();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String> _resolveOhyoCommentImagesBucket() async {
+    if (_resolvedOhyoCommentImagesBucket != null) {
+      return _resolvedOhyoCommentImagesBucket!;
+    }
+    for (final bucket in _ohyoCommentImagesBucketCandidates) {
+      try {
+        await _client.storage.getBucket(bucket);
+        _resolvedOhyoCommentImagesBucket = bucket;
+        return bucket;
+      } catch (_) {}
+    }
+    throw Exception('Storage bucket for ohyo comment images not found or not accessible.');
+  }
+
+  Future<String?> _tryResolveOhyoCommentImagesBucket() async {
+    try {
+      return await _resolveOhyoCommentImagesBucket();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<String>> _uploadCommentImages({
     required String bucket,
     required String folder,
@@ -84,8 +137,15 @@ class InteractionService {
       if (bytes.isEmpty) continue;
 
       await _client.storage.from(bucket).uploadBinary(filePath, bytes);
-      final publicUrl = _client.storage.from(bucket).getPublicUrl(filePath);
-      uploadedUrls.add(publicUrl);
+      String url;
+      try {
+        url = await _client.storage
+            .from(bucket)
+            .createSignedUrl(filePath, _signedUrlExpirySeconds);
+      } catch (_) {
+        url = _client.storage.from(bucket).getPublicUrl(filePath);
+      }
+      uploadedUrls.add(url);
     }
     return uploadedUrls;
   }
@@ -102,6 +162,55 @@ class InteractionService {
     } catch (_) {
       return null;
     }
+  }
+
+  String? _extractBucketFromUrl(String url) {
+    try {
+      final segments = Uri.parse(url).pathSegments;
+      final publicIndex = segments.indexOf('public');
+      if (publicIndex != -1 && publicIndex + 1 < segments.length) {
+        return segments[publicIndex + 1];
+      }
+      final signIndex = segments.indexOf('sign');
+      if (signIndex != -1 && signIndex + 1 < segments.length) {
+        return segments[signIndex + 1];
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<String> _maybeSignUrl(String url, String bucket) async {
+    final isHttpUrl = url.startsWith('http://') || url.startsWith('https://');
+    if (!isHttpUrl) {
+      try {
+        return await _client.storage.from(bucket).createSignedUrl(
+              url,
+              _signedUrlExpirySeconds,
+            );
+      } catch (_) {
+        return url;
+      }
+    }
+    if (!url.contains('/storage/v1/object/')) {
+      return url;
+    }
+
+    final resolvedBucket = _extractBucketFromUrl(url) ?? bucket;
+    final path = _extractStoragePathFromUrl(url, resolvedBucket);
+    if (path == null || path.isEmpty) return url;
+    try {
+      return await _client.storage.from(resolvedBucket).createSignedUrl(
+            path,
+            _signedUrlExpirySeconds,
+          );
+    } catch (_) {
+      return url;
+    }
+  }
+
+  Future<List<String>> _ensureSignedUrls(List<String> urls, String bucket) async {
+    if (urls.isEmpty) return urls;
+    return Future.wait(urls.map((url) => _maybeSignUrl(url, bucket)));
   }
 
   Future<void> _deleteCommentImages(String bucket, List<String> urls) async {
@@ -143,9 +252,18 @@ class InteractionService {
           .range(offset, offset + limit - 1)
           .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
-      return List<Map<String, dynamic>>.from(response)
-          .map((comment) => KataComment.fromJson(comment))
-          .toList();
+      final bucket = await _tryResolveKataCommentImagesBucket();
+      final comments = await Future.wait(
+        List<Map<String, dynamic>>.from(response).map((comment) async {
+          final parsed = KataComment.fromJson(comment);
+          final imageUrls = bucket == null
+              ? parsed.imageUrls
+              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          return parsed.copyWith(imageUrls: imageUrls);
+        }),
+      );
+
+      return comments;
     } catch (e) {
       throw Exception('Failed to load kata comments: $e');
     }
@@ -160,9 +278,18 @@ class InteractionService {
           .eq('kata_id', kataId)
           .order('created_at', ascending: true);
 
-      return List<Map<String, dynamic>>.from(response)
-          .map((comment) => KataComment.fromJson(comment))
-          .toList();
+      final bucket = await _tryResolveKataCommentImagesBucket();
+      final comments = await Future.wait(
+        List<Map<String, dynamic>>.from(response).map((comment) async {
+          final parsed = KataComment.fromJson(comment);
+          final imageUrls = bucket == null
+              ? parsed.imageUrls
+              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          return parsed.copyWith(imageUrls: imageUrls);
+        }),
+      );
+
+      return comments;
     } catch (e) {
       throw Exception('Failed to load kata comments: $e');
     }
@@ -322,7 +449,7 @@ class InteractionService {
                   ?.map((e) => e.toString())
                   .toList() ??
               const <String>[];
-      await _deleteCommentImages(_kataCommentImagesBucket, imageUrls);
+      await _deleteCommentImages(await _resolveKataCommentImagesBucket(), imageUrls);
     } catch (e) {
       throw Exception('Failed to delete kata comment: $e');
     }
@@ -333,7 +460,7 @@ class InteractionService {
     required List<File> imageFiles,
   }) async {
     return _uploadCommentImages(
-      bucket: _kataCommentImagesBucket,
+      bucket: await _resolveKataCommentImagesBucket(),
       folder: 'comments/$commentId',
       prefix: 'kata_comment',
       id: commentId,
@@ -738,9 +865,18 @@ class InteractionService {
           .range(offset, offset + limit - 1)
           .timeout(const Duration(seconds: 10), onTimeout: () => throw TimeoutException('Connection timeout - server not responding'));
 
-      return List<Map<String, dynamic>>.from(response)
-          .map((comment) => OhyoComment.fromJson(comment))
-          .toList();
+      final bucket = await _tryResolveOhyoCommentImagesBucket();
+      final comments = await Future.wait(
+        List<Map<String, dynamic>>.from(response).map((comment) async {
+          final parsed = OhyoComment.fromJson(comment);
+          final imageUrls = bucket == null
+              ? parsed.imageUrls
+              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          return parsed.copyWith(imageUrls: imageUrls);
+        }),
+      );
+
+      return comments;
     } catch (e) {
       throw Exception('Failed to load ohyo comments: $e');
     }
@@ -755,9 +891,18 @@ class InteractionService {
           .eq('ohyo_id', ohyoId)
           .order('created_at', ascending: true);
 
-      return List<Map<String, dynamic>>.from(response)
-          .map((comment) => OhyoComment.fromJson(comment))
-          .toList();
+      final bucket = await _tryResolveOhyoCommentImagesBucket();
+      final comments = await Future.wait(
+        List<Map<String, dynamic>>.from(response).map((comment) async {
+          final parsed = OhyoComment.fromJson(comment);
+          final imageUrls = bucket == null
+              ? parsed.imageUrls
+              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          return parsed.copyWith(imageUrls: imageUrls);
+        }),
+      );
+
+      return comments;
     } catch (e) {
       throw Exception('Failed to load ohyo comments: $e');
     }
@@ -894,7 +1039,7 @@ class InteractionService {
                   ?.map((e) => e.toString())
                   .toList() ??
               const <String>[];
-      await _deleteCommentImages(_ohyoCommentImagesBucket, imageUrls);
+      await _deleteCommentImages(await _resolveOhyoCommentImagesBucket(), imageUrls);
     } catch (e) {
       throw Exception('Failed to delete ohyo comment: $e');
     }
@@ -905,7 +1050,7 @@ class InteractionService {
     required List<File> imageFiles,
   }) async {
     return _uploadCommentImages(
-      bucket: _ohyoCommentImagesBucket,
+      bucket: await _resolveOhyoCommentImagesBucket(),
       folder: 'comments/$commentId',
       prefix: 'ohyo_comment',
       id: commentId,

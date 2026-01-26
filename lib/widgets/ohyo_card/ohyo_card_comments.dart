@@ -52,6 +52,20 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
     _comments = List.from(widget.comments);
     _currentOffset = widget.comments.length;
     _hasMoreComments = widget.comments.length == _commentsPerPage;
+
+    ref.listen<OhyoInteractionState>(
+      ohyoInteractionProvider(widget.ohyo.id),
+      (previous, next) {
+        if (!mounted) return;
+        if (next.comments.isEmpty) return;
+        if (next.comments.length == _comments.length) return;
+        setState(() {
+          _comments = List.from(next.comments);
+          _currentOffset = next.comments.length;
+          _hasMoreComments = next.comments.length >= _commentsPerPage;
+        });
+      },
+    );
   }
 
   @override
@@ -338,6 +352,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                         getContent: (comment) => comment.content,
                         getCreatedAt: (comment) => comment.createdAt,
                         getImageUrls: (comment) => comment.imageUrls,
+                        getFileUrls: (_) => const [],
                         showReplyButton: true,
                         maxDepth: 5,
                       );
@@ -439,69 +454,119 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
             ),
           ],
           const SizedBox(height: 8),
-          Consumer(
-            builder: (context, ref, child) {
-              return EnhancedAccessibleTextField(
-                controller: _commentController,
-                decoration: const InputDecoration(
-                  hintText: 'Voeg een reactie toe...',
-                  border: OutlineInputBorder(),
-                  isDense: true,
-                  contentPadding: EdgeInsets.all(8),
-                ),
-                maxLines: 2,
-                minLines: 1,
-                maxLength: 500,
-                customTTSLabel: 'Reactie invoerveld',
-              );
-            },
-          ),
-          const SizedBox(height: 8),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
             children: [
+              Expanded(
+                child: EnhancedAccessibleTextField(
+                  controller: _commentController,
+                  decoration: InputDecoration(
+                    hintText: 'Voeg een reactie toe...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    filled: true,
+                    fillColor: isDark
+                        ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
+                        : Colors.grey[100],
+                    counterText: "",
+                  ),
+                  maxLines: 1,
+                  minLines: 1,
+                  maxLength: 500,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) async {
+                    final notifier = ref.read(ohyoInteractionProvider(widget.ohyo.id).notifier);
+                    final trimmedContent = _commentController.text.trim();
+                    final hasImages = _selectedImages.isNotEmpty;
+                    if (trimmedContent.isEmpty && !hasImages) {
+                      return;
+                    }
+                    await notifier.addComment(
+                      trimmedContent,
+                      imageFiles: _selectedImages,
+                    );
+                    _commentController.clear();
+                    _selectedImages.clear();
+                    final latestComments =
+                        ref.read(ohyoInteractionProvider(widget.ohyo.id)).comments;
+                    if (latestComments.isNotEmpty) {
+                      setState(() {
+                        _comments = List.from(latestComments);
+                        _currentOffset = latestComments.length;
+                        _hasMoreComments = latestComments.length >= _commentsPerPage;
+                      });
+                    }
+                  },
+                  customTTSLabel: 'Reactie invoerveld',
+                ),
+              ),
+              const SizedBox(width: 8),
               Consumer(
                 builder: (context, ref, child) {
                   final isSubmitting = ref.watch(ohyoInteractionProvider(widget.ohyo.id)).isLoading;
 
-                  return ElevatedButton(
-                    onPressed: isSubmitting ? null : () async {
-                      if (_commentController.text.trim().isNotEmpty) {
-                        try {
-                          await ref.read(ohyoInteractionProvider(widget.ohyo.id).notifier)
-                              .addComment(
-                                _commentController.text.trim(),
-                                imageFiles: _selectedImages,
-                              );
-                          _commentController.clear();
-                          _selectedImages.clear();
-                          if (mounted && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Reactie succesvol toegevoegd!'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (mounted && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Fout bij toevoegen reactie: $e'),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        }
-                      }
-                    },
-                    child: isSubmitting
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Plaats'),
+                  return IconButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final trimmedContent = _commentController.text.trim();
+                            final hasImages = _selectedImages.isNotEmpty;
+                            if (trimmedContent.isEmpty && !hasImages) {
+                              return;
+                            }
+                            try {
+                              await ref
+                                  .read(ohyoInteractionProvider(widget.ohyo.id).notifier)
+                                  .addComment(
+                                    trimmedContent,
+                                    imageFiles: _selectedImages,
+                                  );
+                              _commentController.clear();
+                              _selectedImages.clear();
+                              final latestComments =
+                                  ref.read(ohyoInteractionProvider(widget.ohyo.id)).comments;
+                              if (latestComments.isNotEmpty) {
+                                setState(() {
+                                  _comments = List.from(latestComments);
+                                  _currentOffset = latestComments.length;
+                                  _hasMoreComments = latestComments.length >= _commentsPerPage;
+                                });
+                              }
+                              if (mounted && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Reactie succesvol toegevoegd!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted && context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Fout bij toevoegen reactie: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                    icon: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            Icons.send,
+                            color: theme.colorScheme.primary,
+                          ),
                   );
                 },
               ),
@@ -990,26 +1055,29 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
 
                       return ElevatedButton(
                         onPressed: isSubmitting ? null : () async {
-                            if (_replyController.text.trim().isNotEmpty) {
-                              try {
-                                await ref.read(ohyoInteractionProvider(widget.ohyoId).notifier)
-                                    .addComment(
-                                      _replyController.text.trim(),
-                                      parentCommentId: widget.originalComment.id,
-                                      imageFiles: _selectedImages,
-                                    );
-                                if (context.mounted) {
-                                  Navigator.pop(context, true);
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Fout bij toevoegen reactie: $e'),
-                                      backgroundColor: Colors.red,
-                                    ),
+                            final trimmedContent = _replyController.text.trim();
+                            final hasImages = _selectedImages.isNotEmpty;
+                            if (trimmedContent.isEmpty && !hasImages) {
+                              return;
+                            }
+                            try {
+                              await ref.read(ohyoInteractionProvider(widget.ohyoId).notifier)
+                                  .addComment(
+                                    trimmedContent,
+                                    parentCommentId: widget.originalComment.id,
+                                    imageFiles: _selectedImages,
                                   );
-                                }
+                              if (context.mounted) {
+                                Navigator.pop(context, true);
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Fout bij toevoegen reactie: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
                               }
                             }
                           },
