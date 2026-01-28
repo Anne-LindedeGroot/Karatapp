@@ -188,6 +188,7 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
     String content, {
     int? parentCommentId,
     List<File> imageFiles = const [],
+    List<File> fileFiles = const [],
   }) async {
     try {
       var newComment = await _interactionService.addKataComment(
@@ -196,22 +197,41 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
         parentCommentId: parentCommentId,
       );
 
+      final uploadedImageUrls = <String>[];
+      final uploadedFileUrls = <String>[];
       if (imageFiles.isNotEmpty) {
         try {
-          final uploadedUrls = await _interactionService.uploadKataCommentImages(
-            commentId: newComment.id,
-            imageFiles: imageFiles,
-          );
-          if (uploadedUrls.isNotEmpty) {
-            newComment = await _interactionService.updateKataComment(
+          uploadedImageUrls.addAll(
+            await _interactionService.uploadKataCommentImages(
               commentId: newComment.id,
-              content: newComment.content,
-              imageUrls: uploadedUrls,
-            );
-            _precacheCommentImages(uploadedUrls);
-          }
+              imageFiles: imageFiles,
+            ),
+          );
         } catch (_) {
           // If upload fails, keep the comment without images
+        }
+      }
+      if (fileFiles.isNotEmpty) {
+        try {
+          uploadedFileUrls.addAll(
+            await _interactionService.uploadKataCommentFiles(
+              commentId: newComment.id,
+              files: fileFiles,
+            ),
+          );
+        } catch (_) {
+          // If upload fails, keep the comment without files
+        }
+      }
+      if (uploadedImageUrls.isNotEmpty || uploadedFileUrls.isNotEmpty) {
+        newComment = await _interactionService.updateKataComment(
+          commentId: newComment.id,
+          content: newComment.content,
+          imageUrls: uploadedImageUrls.isNotEmpty ? uploadedImageUrls : null,
+          fileUrls: uploadedFileUrls.isNotEmpty ? uploadedFileUrls : null,
+        );
+        if (uploadedImageUrls.isNotEmpty) {
+          _precacheCommentImages(uploadedImageUrls);
         }
       }
 
@@ -258,6 +278,8 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
     required String content,
     List<String>? imageUrls,
     List<File> imageFiles = const [],
+    List<String>? fileUrls,
+    List<File> fileFiles = const [],
   }) async {
     try {
       KataComment? existingComment;
@@ -267,17 +289,26 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
         existingComment = null;
       }
       final baseImageUrls = imageUrls ?? existingComment?.imageUrls ?? const <String>[];
-      final uploadedUrls = imageFiles.isNotEmpty
+      final baseFileUrls = fileUrls ?? existingComment?.fileUrls ?? const <String>[];
+      final uploadedImageUrls = imageFiles.isNotEmpty
           ? await _interactionService.uploadKataCommentImages(
               commentId: commentId,
               imageFiles: imageFiles,
             )
           : <String>[];
+      final uploadedFileUrls = fileFiles.isNotEmpty
+          ? await _interactionService.uploadKataCommentFiles(
+              commentId: commentId,
+              files: fileFiles,
+            )
+          : <String>[];
       final shouldUpdateImages = imageUrls != null || imageFiles.isNotEmpty;
+      final shouldUpdateFiles = fileUrls != null || fileFiles.isNotEmpty;
       final updatedComment = await _interactionService.updateKataComment(
         commentId: commentId,
         content: content,
-        imageUrls: shouldUpdateImages ? [...baseImageUrls, ...uploadedUrls] : null,
+        imageUrls: shouldUpdateImages ? [...baseImageUrls, ...uploadedImageUrls] : null,
+        fileUrls: shouldUpdateFiles ? [...baseFileUrls, ...uploadedFileUrls] : null,
       );
 
       final updatedComments = state.comments.map((comment) {
@@ -815,6 +846,7 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
     String content, {
     int? parentCommentId,
     List<File> imageFiles = const [],
+    List<File> fileFiles = const [],
   }) async {
     try {
       var newComment = await _interactionService.addOhyoComment(
@@ -823,22 +855,41 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
         parentCommentId: parentCommentId,
       );
 
+      final uploadedImageUrls = <String>[];
+      final uploadedFileUrls = <String>[];
       if (imageFiles.isNotEmpty) {
         try {
-          final uploadedUrls = await _interactionService.uploadOhyoCommentImages(
-            commentId: newComment.id,
-            imageFiles: imageFiles,
-          );
-          if (uploadedUrls.isNotEmpty) {
-            newComment = await _interactionService.updateOhyoComment(
+          uploadedImageUrls.addAll(
+            await _interactionService.uploadOhyoCommentImages(
               commentId: newComment.id,
-              content: newComment.content,
-              imageUrls: uploadedUrls,
-            );
-            _precacheCommentImages(uploadedUrls);
-          }
+              imageFiles: imageFiles,
+            ),
+          );
         } catch (_) {
           // If upload fails, keep the comment without images
+        }
+      }
+      if (fileFiles.isNotEmpty) {
+        try {
+          uploadedFileUrls.addAll(
+            await _interactionService.uploadOhyoCommentFiles(
+              commentId: newComment.id,
+              files: fileFiles,
+            ),
+          );
+        } catch (_) {
+          // If upload fails, keep the comment without files
+        }
+      }
+      if (uploadedImageUrls.isNotEmpty || uploadedFileUrls.isNotEmpty) {
+        newComment = await _interactionService.updateOhyoComment(
+          commentId: newComment.id,
+          content: newComment.content,
+          imageUrls: uploadedImageUrls.isNotEmpty ? uploadedImageUrls : null,
+          fileUrls: uploadedFileUrls.isNotEmpty ? uploadedFileUrls : null,
+        );
+        if (uploadedImageUrls.isNotEmpty) {
+          _precacheCommentImages(uploadedImageUrls);
         }
       }
 
@@ -885,6 +936,8 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
     required String content,
     List<String>? imageUrls,
     List<File> imageFiles = const [],
+    List<String>? fileUrls,
+    List<File> fileFiles = const [],
   }) async {
     try {
       OhyoComment? existingComment;
@@ -894,17 +947,26 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
         existingComment = null;
       }
       final baseImageUrls = imageUrls ?? existingComment?.imageUrls ?? const <String>[];
-      final uploadedUrls = imageFiles.isNotEmpty
+      final baseFileUrls = fileUrls ?? existingComment?.fileUrls ?? const <String>[];
+      final uploadedImageUrls = imageFiles.isNotEmpty
           ? await _interactionService.uploadOhyoCommentImages(
               commentId: commentId,
               imageFiles: imageFiles,
             )
           : <String>[];
+      final uploadedFileUrls = fileFiles.isNotEmpty
+          ? await _interactionService.uploadOhyoCommentFiles(
+              commentId: commentId,
+              files: fileFiles,
+            )
+          : <String>[];
       final shouldUpdateImages = imageUrls != null || imageFiles.isNotEmpty;
+      final shouldUpdateFiles = fileUrls != null || fileFiles.isNotEmpty;
       final updatedComment = await _interactionService.updateOhyoComment(
         commentId: commentId,
         content: content,
-        imageUrls: shouldUpdateImages ? [...baseImageUrls, ...uploadedUrls] : null,
+        imageUrls: shouldUpdateImages ? [...baseImageUrls, ...uploadedImageUrls] : null,
+        fileUrls: shouldUpdateFiles ? [...baseFileUrls, ...uploadedFileUrls] : null,
       );
 
       final updatedComments = state.comments.map((comment) {

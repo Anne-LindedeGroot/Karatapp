@@ -8,6 +8,7 @@ class OhyoComment {
   final String authorName;
   final String? authorAvatar;
   final List<String> imageUrls;
+  final List<String> fileUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int? parentCommentId; // For nested replies
@@ -23,6 +24,7 @@ class OhyoComment {
     required this.authorName,
     this.authorAvatar,
     this.imageUrls = const [],
+    this.fileUrls = const [],
     required this.createdAt,
     required this.updatedAt,
     this.parentCommentId,
@@ -40,6 +42,10 @@ class OhyoComment {
       authorName: json['author_name'] as String,
       authorAvatar: json['author_avatar'] as String?,
       imageUrls: (json['image_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
+      fileUrls: (json['file_urls'] as List<dynamic>?)
               ?.map((url) => url.toString())
               .toList() ??
           const [],
@@ -61,6 +67,7 @@ class OhyoComment {
       'author_name': authorName,
       'author_avatar': authorAvatar,
       'image_urls': imageUrls,
+      'file_urls': fileUrls,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'parent_comment_id': parentCommentId,
@@ -78,6 +85,7 @@ class OhyoComment {
     String? authorName,
     String? authorAvatar,
     List<String>? imageUrls,
+    List<String>? fileUrls,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? parentCommentId,
@@ -93,6 +101,7 @@ class OhyoComment {
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
       imageUrls: imageUrls ?? this.imageUrls,
+      fileUrls: fileUrls ?? this.fileUrls,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       parentCommentId: parentCommentId ?? this.parentCommentId,
@@ -112,6 +121,7 @@ class KataComment {
   final String authorName;
   final String? authorAvatar;
   final List<String> imageUrls;
+  final List<String> fileUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int? parentCommentId; // For nested replies
@@ -127,6 +137,7 @@ class KataComment {
     required this.authorName,
     this.authorAvatar,
     this.imageUrls = const [],
+    this.fileUrls = const [],
     required this.createdAt,
     required this.updatedAt,
     this.parentCommentId,
@@ -144,6 +155,10 @@ class KataComment {
       authorName: json['author_name'] as String,
       authorAvatar: json['author_avatar'] as String?,
       imageUrls: (json['image_urls'] as List<dynamic>?)
+              ?.map((url) => url.toString())
+              .toList() ??
+          const [],
+      fileUrls: (json['file_urls'] as List<dynamic>?)
               ?.map((url) => url.toString())
               .toList() ??
           const [],
@@ -165,6 +180,7 @@ class KataComment {
       'author_name': authorName,
       'author_avatar': authorAvatar,
       'image_urls': imageUrls,
+      'file_urls': fileUrls,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'parent_comment_id': parentCommentId,
@@ -182,6 +198,7 @@ class KataComment {
     String? authorName,
     String? authorAvatar,
     List<String>? imageUrls,
+    List<String>? fileUrls,
     DateTime? createdAt,
     DateTime? updatedAt,
     int? parentCommentId,
@@ -197,6 +214,7 @@ class KataComment {
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
       imageUrls: imageUrls ?? this.imageUrls,
+      fileUrls: fileUrls ?? this.fileUrls,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       parentCommentId: parentCommentId ?? this.parentCommentId,

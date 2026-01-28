@@ -21,9 +21,40 @@ class InteractionService {
     'ohyo_comment_images',
     'OHYO_COMMENT_IMAGES',
   ];
+  static const List<String> _kataCommentFilesBucketCandidates = [
+    'KATA_COMMENT_FILES',
+    'KATA_COMMENT_FILE',
+    'kata_comment_files',
+    'kata_comment_file',
+  ];
+  static const List<String> _ohyoCommentFilesBucketCandidates = [
+    'OHYO_COMMENT_FILES',
+    'OHYO_COMMENT_FILE',
+    'ohyo_comment_files',
+    'ohyo_comment_file',
+  ];
+  static const List<String> _commentFilesAllowedMimeTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'video/mp4',
+    'audio/mpeg',
+    'audio/mp4',
+  ];
   static const int _signedUrlExpirySeconds = 31536000; // 1 year
   String? _resolvedKataCommentImagesBucket;
   String? _resolvedOhyoCommentImagesBucket;
+  String? _resolvedKataCommentFilesBucket;
+  String? _resolvedOhyoCommentFilesBucket;
 
   // Offline services - will be injected
   OfflineQueueService? _offlineQueueService;
@@ -59,6 +90,67 @@ class InteractionService {
     if (path.endsWith('.heic')) return 'image/heic';
     if (path.endsWith('.heif')) return 'image/heif';
     return 'image/jpeg';
+  }
+
+  String _getContentTypeForFile(File file) {
+    final extension = _getFileExtensionFromPath(file.path).toLowerCase();
+    switch (extension) {
+      case '.pdf':
+        return 'application/pdf';
+      case '.doc':
+        return 'application/msword';
+      case '.docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case '.xls':
+        return 'application/vnd.ms-excel';
+      case '.xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case '.ppt':
+        return 'application/vnd.ms-powerpoint';
+      case '.pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case '.txt':
+        return 'text/plain';
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      case '.gif':
+        return 'image/gif';
+      case '.webp':
+        return 'image/webp';
+      case '.mp4':
+        return 'video/mp4';
+      case '.mp3':
+        return 'audio/mpeg';
+      case '.m4a':
+        return 'audio/mp4';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  String _getFileExtensionFromPath(String filePath) {
+    final dotIndex = filePath.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == filePath.length - 1) {
+      return '';
+    }
+    return filePath.substring(dotIndex);
+  }
+
+  String _getBaseName(String filePath) {
+    final normalized = filePath.replaceAll('\\', '/');
+    final slashIndex = normalized.lastIndexOf('/');
+    if (slashIndex == -1 || slashIndex == normalized.length - 1) {
+      return normalized;
+    }
+    return normalized.substring(slashIndex + 1);
+  }
+
+  String _sanitizeFileName(String name) {
+    final trimmed = name.trim();
+    return trimmed.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
   }
 
   String _getFileExtension(File file) {
@@ -116,6 +208,54 @@ class InteractionService {
     );
   }
 
+  Future<String> _resolveKataCommentFilesBucket() async {
+    if (_resolvedKataCommentFilesBucket != null) {
+      return _resolvedKataCommentFilesBucket!;
+    }
+    for (final bucket in _kataCommentFilesBucketCandidates) {
+      try {
+        _resolvedKataCommentFilesBucket = bucket;
+        return bucket;
+      } catch (_) {
+        // Ignore lookup failures; try next candidate.
+      }
+    }
+    _resolvedKataCommentFilesBucket = _kataCommentFilesBucketCandidates.first;
+    return _resolvedKataCommentFilesBucket!;
+  }
+
+  Future<String?> _tryResolveKataCommentFilesBucket() async {
+    try {
+      return await _resolveKataCommentFilesBucket();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String> _resolveOhyoCommentFilesBucket() async {
+    if (_resolvedOhyoCommentFilesBucket != null) {
+      return _resolvedOhyoCommentFilesBucket!;
+    }
+    for (final bucket in _ohyoCommentFilesBucketCandidates) {
+      try {
+        _resolvedOhyoCommentFilesBucket = bucket;
+        return bucket;
+      } catch (_) {
+        // Ignore lookup failures; try next candidate.
+      }
+    }
+    _resolvedOhyoCommentFilesBucket = _ohyoCommentFilesBucketCandidates.first;
+    return _resolvedOhyoCommentFilesBucket!;
+  }
+
+  Future<String?> _tryResolveOhyoCommentFilesBucket() async {
+    try {
+      return await _resolveOhyoCommentFilesBucket();
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<String?> _tryResolveOhyoCommentImagesBucket() async {
     try {
       return await _resolveOhyoCommentImagesBucket();
@@ -148,6 +288,52 @@ class InteractionService {
             bytes,
             fileOptions: FileOptions(
               contentType: _getImageContentType(file),
+            ),
+          );
+      String url;
+      try {
+        url = await _client.storage
+            .from(bucket)
+            .createSignedUrl(filePath, _signedUrlExpirySeconds);
+      } catch (_) {
+        url = _client.storage.from(bucket).getPublicUrl(filePath);
+      }
+      uploadedUrls.add(url);
+    }
+    return uploadedUrls;
+  }
+
+  Future<List<String>> _uploadCommentFiles({
+    required String bucket,
+    required String folder,
+    required String prefix,
+    required int id,
+    required List<File> files,
+  }) async {
+    if (files.isEmpty) return [];
+    final uploadedUrls = <String>[];
+    for (var i = 0; i < files.length; i++) {
+      final file = files[i];
+      if (!await file.exists()) continue;
+      final originalName = _getBaseName(file.path);
+      final safeOriginalName = _sanitizeFileName(originalName);
+      final fileName =
+          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_${i}__$safeOriginalName';
+      final filePath = '$folder/$fileName';
+      final bytes = await file.readAsBytes();
+      if (bytes.isEmpty) continue;
+      final contentType = _getContentTypeForFile(file);
+      if (!_commentFilesAllowedMimeTypes.contains(contentType)) {
+        throw Exception(
+          'File type "$contentType" is not allowed for comment attachments.',
+        );
+      }
+
+      await _client.storage.from(bucket).uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: contentType,
             ),
           );
       String url;
@@ -273,6 +459,20 @@ class InteractionService {
     }
   }
 
+  Future<void> _deleteCommentFiles(String bucket, List<String> urls) async {
+    if (urls.isEmpty) return;
+    final paths = urls
+        .map((url) => _extractStoragePathFromUrl(url, bucket))
+        .whereType<String>()
+        .toList();
+    if (paths.isEmpty) return;
+    try {
+      await _client.storage.from(bucket).remove(paths);
+    } catch (_) {
+      // Best-effort cleanup only
+    }
+  }
+
   void initializeOfflineServices(
     OfflineQueueService queueService,
     CommentCacheService cacheService,
@@ -308,7 +508,14 @@ class InteractionService {
                 ? _kataCommentImagesBucketCandidates
                 : <String>[bucket],
           );
-          return parsed.copyWith(imageUrls: imageUrls);
+          final filesBucket = await _tryResolveKataCommentFilesBucket();
+          final fileUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.fileUrls,
+            filesBucket == null
+                ? _kataCommentFilesBucketCandidates
+                : <String>[filesBucket],
+          );
+          return parsed.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
         }),
       );
 
@@ -337,7 +544,14 @@ class InteractionService {
                 ? _kataCommentImagesBucketCandidates
                 : <String>[bucket],
           );
-          return parsed.copyWith(imageUrls: imageUrls);
+          final filesBucket = await _tryResolveKataCommentFilesBucket();
+          final fileUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.fileUrls,
+            filesBucket == null
+                ? _kataCommentFilesBucketCandidates
+                : <String>[filesBucket],
+          );
+          return parsed.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
         }),
       );
 
@@ -353,6 +567,7 @@ class InteractionService {
     required String content,
     int? parentCommentId,
     List<String> imageUrls = const [],
+    List<String> fileUrls = const [],
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -373,6 +588,7 @@ class InteractionService {
         'updated_at': DateTime.now().toIso8601String(),
         if (parentCommentId != null) 'parent_comment_id': parentCommentId,
         if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
+        if (fileUrls.isNotEmpty) 'file_urls': fileUrls,
       };
 
       final response = await _client
@@ -392,6 +608,7 @@ class InteractionService {
     required int commentId,
     required String content,
     List<String>? imageUrls,
+    List<String>? fileUrls,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -431,6 +648,9 @@ class InteractionService {
       if (imageUrls != null) {
         updateData['image_urls'] = imageUrls;
       }
+      if (fileUrls != null) {
+        updateData['file_urls'] = fileUrls;
+      }
 
       final response = await _client
           .from('kata_comments')
@@ -456,7 +676,7 @@ class InteractionService {
       // Get comment details and check permissions
       final existingComment = await _client
           .from('kata_comments')
-          .select('author_id, kata_id, image_urls')
+          .select('author_id, kata_id, image_urls, file_urls')
           .eq('id', commentId)
           .single();
 
@@ -487,7 +707,13 @@ class InteractionService {
                   ?.map((e) => e.toString())
                   .toList() ??
               const <String>[];
+      final fileUrls =
+          (existingComment['file_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const <String>[];
       await _deleteCommentImages(await _resolveKataCommentImagesBucket(), imageUrls);
+      await _deleteCommentFiles(await _resolveKataCommentFilesBucket(), fileUrls);
     } catch (e) {
       throw Exception('Failed to delete kata comment: $e');
     }
@@ -497,11 +723,11 @@ class InteractionService {
     required int commentId,
     required List<File> imageFiles,
   }) async {
-    final bucketsToTry = <String>[
+    final bucketsToTry = <String>{
       if (_resolvedKataCommentImagesBucket != null)
         _resolvedKataCommentImagesBucket!,
       ..._kataCommentImagesBucketCandidates,
-    ].toSet().toList();
+    }.toList();
     Object? lastError;
 
     for (final bucket in bucketsToTry) {
@@ -522,6 +748,39 @@ class InteractionService {
 
     if (lastError != null) {
       throw Exception('Failed to upload kata comment images: $lastError');
+    }
+    return [];
+  }
+
+  Future<List<String>> uploadKataCommentFiles({
+    required int commentId,
+    required List<File> files,
+  }) async {
+    final bucketsToTry = <String>{
+      if (_resolvedKataCommentFilesBucket != null)
+        _resolvedKataCommentFilesBucket!,
+      ..._kataCommentFilesBucketCandidates,
+    }.toList();
+    Object? lastError;
+
+    for (final bucket in bucketsToTry) {
+      try {
+        final uploadedUrls = await _uploadCommentFiles(
+          bucket: bucket,
+          folder: 'comments/$commentId',
+          prefix: 'kata_comment_file',
+          id: commentId,
+          files: files,
+        );
+        _resolvedKataCommentFilesBucket ??= bucket;
+        return uploadedUrls;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (lastError != null) {
+      throw Exception('Failed to upload kata comment files: $lastError');
     }
     return [];
   }
@@ -933,7 +1192,14 @@ class InteractionService {
                 ? _ohyoCommentImagesBucketCandidates
                 : <String>[bucket],
           );
-          return parsed.copyWith(imageUrls: imageUrls);
+          final filesBucket = await _tryResolveOhyoCommentFilesBucket();
+          final fileUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.fileUrls,
+            filesBucket == null
+                ? _ohyoCommentFilesBucketCandidates
+                : <String>[filesBucket],
+          );
+          return parsed.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
         }),
       );
 
@@ -962,7 +1228,14 @@ class InteractionService {
                 ? _ohyoCommentImagesBucketCandidates
                 : <String>[bucket],
           );
-          return parsed.copyWith(imageUrls: imageUrls);
+          final filesBucket = await _tryResolveOhyoCommentFilesBucket();
+          final fileUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.fileUrls,
+            filesBucket == null
+                ? _ohyoCommentFilesBucketCandidates
+                : <String>[filesBucket],
+          );
+          return parsed.copyWith(imageUrls: imageUrls, fileUrls: fileUrls);
         }),
       );
 
@@ -978,6 +1251,7 @@ class InteractionService {
     required String content,
     int? parentCommentId,
     List<String> imageUrls = const [],
+    List<String> fileUrls = const [],
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -998,6 +1272,7 @@ class InteractionService {
         'updated_at': DateTime.now().toIso8601String(),
         if (parentCommentId != null) 'parent_comment_id': parentCommentId,
         if (imageUrls.isNotEmpty) 'image_urls': imageUrls,
+        if (fileUrls.isNotEmpty) 'file_urls': fileUrls,
       };
 
       final response = await _client
@@ -1016,8 +1291,8 @@ class InteractionService {
   Future<OhyoComment> updateOhyoComment({
     required int commentId,
     required String content,
-    int? version,
     List<String>? imageUrls,
+    List<String>? fileUrls,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -1057,6 +1332,9 @@ class InteractionService {
       if (imageUrls != null) {
         updateData['image_urls'] = imageUrls;
       }
+      if (fileUrls != null) {
+        updateData['file_urls'] = fileUrls;
+      }
 
       final response = await _client
           .from('ohyo_comments')
@@ -1076,7 +1354,7 @@ class InteractionService {
     try {
       final existingComment = await _client
           .from('ohyo_comments')
-          .select('image_urls')
+          .select('image_urls, file_urls')
           .eq('id', commentId)
           .maybeSingle();
 
@@ -1090,7 +1368,13 @@ class InteractionService {
                   ?.map((e) => e.toString())
                   .toList() ??
               const <String>[];
+      final fileUrls =
+          (existingComment?['file_urls'] as List<dynamic>?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              const <String>[];
       await _deleteCommentImages(await _resolveOhyoCommentImagesBucket(), imageUrls);
+      await _deleteCommentFiles(await _resolveOhyoCommentFilesBucket(), fileUrls);
     } catch (e) {
       throw Exception('Failed to delete ohyo comment: $e');
     }
@@ -1100,11 +1384,11 @@ class InteractionService {
     required int commentId,
     required List<File> imageFiles,
   }) async {
-    final bucketsToTry = <String>[
+    final bucketsToTry = <String>{
       if (_resolvedOhyoCommentImagesBucket != null)
         _resolvedOhyoCommentImagesBucket!,
       ..._ohyoCommentImagesBucketCandidates,
-    ].toSet().toList();
+    }.toList();
     Object? lastError;
 
     for (final bucket in bucketsToTry) {
@@ -1125,6 +1409,39 @@ class InteractionService {
 
     if (lastError != null) {
       throw Exception('Failed to upload ohyo comment images: $lastError');
+    }
+    return [];
+  }
+
+  Future<List<String>> uploadOhyoCommentFiles({
+    required int commentId,
+    required List<File> files,
+  }) async {
+    final bucketsToTry = <String>{
+      if (_resolvedOhyoCommentFilesBucket != null)
+        _resolvedOhyoCommentFilesBucket!,
+      ..._ohyoCommentFilesBucketCandidates,
+    }.toList();
+    Object? lastError;
+
+    for (final bucket in bucketsToTry) {
+      try {
+        final uploadedUrls = await _uploadCommentFiles(
+          bucket: bucket,
+          folder: 'comments/$commentId',
+          prefix: 'ohyo_comment_file',
+          id: commentId,
+          files: files,
+        );
+        _resolvedOhyoCommentFilesBucket ??= bucket;
+        return uploadedUrls;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (lastError != null) {
+      throw Exception('Failed to upload ohyo comment files: $lastError');
     }
     return [];
   }

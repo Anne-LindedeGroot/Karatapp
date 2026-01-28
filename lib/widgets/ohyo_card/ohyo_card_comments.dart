@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../models/ohyo_model.dart';
 import '../../models/interaction_models.dart';
 import '../../providers/interaction_provider.dart';
@@ -38,6 +39,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
   final TextEditingController _commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<File> _selectedImages = [];
+  final List<File> _selectedFiles = [];
 
   // Pagination state
   List<OhyoComment> _comments = [];
@@ -90,6 +92,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
       if (next.updatedAt != current.updatedAt) return true;
       if (next.content != current.content) return true;
       if (next.imageUrls.length != current.imageUrls.length) return true;
+      if (next.fileUrls.length != current.fileUrls.length) return true;
     }
     return false;
   }
@@ -114,6 +117,34 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
     setState(() {
       _selectedImages.remove(image);
     });
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _selectedFiles.addAll(files);
+    });
+  }
+
+  void _removeSelectedFile(File file) {
+    setState(() {
+      _selectedFiles.remove(file);
+    });
+  }
+
+  String _getFileName(File file) {
+    final path = file.path.replaceAll('\\', '/');
+    final slashIndex = path.lastIndexOf('/');
+    if (slashIndex == -1 || slashIndex == path.length - 1) {
+      return path;
+    }
+    return path.substring(slashIndex + 1);
   }
 
   void _showImageSourceSheet() {
@@ -379,7 +410,7 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                         getContent: (comment) => comment.content,
                         getCreatedAt: (comment) => comment.createdAt,
                         getImageUrls: (comment) => comment.imageUrls,
-                        getFileUrls: (_) => const [],
+                        getFileUrls: (comment) => comment.fileUrls,
                         showReplyButton: true,
                         maxDepth: 5,
                       );
@@ -483,6 +514,46 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
           const SizedBox(height: 8),
           Row(
             children: [
+              OutlinedButton.icon(
+                onPressed: _pickFiles,
+                icon: const Icon(Icons.attach_file, size: 18),
+                label: const Text('Bestand'),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _selectedFiles.isEmpty
+                      ? 'Geen bestanden geselecteerd'
+                      : '${_selectedFiles.length} bestand(en) geselecteerd',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+          if (_selectedFiles.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _selectedFiles.map((file) {
+                return Chip(
+                  label: Text(
+                    _getFileName(file),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onDeleted: () => _removeSelectedFile(file),
+                );
+              }).toList(),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
               Expanded(
                 child: EnhancedAccessibleTextField(
                   controller: _commentController,
@@ -511,15 +582,18 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                     final notifier = ref.read(ohyoInteractionProvider(widget.ohyo.id).notifier);
                     final trimmedContent = _commentController.text.trim();
                     final hasImages = _selectedImages.isNotEmpty;
-                    if (trimmedContent.isEmpty && !hasImages) {
+                    final hasFiles = _selectedFiles.isNotEmpty;
+                    if (trimmedContent.isEmpty && !hasImages && !hasFiles) {
                       return;
                     }
                     await notifier.addComment(
                       trimmedContent,
                       imageFiles: _selectedImages,
+                      fileFiles: _selectedFiles,
                     );
                     _commentController.clear();
                     _selectedImages.clear();
+                    _selectedFiles.clear();
                     final latestComments =
                         ref.read(ohyoInteractionProvider(widget.ohyo.id)).comments;
                     if (latestComments.isNotEmpty) {
@@ -544,7 +618,8 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                         : () async {
                             final trimmedContent = _commentController.text.trim();
                             final hasImages = _selectedImages.isNotEmpty;
-                            if (trimmedContent.isEmpty && !hasImages) {
+                            final hasFiles = _selectedFiles.isNotEmpty;
+                            if (trimmedContent.isEmpty && !hasImages && !hasFiles) {
                               return;
                             }
                             try {
@@ -553,9 +628,11 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
                                   .addComment(
                                     trimmedContent,
                                     imageFiles: _selectedImages,
+                                    fileFiles: _selectedFiles,
                                   );
                               _commentController.clear();
                               _selectedImages.clear();
+                              _selectedFiles.clear();
                               final latestComments =
                                   ref.read(ohyoInteractionProvider(widget.ohyo.id)).comments;
                               if (latestComments.isNotEmpty) {
@@ -658,6 +735,8 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
               content: result!.content,
               imageUrls: result.keptImageUrls,
               imageFiles: result.newImages,
+              fileUrls: result.keptFileUrls,
+              fileFiles: result.newFiles,
             );
         if (mounted && context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -731,12 +810,16 @@ class EditOhyoCommentResult {
   final String content;
   final List<String> keptImageUrls;
   final List<File> newImages;
+  final List<String> keptFileUrls;
+  final List<File> newFiles;
 
   const EditOhyoCommentResult({
     required this.shouldSave,
     required this.content,
     this.keptImageUrls = const [],
     this.newImages = const [],
+    this.keptFileUrls = const [],
+    this.newFiles = const [],
   });
 }
 
@@ -757,11 +840,14 @@ class EditOhyoCommentScreen extends ConsumerStatefulWidget {
 class _EditOhyoCommentScreenState extends ConsumerState<EditOhyoCommentScreen> {
   final List<File> _newImages = [];
   late List<String> _existingImageUrls;
+  final List<File> _newFiles = [];
+  late List<String> _existingFileUrls;
 
   @override
   void initState() {
     super.initState();
     _existingImageUrls = List<String>.from(widget.comment.imageUrls);
+    _existingFileUrls = List<String>.from(widget.comment.fileUrls);
     // Automatically speak the screen content when it opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakScreenContent();
@@ -799,6 +885,55 @@ class _EditOhyoCommentScreenState extends ConsumerState<EditOhyoCommentScreen> {
     setState(() {
       _existingImageUrls.remove(url);
     });
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _newFiles.addAll(files);
+    });
+  }
+
+  void _removeNewFile(File file) {
+    setState(() {
+      _newFiles.remove(file);
+    });
+  }
+
+  void _removeExistingFile(String url) {
+    setState(() {
+      _existingFileUrls.remove(url);
+    });
+  }
+
+  String _getFileName(File file) {
+    final path = file.path.replaceAll('\\', '/');
+    final slashIndex = path.lastIndexOf('/');
+    if (slashIndex == -1 || slashIndex == path.length - 1) {
+      return path;
+    }
+    return path.substring(slashIndex + 1);
+  }
+
+  String _extractFileNameFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      if (uri.pathSegments.isNotEmpty) {
+        final lastSegment = Uri.decodeComponent(uri.pathSegments.last);
+        final separatorIndex = lastSegment.indexOf('__');
+        if (separatorIndex != -1 && separatorIndex + 2 < lastSegment.length) {
+          return lastSegment.substring(separatorIndex + 2);
+        }
+        return lastSegment;
+      }
+    } catch (_) {}
+    return 'bestand';
   }
 
   void _showImageSourceSheet() {
@@ -864,6 +999,8 @@ class _EditOhyoCommentScreenState extends ConsumerState<EditOhyoCommentScreen> {
               content: widget.contentController.text.trim(),
               keptImageUrls: _existingImageUrls,
               newImages: _newImages,
+              keptFileUrls: _existingFileUrls,
+              newFiles: _newFiles,
             ),
           ),
         ),
@@ -980,6 +1117,56 @@ class _EditOhyoCommentScreenState extends ConsumerState<EditOhyoCommentScreen> {
                         }).toList(),
                       ),
                     ],
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Bestanden (optioneel)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _pickFiles,
+                      icon: const Icon(Icons.attach_file, size: 18),
+                      label: Text(
+                        _newFiles.isEmpty && _existingFileUrls.isEmpty
+                            ? 'Bestanden toevoegen'
+                            : 'Meer bestanden toevoegen',
+                      ),
+                    ),
+                    if (_existingFileUrls.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _existingFileUrls.map((url) {
+                          return Chip(
+                            label: Text(
+                              _extractFileNameFromUrl(url),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onDeleted: () => _removeExistingFile(url),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (_newFiles.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _newFiles.map((file) {
+                          return Chip(
+                            label: Text(
+                              _getFileName(file),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onDeleted: () => _removeNewFile(file),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 24), // Extra space before buttons
                   ],
                 ),
@@ -1012,6 +1199,8 @@ class _EditOhyoCommentScreenState extends ConsumerState<EditOhyoCommentScreen> {
                           content: widget.contentController.text.trim(),
                           keptImageUrls: _existingImageUrls,
                           newImages: _newImages,
+                          keptFileUrls: _existingFileUrls,
+                          newFiles: _newFiles,
                         ),
                       ),
                       child: const Text('Annuleren', overflow: TextOverflow.visible),
@@ -1028,6 +1217,8 @@ class _EditOhyoCommentScreenState extends ConsumerState<EditOhyoCommentScreen> {
                           content: widget.contentController.text.trim(),
                           keptImageUrls: _existingImageUrls,
                           newImages: _newImages,
+                          keptFileUrls: _existingFileUrls,
+                          newFiles: _newFiles,
                         ),
                       ),
                       child: const Text('Opslaan', overflow: TextOverflow.visible),
@@ -1060,6 +1251,7 @@ class ReplyOhyoCommentScreen extends ConsumerStatefulWidget {
 class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen> {
   final TextEditingController _replyController = TextEditingController();
   final List<File> _selectedImages = [];
+  final List<File> _selectedFiles = [];
 
   @override
   void initState() {
@@ -1101,6 +1293,34 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
     setState(() {
       _selectedImages.remove(image);
     });
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _selectedFiles.addAll(files);
+    });
+  }
+
+  void _removeSelectedFile(File file) {
+    setState(() {
+      _selectedFiles.remove(file);
+    });
+  }
+
+  String _getFileName(File file) {
+    final path = file.path.replaceAll('\\', '/');
+    final slashIndex = path.lastIndexOf('/');
+    if (slashIndex == -1 || slashIndex == path.length - 1) {
+      return path;
+    }
+    return path.substring(slashIndex + 1);
   }
 
   void _showImageSourceSheet() {
@@ -1262,6 +1482,46 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
                         }).toList(),
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _pickFiles,
+                          icon: const Icon(Icons.attach_file, size: 18),
+                          label: const Text('Bestand'),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedFiles.isEmpty
+                                ? 'Geen bestanden geselecteerd'
+                                : '${_selectedFiles.length} bestand(en) geselecteerd',
+                            style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_selectedFiles.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _selectedFiles.map((file) {
+                          return Chip(
+                            label: Text(
+                              _getFileName(file),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            onDeleted: () => _removeSelectedFile(file),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1296,7 +1556,8 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
                         onPressed: isSubmitting ? null : () async {
                             final trimmedContent = _replyController.text.trim();
                             final hasImages = _selectedImages.isNotEmpty;
-                            if (trimmedContent.isEmpty && !hasImages) {
+                            final hasFiles = _selectedFiles.isNotEmpty;
+                            if (trimmedContent.isEmpty && !hasImages && !hasFiles) {
                               return;
                             }
                             try {
@@ -1305,6 +1566,7 @@ class _ReplyOhyoCommentScreenState extends ConsumerState<ReplyOhyoCommentScreen>
                                     trimmedContent,
                                     parentCommentId: widget.originalComment.id,
                                     imageFiles: _selectedImages,
+                                    fileFiles: _selectedFiles,
                                   );
                               if (context.mounted) {
                                 Navigator.pop(context, true);
