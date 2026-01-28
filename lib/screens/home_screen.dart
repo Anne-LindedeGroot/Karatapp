@@ -456,7 +456,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                           : 'Nieuwe ohyo toevoegen',
                       button: true,
                       child: FloatingActionButton(
-                        heroTag: "home_fab",
+                        heroTag: null,
                         onPressed: () {
                           if (_tabController.index == 0) {
                             context.goToCreateKata();
@@ -473,12 +473,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                       ),
                     ),
                     loading: () => const FloatingActionButton(
-                      heroTag: "home_fab",
+                      heroTag: null,
                       onPressed: null,
                       child: CircularProgressIndicator(),
                     ),
                     error: (error, stack) => FloatingActionButton(
-                      heroTag: "home_fab",
+                      heroTag: null,
                       onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Fout bij laden gebruikersrol: $error')),
                       ),

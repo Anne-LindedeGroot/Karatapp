@@ -1063,6 +1063,10 @@ class ForumNotifier extends StateNotifier<ForumState> {
   Future<ForumComment> updateComment({
     required int commentId,
     required String content,
+    List<String>? imageUrls,
+    List<String>? fileUrls,
+    List<File> imageFiles = const [],
+    List<File> fileFiles = const [],
   }) async {
     // Check if we're online
     final isOnline = await _isOnline();
@@ -1070,9 +1074,38 @@ class ForumNotifier extends StateNotifier<ForumState> {
     if (isOnline) {
       // Online mode - try to update comment directly
       try {
+        ForumComment? existingComment;
+        if (state.selectedPost != null) {
+          try {
+            existingComment = state.selectedPost!.comments.firstWhere(
+              (comment) => comment.id == commentId,
+            );
+          } catch (_) {
+            existingComment = null;
+          }
+        }
+        final baseImageUrls = imageUrls ?? existingComment?.imageUrls ?? const <String>[];
+        final baseFileUrls = fileUrls ?? existingComment?.fileUrls ?? const <String>[];
+        final uploadedImageUrls = imageFiles.isNotEmpty
+            ? await _forumService.uploadForumCommentImages(
+                commentId: commentId,
+                imageFiles: imageFiles,
+              )
+            : <String>[];
+        final uploadedFileUrls = fileFiles.isNotEmpty
+            ? await _forumService.uploadForumCommentFiles(
+                commentId: commentId,
+                files: fileFiles,
+              )
+            : <String>[];
+        final shouldUpdateImages = imageUrls != null || imageFiles.isNotEmpty;
+        final shouldUpdateFiles = fileUrls != null || fileFiles.isNotEmpty;
+
         final updatedComment = await _forumService.updateComment(
           commentId: commentId,
           content: content,
+          imageUrls: shouldUpdateImages ? [...baseImageUrls, ...uploadedImageUrls] : null,
+          fileUrls: shouldUpdateFiles ? [...baseFileUrls, ...uploadedFileUrls] : null,
         );
 
         // If we have the selected post loaded, update the comment in its comments
@@ -1103,6 +1136,10 @@ class ForumNotifier extends StateNotifier<ForumState> {
         throw Exception('Offline queue service not available');
       }
 
+      if (imageFiles.isNotEmpty || fileFiles.isNotEmpty) {
+        throw Exception('Je kunt geen bestanden toevoegen zonder internetverbinding');
+      }
+
       // Get current user ID from auth service
       final authService = _ref.read(authServiceProvider);
       final userId = authService.currentUser?.id;
@@ -1127,6 +1164,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
       // Create updated comment for optimistic UI update
       final updatedComment = existingComment.copyWith(
         content: content,
+        imageUrls: imageUrls ?? existingComment.imageUrls,
+        fileUrls: fileUrls ?? existingComment.fileUrls,
         updatedAt: DateTime.now(),
       );
 
@@ -1151,6 +1190,8 @@ class ForumNotifier extends StateNotifier<ForumState> {
         data: {
           'comment_id': commentId,
           'content': content,
+          if (imageUrls != null) 'image_urls': imageUrls,
+          if (fileUrls != null) 'file_urls': fileUrls,
         },
         createdAt: DateTime.now(),
         userId: userId,
@@ -1167,14 +1208,53 @@ class ForumNotifier extends StateNotifier<ForumState> {
     required String title,
     required String content,
     ForumCategory? category,
+    List<String>? imageUrls,
+    List<String>? fileUrls,
+    List<File> imageFiles = const [],
+    List<File> fileFiles = const [],
   }) async {
     try {
-      final updatedPost = await _forumService.updatePost(
+      var updatedPost = await _forumService.updatePost(
         postId: postId,
         title: title,
         content: content,
         category: category,
       );
+
+      if (imageFiles.isNotEmpty || imageUrls != null) {
+        final uploadedUrls = imageFiles.isNotEmpty
+            ? await _forumService.uploadForumPostImages(
+                postId: postId,
+                imageFiles: imageFiles,
+              )
+            : <String>[];
+        final mergedImageUrls = <String>[
+          ...(imageUrls ?? updatedPost.imageUrls),
+          ...uploadedUrls,
+        ];
+        updatedPost = await _forumService.updatePostImages(
+          postId: postId,
+          imageUrls: mergedImageUrls,
+        );
+      }
+
+      if (fileFiles.isNotEmpty || fileUrls != null) {
+        final uploadedUrls = fileFiles.isNotEmpty
+            ? await _forumService.uploadForumPostFiles(
+                postId: postId,
+                files: fileFiles,
+              )
+            : <String>[];
+        final mergedFileUrls = <String>[
+          ...(fileUrls ?? updatedPost.fileUrls),
+          ...uploadedUrls,
+        ];
+        final updatedWithFiles = await _forumService.updatePostFiles(
+          postId: postId,
+          fileUrls: mergedFileUrls,
+        );
+        updatedPost = updatedWithFiles.copyWith(imageUrls: updatedPost.imageUrls);
+      }
 
       // Update the post in the current list
       final updatedPosts = state.posts.map((post) {

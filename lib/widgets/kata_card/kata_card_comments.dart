@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/kata_model.dart';
@@ -38,7 +39,6 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
   final TextEditingController commentController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<File> _selectedImages = [];
-  ProviderSubscription<KataInteractionState>? _commentsSubscription;
 
   // Pagination state
   List<KataComment> _comments = [];
@@ -54,8 +54,6 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
     _comments = List.from(widget.initialComments);
     _currentOffset = widget.initialComments.length;
     _hasMoreComments = widget.initialComments.length == _commentsPerPage;
-
-    _listenToComments();
   }
 
   @override
@@ -65,33 +63,36 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
       _comments = List.from(widget.initialComments);
       _currentOffset = widget.initialComments.length;
       _hasMoreComments = widget.initialComments.length == _commentsPerPage;
-      _listenToComments();
     }
   }
 
   @override
   void dispose() {
-    _commentsSubscription?.close();
     commentController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _listenToComments() {
-    _commentsSubscription?.close();
-    _commentsSubscription = ref.listenManual<KataInteractionState>(
-      kataInteractionProvider(widget.kata.id),
-      (previous, next) {
-        if (!mounted) return;
-        if (next.comments.isEmpty) return;
-        if (next.comments.length == _comments.length) return;
-        setState(() {
-          _comments = List.from(next.comments);
-          _currentOffset = next.comments.length;
-          _hasMoreComments = next.comments.length >= _commentsPerPage;
-        });
-      },
-    );
+  void _syncCommentsIfNeeded(List<KataComment> nextComments) {
+    if (!_shouldUpdateComments(nextComments)) return;
+    setState(() {
+      _comments = List.from(nextComments);
+      _currentOffset = nextComments.length;
+      _hasMoreComments = nextComments.length >= _commentsPerPage;
+    });
+  }
+
+  bool _shouldUpdateComments(List<KataComment> nextComments) {
+    if (nextComments.length != _comments.length) return true;
+    for (var i = 0; i < nextComments.length; i++) {
+      final next = nextComments[i];
+      final current = _comments[i];
+      if (next.id != current.id) return true;
+      if (next.updatedAt != current.updatedAt) return true;
+      if (next.content != current.content) return true;
+      if (next.imageUrls.length != current.imageUrls.length) return true;
+    }
+    return false;
   }
 
   Future<void> _pickImagesFromGallery() async {
@@ -200,6 +201,14 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<KataInteractionState>(
+      kataInteractionProvider(widget.kata.id),
+      (previous, next) {
+        if (!mounted) return;
+        if (next.comments.isEmpty && _comments.isEmpty) return;
+        _syncCommentsIfNeeded(next.comments);
+      },
+    );
     return _buildInlineCommentSection();
   }
 
@@ -634,7 +643,7 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
   Future<void> _showEditKataCommentDialog(KataComment comment, WidgetRef ref) async {
     final contentController = TextEditingController(text: comment.content);
 
-    final result = await Navigator.push<bool>(
+    final result = await Navigator.push<EditKataCommentResult>(
       context,
       MaterialPageRoute(
         builder: (context) => EditKataCommentScreen(
@@ -645,12 +654,14 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
       ),
     );
 
-    if (result == true) {
+    if (result?.shouldSave == true) {
       try {
         await ref.read(kataInteractionProvider(widget.kata.id).notifier)
             .updateComment(
               commentId: comment.id,
-              content: contentController.text.trim(),
+              content: result!.content,
+              imageUrls: result.keptImageUrls,
+              imageFiles: result.newImages,
             );
 
         if (mounted) {
@@ -732,6 +743,20 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
 
 }
 
+class EditKataCommentResult {
+  final bool shouldSave;
+  final String content;
+  final List<String> keptImageUrls;
+  final List<File> newImages;
+
+  const EditKataCommentResult({
+    required this.shouldSave,
+    required this.content,
+    this.keptImageUrls = const [],
+    this.newImages = const [],
+  });
+}
+
 class EditKataCommentScreen extends ConsumerStatefulWidget {
   final KataComment comment;
   final TextEditingController contentController;
@@ -747,9 +772,13 @@ class EditKataCommentScreen extends ConsumerStatefulWidget {
 }
 
 class _EditKataCommentScreenState extends ConsumerState<EditKataCommentScreen> {
+  final List<File> _newImages = [];
+  late List<String> _existingImageUrls;
+
   @override
   void initState() {
     super.initState();
+    _existingImageUrls = List<String>.from(widget.comment.imageUrls);
     // Automatically speak the screen content when it opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakScreenContent();
@@ -761,6 +790,83 @@ class _EditKataCommentScreenState extends ConsumerState<EditKataCommentScreen> {
     // This is a placeholder for future accessibility enhancement
   }
 
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _newImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _newImages.add(image);
+    });
+  }
+
+  void _removeNewImage(File image) {
+    setState(() {
+      _newImages.remove(image);
+    });
+  }
+
+  void _removeExistingImage(String url) {
+    setState(() {
+      _existingImageUrls.remove(url);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildImageThumbnail(String url) {
+    final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+    if (isLocalFile) {
+      final file = url.startsWith('file://') ? File.fromUri(Uri.parse(url)) : File(url);
+      return Image.file(
+        file,
+        width: 70,
+        height: 70,
+        fit: BoxFit.cover,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: 70,
+      height: 70,
+      fit: BoxFit.cover,
+      placeholder: (context, _) => Container(
+        width: 70,
+        height: 70,
+        color: Colors.grey.withValues(alpha: 0.1),
+      ),
+      errorWidget: (context, _, _) => Container(
+        width: 70,
+        height: 70,
+        color: Colors.grey.withValues(alpha: 0.1),
+        child: const Icon(Icons.broken_image, size: 16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -768,7 +874,15 @@ class _EditKataCommentScreenState extends ConsumerState<EditKataCommentScreen> {
         title: const Text('Reactie Bewerken'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context, false),
+          onPressed: () => Navigator.pop(
+            context,
+            EditKataCommentResult(
+              shouldSave: false,
+              content: widget.contentController.text.trim(),
+              keptImageUrls: _existingImageUrls,
+              newImages: _newImages,
+            ),
+          ),
         ),
       ),
       body: SafeArea(
@@ -792,6 +906,97 @@ class _EditKataCommentScreenState extends ConsumerState<EditKataCommentScreen> {
                       autofocus: true,
                       customTTSLabel: 'Reactie bewerken invoerveld',
                     ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Afbeeldingen (optioneel)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _showImageSourceSheet,
+                      icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+                      label: Text(
+                        _newImages.isEmpty && _existingImageUrls.isEmpty
+                            ? 'Afbeeldingen toevoegen'
+                            : 'Meer afbeeldingen toevoegen',
+                      ),
+                    ),
+                    if (_existingImageUrls.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _existingImageUrls.map((url) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: _buildImageThumbnail(url),
+                              ),
+                              InkWell(
+                                onTap: () => _removeExistingImage(url),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (_newImages.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _newImages.map((image) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  image,
+                                  width: 70,
+                                  height: 70,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _removeNewImage(image),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 24), // Extra space before buttons
                   ],
                 ),
@@ -817,7 +1022,15 @@ class _EditKataCommentScreenState extends ConsumerState<EditKataCommentScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 100),
                     child: TextButton(
-                      onPressed: () => Navigator.pop(context, false),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        EditKataCommentResult(
+                          shouldSave: false,
+                          content: widget.contentController.text.trim(),
+                          keptImageUrls: _existingImageUrls,
+                          newImages: _newImages,
+                        ),
+                      ),
                       child: const Text('Annuleren', overflow: TextOverflow.visible),
                     ),
                   ),
@@ -825,7 +1038,15 @@ class _EditKataCommentScreenState extends ConsumerState<EditKataCommentScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 100),
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        EditKataCommentResult(
+                          shouldSave: true,
+                          content: widget.contentController.text.trim(),
+                          keptImageUrls: _existingImageUrls,
+                          newImages: _newImages,
+                        ),
+                      ),
                       child: const Text('Opslaan', overflow: TextOverflow.visible),
                     ),
                   ),

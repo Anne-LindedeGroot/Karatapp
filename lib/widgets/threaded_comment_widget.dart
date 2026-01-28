@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../models/forum_models.dart';
 import '../models/interaction_models.dart';
 import '../utils/comment_threading_utils.dart';
 import '../providers/auth_provider.dart';
@@ -121,7 +122,25 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
     try {
       final uri = Uri.parse(url);
       if (uri.pathSegments.isNotEmpty) {
-        return uri.pathSegments.last;
+        final lastSegment = Uri.decodeComponent(uri.pathSegments.last);
+        final separatorIndex = lastSegment.indexOf('__');
+        if (separatorIndex != -1 && separatorIndex + 2 < lastSegment.length) {
+          return lastSegment.substring(separatorIndex + 2);
+        }
+        final legacyMatch =
+            RegExp(r'^(post|comment)_\d+_\d+_\d+_(.+)$').firstMatch(lastSegment);
+        if (legacyMatch != null) {
+          final remainder = legacyMatch.group(2) ?? '';
+          if (RegExp(r'^\d+(\.[^\.]+)?$').hasMatch(remainder)) {
+            final dotIndex = remainder.lastIndexOf('.');
+            final extension = dotIndex != -1 ? remainder.substring(dotIndex) : '';
+            return 'file$extension';
+          }
+          if (remainder.isNotEmpty) {
+            return remainder;
+          }
+        }
+        return lastSegment;
       }
     } catch (_) {}
     return url;
@@ -137,11 +156,51 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
         final cachedPath = OfflineMediaCacheService.getCachedFilePath(url, false);
         if (cachedPath != null) {
           openUrl = Uri.file(cachedPath).toString();
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bestand is offline niet beschikbaar'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
         }
       }
     }
-    final uri = Uri.parse(openUrl);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final isLocalOpen = openUrl.startsWith('/') || openUrl.startsWith('file://');
+    if (isLocalOpen && openUrl.startsWith('/')) {
+      final file = File(openUrl);
+      if (!await file.exists()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bestand niet gevonden op dit apparaat'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+    final uri = isLocalOpen
+        ? (openUrl.startsWith('file://') ? Uri.parse(openUrl) : Uri.file(openUrl))
+        : Uri.parse(openUrl);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kan bestand niet openen'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  List<String> _resolveFileUrls(T comment) {
+    if (comment is ForumComment) {
+      return comment.fileUrls;
+    }
+    return const <String>[];
   }
 
   @override
@@ -191,6 +250,8 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
                   getAuthorAvatar: widget.getAuthorAvatar,
                   getContent: widget.getContent,
                   getCreatedAt: widget.getCreatedAt,
+                  getImageUrls: widget.getImageUrls,
+                  getFileUrls: widget.getFileUrls,
                   showReplyButton: widget.showReplyButton,
                   maxDepth: widget.maxDepth,
                 ),
@@ -205,7 +266,8 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
     final commentId = widget.getCommentId(comment);
     final commentState = widget.getCommentState(commentId);
     final imageUrls = widget.getImageUrls?.call(comment) ?? const <String>[];
-    final fileUrls = widget.getFileUrls?.call(comment) ?? const <String>[];
+    final providedFileUrls = widget.getFileUrls?.call(comment) ?? const <String>[];
+    final fileUrls = providedFileUrls.isNotEmpty ? providedFileUrls : _resolveFileUrls(comment);
 
     return Consumer(
       builder: (context, ref, child) {

@@ -874,14 +874,12 @@ class OfflineSyncService {
           final commentId = operation.data['comment_id'] as int;
           final commentType = operation.data['comment_type'] as String;
           final content = operation.data['content'] as String;
-          final localVersion = operation.data['version'] as int? ?? 1;
 
           // Try to update the comment with conflict detection
           success = await _updateCommentWithConflictResolution(
             commentId,
             commentType,
             content,
-            localVersion,
             operation.userId!,
           );
           break;
@@ -927,10 +925,18 @@ class OfflineSyncService {
         case OfflineOperationType.updateForumComment:
           final commentId = operation.data['comment_id'] as int;
           final content = operation.data['content'] as String;
+          final imageUrls = (operation.data['image_urls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList();
+          final fileUrls = (operation.data['file_urls'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList();
 
           await _interactionService!.updateForumComment(
             commentId: commentId,
             content: content,
+            imageUrls: imageUrls,
+            fileUrls: fileUrls,
           );
           success = true;
           break;
@@ -977,34 +983,6 @@ class OfflineSyncService {
     } catch (e) {
       debugPrint('Failed to process operation ${operation.id}: $e');
 
-      // Check if this is a conflict that can be resolved
-      if (_conflictResolutionService != null && e.toString().contains('version_conflict')) {
-        // Create a conflict for manual resolution
-        final conflictData = operation.data;
-        final serverData = await _fetchCurrentCommentData(
-          conflictData['comment_id'] as int,
-          conflictData['comment_type'] as String,
-        );
-
-        if (serverData != null) {
-          await _conflictResolutionService!.detectConflict(
-            commentType: conflictData['comment_type'] as String,
-            commentId: conflictData['comment_id'] as int,
-            localData: conflictData,
-            serverData: serverData,
-            userId: operation.userId,
-          );
-
-          // Mark operation as failed but don't retry automatically
-          await _offlineQueueService!.updateOperation(
-            operation.id,
-            status: OfflineOperationStatus.failed,
-            error: 'Conflict detected - manual resolution required',
-          );
-          return false; // Don't retry
-        }
-      }
-
       // Mark as failed
       await _offlineQueueService!.markOperationFailed(operation.id, e.toString());
       return false;
@@ -1016,7 +994,6 @@ class OfflineSyncService {
     int commentId,
     String commentType,
     String content,
-    int localVersion,
     String userId,
   ) async {
     if (_interactionService == null) return false;
@@ -1027,31 +1004,20 @@ class OfflineSyncService {
 
       if (currentServerData == null) {
         // Comment doesn't exist on server
-        return false;
-      }
-
-      final serverVersion = currentServerData['version'] as int? ?? 1;
-
-      // Check for version conflict
-      if (serverVersion > localVersion) {
-        // There's a conflict - create a conflict record
         if (_conflictResolutionService != null) {
-          final localData = {
-            'comment_id': commentId,
-            'comment_type': commentType,
-            'content': content,
-            'version': localVersion,
-          };
-
           await _conflictResolutionService!.detectConflict(
             commentType: commentType,
             commentId: commentId,
-            localData: localData,
-            serverData: currentServerData,
+            localData: {
+              'comment_id': commentId,
+              'comment_type': commentType,
+              'content': content,
+            },
+            serverData: {'deleted': true},
             userId: userId,
           );
         }
-        return false; // Don't proceed with update
+        return false;
       }
 
       // No conflict, proceed with update
@@ -1059,13 +1025,11 @@ class OfflineSyncService {
         await _interactionService!.updateKataComment(
           commentId: commentId,
           content: content,
-          version: localVersion + 1,
         );
       } else if (commentType == 'ohyo_comment') {
         await _interactionService!.updateOhyoComment(
           commentId: commentId,
           content: content,
-          version: localVersion + 1,
         );
       }
 

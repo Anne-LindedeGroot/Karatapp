@@ -256,11 +256,28 @@ class KataInteractionNotifier extends StateNotifier<KataInteractionState> {
   Future<void> updateComment({
     required int commentId,
     required String content,
+    List<String>? imageUrls,
+    List<File> imageFiles = const [],
   }) async {
     try {
+      KataComment? existingComment;
+      try {
+        existingComment = state.comments.firstWhere((comment) => comment.id == commentId);
+      } catch (_) {
+        existingComment = null;
+      }
+      final baseImageUrls = imageUrls ?? existingComment?.imageUrls ?? const <String>[];
+      final uploadedUrls = imageFiles.isNotEmpty
+          ? await _interactionService.uploadKataCommentImages(
+              commentId: commentId,
+              imageFiles: imageFiles,
+            )
+          : <String>[];
+      final shouldUpdateImages = imageUrls != null || imageFiles.isNotEmpty;
       final updatedComment = await _interactionService.updateKataComment(
         commentId: commentId,
         content: content,
+        imageUrls: shouldUpdateImages ? [...baseImageUrls, ...uploadedUrls] : null,
       );
 
       final updatedComments = state.comments.map((comment) {
@@ -866,11 +883,28 @@ class OhyoInteractionNotifier extends StateNotifier<OhyoInteractionState> {
   Future<void> updateComment({
     required int commentId,
     required String content,
+    List<String>? imageUrls,
+    List<File> imageFiles = const [],
   }) async {
     try {
+      OhyoComment? existingComment;
+      try {
+        existingComment = state.comments.firstWhere((comment) => comment.id == commentId);
+      } catch (_) {
+        existingComment = null;
+      }
+      final baseImageUrls = imageUrls ?? existingComment?.imageUrls ?? const <String>[];
+      final uploadedUrls = imageFiles.isNotEmpty
+          ? await _interactionService.uploadOhyoCommentImages(
+              commentId: commentId,
+              imageFiles: imageFiles,
+            )
+          : <String>[];
+      final shouldUpdateImages = imageUrls != null || imageFiles.isNotEmpty;
       final updatedComment = await _interactionService.updateOhyoComment(
         commentId: commentId,
         content: content,
+        imageUrls: shouldUpdateImages ? [...baseImageUrls, ...uploadedUrls] : null,
       );
 
       final updatedComments = state.comments.map((comment) {

@@ -26,10 +26,36 @@ import '../../services/offline_media_cache_service.dart';
 class EditPostResult {
   final bool shouldSave;
   final ForumCategory selectedCategory;
+  final List<String> keptImageUrls;
+  final List<String> keptFileUrls;
+  final List<File> newImages;
+  final List<File> newFiles;
 
   const EditPostResult({
     required this.shouldSave,
     required this.selectedCategory,
+    this.keptImageUrls = const [],
+    this.keptFileUrls = const [],
+    this.newImages = const [],
+    this.newFiles = const [],
+  });
+}
+
+class EditCommentResult {
+  final bool shouldSave;
+  final String content;
+  final List<String> keptImageUrls;
+  final List<String> keptFileUrls;
+  final List<File> newImages;
+  final List<File> newFiles;
+
+  const EditCommentResult({
+    required this.shouldSave,
+    required this.content,
+    this.keptImageUrls = const [],
+    this.keptFileUrls = const [],
+    this.newImages = const [],
+    this.newFiles = const [],
   });
 }
 
@@ -239,7 +265,25 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     try {
       final uri = Uri.parse(url);
       if (uri.pathSegments.isNotEmpty) {
-        return uri.pathSegments.last;
+        final lastSegment = Uri.decodeComponent(uri.pathSegments.last);
+        final separatorIndex = lastSegment.indexOf('__');
+        if (separatorIndex != -1 && separatorIndex + 2 < lastSegment.length) {
+          return lastSegment.substring(separatorIndex + 2);
+        }
+        final legacyMatch =
+            RegExp(r'^(post|comment)_\d+_\d+_\d+_(.+)$').firstMatch(lastSegment);
+        if (legacyMatch != null) {
+          final remainder = legacyMatch.group(2) ?? '';
+          if (RegExp(r'^\d+(\.[^\.]+)?$').hasMatch(remainder)) {
+            final dotIndex = remainder.lastIndexOf('.');
+            final extension = dotIndex != -1 ? remainder.substring(dotIndex) : '';
+            return 'file$extension';
+          }
+          if (remainder.isNotEmpty) {
+            return remainder;
+          }
+        }
+        return lastSegment;
       }
     } catch (_) {}
     return url;
@@ -252,10 +296,43 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       final cachedPath = OfflineMediaCacheService.getCachedFilePath(url, false);
       if (cachedPath != null) {
         openUrl = Uri.file(cachedPath).toString();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bestand is offline niet beschikbaar'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
       }
     }
-    final uri = Uri.parse(openUrl);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final isLocalFile = openUrl.startsWith('/') || openUrl.startsWith('file://');
+    if (isLocalFile && openUrl.startsWith('/')) {
+      final file = File(openUrl);
+      if (!await file.exists()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bestand niet gevonden op dit apparaat'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+    }
+    final uri = isLocalFile
+        ? (openUrl.startsWith('file://') ? Uri.parse(openUrl) : Uri.file(openUrl))
+        : Uri.parse(openUrl);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kan bestand niet openen'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
 
@@ -1417,6 +1494,10 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
               title: titleController.text.trim(),
               content: contentController.text.trim(),
               category: result!.selectedCategory,
+              imageUrls: result.keptImageUrls,
+              fileUrls: result.keptFileUrls,
+              imageFiles: result.newImages,
+              fileFiles: result.newFiles,
             );
 
         // Reload the post to get updated data
@@ -1446,7 +1527,7 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
   Future<void> _showEditCommentDialog(ForumComment comment) async {
     final contentController = TextEditingController(text: comment.content);
 
-    final result = await Navigator.push<bool>(
+    final result = await Navigator.push<EditCommentResult>(
       context,
       MaterialPageRoute(
         builder: (context) => EditCommentScreen(
@@ -1457,13 +1538,17 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
       ),
     );
 
-    if (result == true) {
+    if (result?.shouldSave == true) {
       try {
         await ref
             .read(forumNotifierProvider.notifier)
             .updateComment(
               commentId: comment.id,
-              content: contentController.text.trim(),
+              content: result!.content,
+              imageUrls: result.keptImageUrls,
+              fileUrls: result.keptFileUrls,
+              imageFiles: result.newImages,
+              fileFiles: result.newFiles,
             );
 
         // Reload comments to get updated list
@@ -1951,9 +2036,16 @@ class EditCommentScreen extends ConsumerStatefulWidget {
 }
 
 class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
+  final List<File> _newImages = [];
+  final List<File> _newFiles = [];
+  late List<String> _existingImageUrls;
+  late List<String> _existingFileUrls;
+
   @override
   void initState() {
     super.initState();
+    _existingImageUrls = List<String>.from(widget.comment.imageUrls);
+    _existingFileUrls = List<String>.from(widget.comment.fileUrls);
     // Automatically speak the screen content when it opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakScreenContent();
@@ -1993,6 +2085,112 @@ class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
 
   int min(int a, int b) => a < b ? a : b;
 
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _newImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _newImages.add(image);
+    });
+  }
+
+  void _removeNewImage(File image) {
+    setState(() {
+      _newImages.remove(image);
+    });
+  }
+
+  void _removeExistingImage(String url) {
+    setState(() {
+      _existingImageUrls.remove(url);
+    });
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _newFiles.addAll(files);
+    });
+  }
+
+  void _removeNewFile(File file) {
+    setState(() {
+      _newFiles.remove(file);
+    });
+  }
+
+  void _removeExistingFile(String url) {
+    setState(() {
+      _existingFileUrls.remove(url);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildImageThumbnail(String url) {
+    final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+    if (isLocalFile) {
+      final file = url.startsWith('file://') ? File.fromUri(Uri.parse(url)) : File(url);
+      return Image.file(
+        file,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
+      placeholder: (context, _) => Container(
+        width: 80,
+        height: 80,
+        color: Colors.grey.withValues(alpha: 0.1),
+      ),
+      errorWidget: (context, _, _) => Container(
+        width: 80,
+        height: 80,
+        color: Colors.grey.withValues(alpha: 0.1),
+        child: const Icon(Icons.broken_image, size: 18),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2000,7 +2198,17 @@ class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
         title: const Text('Reactie Bewerken'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context, false),
+          onPressed: () => Navigator.pop(
+            context,
+            EditCommentResult(
+              shouldSave: false,
+              content: widget.contentController.text.trim(),
+              keptImageUrls: _existingImageUrls,
+              keptFileUrls: _existingFileUrls,
+              newImages: _newImages,
+              newFiles: _newFiles,
+            ),
+          ),
         ),
       ),
       body: SafeArea(
@@ -2024,6 +2232,159 @@ class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
                       autofocus: true,
                       customTTSLabel: 'Reactie bewerken invoerveld',
                     ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Afbeeldingen (optioneel)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _showImageSourceSheet,
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      label: Text(
+                        _newImages.isEmpty && _existingImageUrls.isEmpty
+                            ? 'Afbeeldingen toevoegen'
+                            : 'Meer afbeeldingen toevoegen',
+                      ),
+                    ),
+                    if (_existingImageUrls.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _existingImageUrls.map((url) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: _buildImageThumbnail(url),
+                              ),
+                              InkWell(
+                                onTap: () => _removeExistingImage(url),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (_newImages.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _newImages.map((image) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  image,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _removeNewImage(image),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Bestanden (pdf/doc) (optioneel)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _pickFiles,
+                      icon: const Icon(Icons.attach_file),
+                      label: Text(
+                        _newFiles.isEmpty && _existingFileUrls.isEmpty
+                            ? 'Bestanden toevoegen'
+                            : 'Meer bestanden toevoegen',
+                      ),
+                    ),
+                    if (_existingFileUrls.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Column(
+                        children: _existingFileUrls.map((url) {
+                          final fileName = url.split('/').last;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.description_outlined),
+                            title: Text(
+                              fileName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => _removeExistingFile(url),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (_newFiles.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Column(
+                        children: _newFiles.map((file) {
+                          final fileName = file.path.split('/').last;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.description_outlined),
+                            title: Text(
+                              fileName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => _removeNewFile(file),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 24), // Extra space before buttons
                   ],
                 ),
@@ -2049,7 +2410,17 @@ class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 100),
                     child: TextButton(
-                      onPressed: () => Navigator.pop(context, false),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        EditCommentResult(
+                          shouldSave: false,
+                          content: widget.contentController.text.trim(),
+                          keptImageUrls: _existingImageUrls,
+                          keptFileUrls: _existingFileUrls,
+                          newImages: _newImages,
+                          newFiles: _newFiles,
+                        ),
+                      ),
                       child: const Text('Annuleren', overflow: TextOverflow.ellipsis),
                     ),
                   ),
@@ -2057,7 +2428,17 @@ class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 100),
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        EditCommentResult(
+                          shouldSave: true,
+                          content: widget.contentController.text.trim(),
+                          keptImageUrls: _existingImageUrls,
+                          keptFileUrls: _existingFileUrls,
+                          newImages: _newImages,
+                          newFiles: _newFiles,
+                        ),
+                      ),
                       child: const Text('Opslaan', overflow: TextOverflow.ellipsis),
                     ),
                   ),
@@ -2091,11 +2472,17 @@ class EditPostScreen extends ConsumerStatefulWidget {
 
 class _EditPostScreenState extends ConsumerState<EditPostScreen> {
   late ForumCategory _selectedCategory;
+  final List<File> _newImages = [];
+  final List<File> _newFiles = [];
+  late List<String> _existingImageUrls;
+  late List<String> _existingFileUrls;
 
   @override
   void initState() {
     super.initState();
     _selectedCategory = widget.selectedCategory;
+    _existingImageUrls = List<String>.from(widget.post.imageUrls);
+    _existingFileUrls = List<String>.from(widget.post.fileUrls);
     // Automatically speak the screen content when it opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakScreenContent();
@@ -2142,6 +2529,112 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
 
   int min(int a, int b) => a < b ? a : b;
 
+  Future<void> _pickImagesFromGallery() async {
+    final images = await ImageUtils.pickMultipleImagesFromGallery();
+    if (images.isEmpty) return;
+    setState(() {
+      _newImages.addAll(images);
+    });
+  }
+
+  Future<void> _captureImageWithCamera() async {
+    final image = await ImageUtils.captureImageWithCamera(context: context);
+    if (image == null) return;
+    setState(() {
+      _newImages.add(image);
+    });
+  }
+
+  void _removeNewImage(File image) {
+    setState(() {
+      _newImages.remove(image);
+    });
+  }
+
+  void _removeExistingImage(String url) {
+    setState(() {
+      _existingImageUrls.remove(url);
+    });
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx'],
+    );
+    if (result == null || result.files.isEmpty) return;
+    final files = result.files
+        .where((file) => file.path != null)
+        .map((file) => File(file.path!))
+        .toList();
+    if (files.isEmpty) return;
+    setState(() {
+      _newFiles.addAll(files);
+    });
+  }
+
+  void _removeNewFile(File file) {
+    setState(() {
+      _newFiles.remove(file);
+    });
+  }
+
+  void _removeExistingFile(String url) {
+    setState(() {
+      _existingFileUrls.remove(url);
+    });
+  }
+
+  void _showImageSourceSheet() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return MediaSourceBottomSheet(
+          title: 'Afbeelding toevoegen',
+          onCameraSelected: () async {
+            Navigator.pop(context);
+            await _captureImageWithCamera();
+          },
+          onGallerySelected: () async {
+            Navigator.pop(context);
+            await _pickImagesFromGallery();
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildImageThumbnail(String url) {
+    final isLocalFile = url.startsWith('/') || url.startsWith('file://');
+    if (isLocalFile) {
+      final file = url.startsWith('file://') ? File.fromUri(Uri.parse(url)) : File(url);
+      return Image.file(
+        file,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: url,
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
+      placeholder: (context, _) => Container(
+        width: 80,
+        height: 80,
+        color: Colors.grey.withValues(alpha: 0.1),
+      ),
+      errorWidget: (context, _, _) => Container(
+        width: 80,
+        height: 80,
+        color: Colors.grey.withValues(alpha: 0.1),
+        child: const Icon(Icons.broken_image, size: 18),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2149,7 +2642,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
         title: const Text('Bericht Bewerken'),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: () => Navigator.pop(context, const EditPostResult(shouldSave: false, selectedCategory: ForumCategory.general)),
+          onPressed: () => Navigator.pop(
+            context,
+            EditPostResult(
+              shouldSave: false,
+              selectedCategory: ForumCategory.general,
+              keptImageUrls: _existingImageUrls,
+              keptFileUrls: _existingFileUrls,
+              newImages: _newImages,
+              newFiles: _newFiles,
+            ),
+          ),
         ),
       ),
       body: SafeArea(
@@ -2222,6 +2725,159 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                       maxLength: 5000,
                       customTTSLabel: 'Inhoud invoerveld',
                     ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Afbeeldingen (optioneel)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _showImageSourceSheet,
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      label: Text(
+                        _newImages.isEmpty && _existingImageUrls.isEmpty
+                            ? 'Afbeeldingen toevoegen'
+                            : 'Meer afbeeldingen toevoegen',
+                      ),
+                    ),
+                    if (_existingImageUrls.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _existingImageUrls.map((url) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: _buildImageThumbnail(url),
+                              ),
+                              InkWell(
+                                onTap: () => _removeExistingImage(url),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (_newImages.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _newImages.map((image) {
+                          return Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.file(
+                                  image,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => _removeNewImage(image),
+                                child: Container(
+                                  margin: const EdgeInsets.all(4),
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Bestanden (pdf/doc) (optioneel)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: _pickFiles,
+                      icon: const Icon(Icons.attach_file),
+                      label: Text(
+                        _newFiles.isEmpty && _existingFileUrls.isEmpty
+                            ? 'Bestanden toevoegen'
+                            : 'Meer bestanden toevoegen',
+                      ),
+                    ),
+                    if (_existingFileUrls.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Column(
+                        children: _existingFileUrls.map((url) {
+                          final fileName = url.split('/').last;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.description_outlined),
+                            title: Text(
+                              fileName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => _removeExistingFile(url),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                    if (_newFiles.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Column(
+                        children: _newFiles.map((file) {
+                          final fileName = file.path.split('/').last;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.description_outlined),
+                            title: Text(
+                              fileName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => _removeNewFile(file),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                     const SizedBox(height: 24), // Extra space before buttons
                   ],
                 ),
@@ -2247,7 +2903,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 100),
                     child: TextButton(
-                      onPressed: () => Navigator.pop(context, const EditPostResult(shouldSave: false, selectedCategory: ForumCategory.general)),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        EditPostResult(
+                          shouldSave: false,
+                          selectedCategory: ForumCategory.general,
+                          keptImageUrls: _existingImageUrls,
+                          keptFileUrls: _existingFileUrls,
+                          newImages: _newImages,
+                          newFiles: _newFiles,
+                        ),
+                      ),
                       child: const Text('Annuleren', overflow: TextOverflow.ellipsis),
                     ),
                   ),
@@ -2255,7 +2921,17 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
                   ConstrainedBox(
                     constraints: const BoxConstraints(minWidth: 100),
                     child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context, EditPostResult(shouldSave: true, selectedCategory: _selectedCategory)),
+                      onPressed: () => Navigator.pop(
+                        context,
+                        EditPostResult(
+                          shouldSave: true,
+                          selectedCategory: _selectedCategory,
+                          keptImageUrls: _existingImageUrls,
+                          keptFileUrls: _existingFileUrls,
+                          newImages: _newImages,
+                          newFiles: _newFiles,
+                        ),
+                      ),
                       child: const Text('Opslaan', overflow: TextOverflow.ellipsis),
                     ),
                   ),

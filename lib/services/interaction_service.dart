@@ -14,12 +14,12 @@ class InteractionService {
   final RoleService _roleService = RoleService();
   final Uuid _uuid = const Uuid();
   static const List<String> _kataCommentImagesBucketCandidates = [
-    'KATA_COMMENT_IMAGES',
     'kata_comment_images',
+    'KATA_COMMENT_IMAGES',
   ];
   static const List<String> _ohyoCommentImagesBucketCandidates = [
-    'OHYO_COMMENT_IMAGES',
     'ohyo_comment_images',
+    'OHYO_COMMENT_IMAGES',
   ];
   static const int _signedUrlExpirySeconds = 31536000; // 1 year
   String? _resolvedKataCommentImagesBucket;
@@ -51,15 +51,14 @@ class InteractionService {
     return metadata['avatar_url'] as String?;
   }
 
-  Future<void> _ensureBucket(String bucket) async {
-    try {
-      await _client.storage.getBucket(bucket);
-    } catch (e) {
-      throw Exception(
-        'Storage bucket $bucket not found or not accessible. '
-        'Please create it in Supabase Storage and make it public.',
-      );
-    }
+  String _getImageContentType(File file) {
+    final path = file.path.toLowerCase();
+    if (path.endsWith('.png')) return 'image/png';
+    if (path.endsWith('.gif')) return 'image/gif';
+    if (path.endsWith('.webp')) return 'image/webp';
+    if (path.endsWith('.heic')) return 'image/heic';
+    if (path.endsWith('.heif')) return 'image/heif';
+    return 'image/jpeg';
   }
 
   String _getFileExtension(File file) {
@@ -80,9 +79,14 @@ class InteractionService {
         await _client.storage.getBucket(bucket);
         _resolvedKataCommentImagesBucket = bucket;
         return bucket;
-      } catch (_) {}
+      } catch (_) {
+        // Ignore lookup failures; try next candidate.
+      }
     }
-    throw Exception('Storage bucket for kata comment images not found or not accessible.');
+    throw Exception(
+      'Kata comment images bucket not found. Expected one of: '
+      '${_kataCommentImagesBucketCandidates.join(', ')}',
+    );
   }
 
   Future<String?> _tryResolveKataCommentImagesBucket() async {
@@ -102,9 +106,14 @@ class InteractionService {
         await _client.storage.getBucket(bucket);
         _resolvedOhyoCommentImagesBucket = bucket;
         return bucket;
-      } catch (_) {}
+      } catch (_) {
+        // Ignore lookup failures; try next candidate.
+      }
     }
-    throw Exception('Storage bucket for ohyo comment images not found or not accessible.');
+    throw Exception(
+      'Ohyo comment images bucket not found. Expected one of: '
+      '${_ohyoCommentImagesBucketCandidates.join(', ')}',
+    );
   }
 
   Future<String?> _tryResolveOhyoCommentImagesBucket() async {
@@ -123,8 +132,6 @@ class InteractionService {
     required List<File> imageFiles,
   }) async {
     if (imageFiles.isEmpty) return [];
-    await _ensureBucket(bucket);
-
     final uploadedUrls = <String>[];
     for (var i = 0; i < imageFiles.length; i++) {
       final file = imageFiles[i];
@@ -136,7 +143,13 @@ class InteractionService {
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) continue;
 
-      await _client.storage.from(bucket).uploadBinary(filePath, bytes);
+      await _client.storage.from(bucket).uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: _getImageContentType(file),
+            ),
+          );
       String url;
       try {
         url = await _client.storage
@@ -208,9 +221,42 @@ class InteractionService {
     }
   }
 
-  Future<List<String>> _ensureSignedUrls(List<String> urls, String bucket) async {
+  Future<String> _maybeSignUrlWithCandidates(
+    String url,
+    List<String> bucketCandidates,
+  ) async {
+    final isHttpUrl = url.startsWith('http://') || url.startsWith('https://');
+    if (isHttpUrl) {
+      if (!url.contains('/storage/v1/object/')) {
+        return url;
+      }
+      final bucketFromUrl = _extractBucketFromUrl(url);
+      if (bucketFromUrl != null) {
+        return _maybeSignUrl(url, bucketFromUrl);
+      }
+      return url;
+    }
+
+    for (final bucket in bucketCandidates) {
+      try {
+        return await _client.storage
+            .from(bucket)
+            .createSignedUrl(url, _signedUrlExpirySeconds);
+      } catch (_) {
+        // Try next bucket
+      }
+    }
+    return _client.storage.from(bucketCandidates.first).getPublicUrl(url);
+  }
+
+  Future<List<String>> _ensureSignedUrlsWithCandidates(
+    List<String> urls,
+    List<String> bucketCandidates,
+  ) async {
     if (urls.isEmpty) return urls;
-    return Future.wait(urls.map((url) => _maybeSignUrl(url, bucket)));
+    return Future.wait(urls.map(
+      (url) => _maybeSignUrlWithCandidates(url, bucketCandidates),
+    ));
   }
 
   Future<void> _deleteCommentImages(String bucket, List<String> urls) async {
@@ -256,9 +302,12 @@ class InteractionService {
       final comments = await Future.wait(
         List<Map<String, dynamic>>.from(response).map((comment) async {
           final parsed = KataComment.fromJson(comment);
-          final imageUrls = bucket == null
-              ? parsed.imageUrls
-              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          final imageUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.imageUrls,
+            bucket == null
+                ? _kataCommentImagesBucketCandidates
+                : <String>[bucket],
+          );
           return parsed.copyWith(imageUrls: imageUrls);
         }),
       );
@@ -282,9 +331,12 @@ class InteractionService {
       final comments = await Future.wait(
         List<Map<String, dynamic>>.from(response).map((comment) async {
           final parsed = KataComment.fromJson(comment);
-          final imageUrls = bucket == null
-              ? parsed.imageUrls
-              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          final imageUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.imageUrls,
+            bucket == null
+                ? _kataCommentImagesBucketCandidates
+                : <String>[bucket],
+          );
           return parsed.copyWith(imageUrls: imageUrls);
         }),
       );
@@ -339,7 +391,6 @@ class InteractionService {
   Future<KataComment> updateKataComment({
     required int commentId,
     required String content,
-    int? version,
     List<String>? imageUrls,
   }) async {
     try {
@@ -351,17 +402,9 @@ class InteractionService {
       // Get comment details and check permissions
       final existingComment = await _client
           .from('kata_comments')
-          .select('author_id, kata_id, version')
+          .select('author_id, kata_id')
           .eq('id', commentId)
           .single();
-
-      // Check version conflict if version is provided
-      if (version != null) {
-        final currentVersion = existingComment['version'] as int? ?? 1;
-        if (currentVersion > version) {
-          throw Exception('version_conflict: Comment was modified by another user');
-        }
-      }
 
       // Check if user is the comment author
       bool canEdit = existingComment['author_id'] == user.id;
@@ -387,11 +430,6 @@ class InteractionService {
       };
       if (imageUrls != null) {
         updateData['image_urls'] = imageUrls;
-      }
-
-      // Increment version if provided
-      if (version != null) {
-        updateData['version'] = (version + 1).toString();
       }
 
       final response = await _client
@@ -459,13 +497,33 @@ class InteractionService {
     required int commentId,
     required List<File> imageFiles,
   }) async {
-    return _uploadCommentImages(
-      bucket: await _resolveKataCommentImagesBucket(),
-      folder: 'comments/$commentId',
-      prefix: 'kata_comment',
-      id: commentId,
-      imageFiles: imageFiles,
-    );
+    final bucketsToTry = <String>[
+      if (_resolvedKataCommentImagesBucket != null)
+        _resolvedKataCommentImagesBucket!,
+      ..._kataCommentImagesBucketCandidates,
+    ].toSet().toList();
+    Object? lastError;
+
+    for (final bucket in bucketsToTry) {
+      try {
+        final uploadedUrls = await _uploadCommentImages(
+          bucket: bucket,
+          folder: 'comments/$commentId',
+          prefix: 'kata_comment',
+          id: commentId,
+          imageFiles: imageFiles,
+        );
+        _resolvedKataCommentImagesBucket ??= bucket;
+        return uploadedUrls;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (lastError != null) {
+      throw Exception('Failed to upload kata comment images: $lastError');
+    }
+    return [];
   }
 
   // LIKES
@@ -869,9 +927,12 @@ class InteractionService {
       final comments = await Future.wait(
         List<Map<String, dynamic>>.from(response).map((comment) async {
           final parsed = OhyoComment.fromJson(comment);
-          final imageUrls = bucket == null
-              ? parsed.imageUrls
-              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          final imageUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.imageUrls,
+            bucket == null
+                ? _ohyoCommentImagesBucketCandidates
+                : <String>[bucket],
+          );
           return parsed.copyWith(imageUrls: imageUrls);
         }),
       );
@@ -895,9 +956,12 @@ class InteractionService {
       final comments = await Future.wait(
         List<Map<String, dynamic>>.from(response).map((comment) async {
           final parsed = OhyoComment.fromJson(comment);
-          final imageUrls = bucket == null
-              ? parsed.imageUrls
-              : await _ensureSignedUrls(parsed.imageUrls, bucket);
+          final imageUrls = await _ensureSignedUrlsWithCandidates(
+            parsed.imageUrls,
+            bucket == null
+                ? _ohyoCommentImagesBucketCandidates
+                : <String>[bucket],
+          );
           return parsed.copyWith(imageUrls: imageUrls);
         }),
       );
@@ -964,17 +1028,9 @@ class InteractionService {
       // Get comment details and check permissions
       final existingComment = await _client
           .from('ohyo_comments')
-          .select('author_id, ohyo_id, version')
+          .select('author_id, ohyo_id')
           .eq('id', commentId)
           .single();
-
-      // Check version conflict if version is provided
-      if (version != null) {
-        final currentVersion = existingComment['version'] as int? ?? 1;
-        if (currentVersion > version) {
-          throw Exception('version_conflict: Comment was modified by another user');
-        }
-      }
 
       // Check if user is the comment author
       bool canEdit = existingComment['author_id'] == user.id;
@@ -1000,11 +1056,6 @@ class InteractionService {
       };
       if (imageUrls != null) {
         updateData['image_urls'] = imageUrls;
-      }
-
-      // Increment version if provided
-      if (version != null) {
-        updateData['version'] = (version + 1).toString();
       }
 
       final response = await _client
@@ -1049,13 +1100,33 @@ class InteractionService {
     required int commentId,
     required List<File> imageFiles,
   }) async {
-    return _uploadCommentImages(
-      bucket: await _resolveOhyoCommentImagesBucket(),
-      folder: 'comments/$commentId',
-      prefix: 'ohyo_comment',
-      id: commentId,
-      imageFiles: imageFiles,
-    );
+    final bucketsToTry = <String>[
+      if (_resolvedOhyoCommentImagesBucket != null)
+        _resolvedOhyoCommentImagesBucket!,
+      ..._ohyoCommentImagesBucketCandidates,
+    ].toSet().toList();
+    Object? lastError;
+
+    for (final bucket in bucketsToTry) {
+      try {
+        final uploadedUrls = await _uploadCommentImages(
+          bucket: bucket,
+          folder: 'comments/$commentId',
+          prefix: 'ohyo_comment',
+          id: commentId,
+          imageFiles: imageFiles,
+        );
+        _resolvedOhyoCommentImagesBucket ??= bucket;
+        return uploadedUrls;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (lastError != null) {
+      throw Exception('Failed to upload ohyo comment images: $lastError');
+    }
+    return [];
   }
 
   // OHYO LIKES
@@ -1781,6 +1852,8 @@ class InteractionService {
   Future<ForumComment> updateForumComment({
     required int commentId,
     required String content,
+    List<String>? imageUrls,
+    List<String>? fileUrls,
   }) async {
     try {
       final user = _client.auth.currentUser;
@@ -1788,12 +1861,20 @@ class InteractionService {
         throw Exception('User not authenticated');
       }
 
+      final Map<String, dynamic> updateData = {
+        'content': content,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (imageUrls != null) {
+        updateData['image_urls'] = imageUrls;
+      }
+      if (fileUrls != null) {
+        updateData['file_urls'] = fileUrls;
+      }
+
       final response = await _client
           .from('forum_comments')
-          .update({
-            'content': content,
-            'updated_at': DateTime.now().toIso8601String(),
-          })
+          .update(updateData)
           .eq('id', commentId)
           .eq('author_id', user.id) // Ensure user can only update their own comments
           .select()

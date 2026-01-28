@@ -10,12 +10,39 @@ class ForumService {
     'forum_images',
   ];
   static const List<String> _forumFilesBucketCandidates = [
+    'forum_files_docs',
     'FORUM_FILES',
     'forum_files',
+  ];
+  static const List<String> _forumFilesAllowedMimeTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'text/csv',
+    'application/rtf',
+    'application/zip',
+    'application/vnd.rar',
+    'application/x-7z-compressed',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+    'video/mp4',
+    'video/quicktime',
+    'audio/mpeg',
+    'audio/wav',
   ];
   static const int _signedUrlExpirySeconds = 31536000; // 1 year
   String? _resolvedForumImagesBucket;
   String? _resolvedForumFilesBucket;
+  List<String>? _resolvedForumFilesAllowedMimeTypes;
 
   // Helper function to get user avatar from metadata
   // Returns avatar URL for custom avatars, or avatar ID for preset avatars
@@ -63,14 +90,136 @@ class ForumService {
     }
   }
 
-  String _getFileExtension(File file) {
-    final path = file.path;
-    final dotIndex = path.lastIndexOf('.');
-    if (dotIndex == -1 || dotIndex == path.length - 1) {
-      return '.jpg';
+  String _sanitizeFileName(String fileName) {
+    var safeName = fileName.trim();
+    safeName = safeName.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+    safeName = safeName.replaceAll(RegExp(r'\s+'), ' ');
+    if (safeName.isEmpty) {
+      return 'file';
     }
-    return path.substring(dotIndex);
+    return safeName;
   }
+
+  String _getFileExtensionFromPath(String filePath) {
+    final normalized = filePath.replaceAll('\\', '/');
+    final dotIndex = normalized.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == normalized.length - 1) {
+      return '';
+    }
+    return normalized.substring(dotIndex).toLowerCase();
+  }
+
+  String _getBaseName(String filePath) {
+    final normalized = filePath.replaceAll('\\', '/');
+    final lastSlash = normalized.lastIndexOf('/');
+    return lastSlash == -1 ? normalized : normalized.substring(lastSlash + 1);
+  }
+
+  String _getContentTypeForFile(File file) {
+    final extension = _getFileExtensionFromPath(file.path);
+    switch (extension) {
+      case '.pdf':
+        return 'application/pdf';
+      case '.doc':
+        return 'application/msword';
+      case '.docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case '.xls':
+        return 'application/vnd.ms-excel';
+      case '.xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case '.ppt':
+        return 'application/vnd.ms-powerpoint';
+      case '.pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case '.txt':
+        return 'text/plain';
+      case '.csv':
+        return 'text/csv';
+      case '.rtf':
+        return 'application/rtf';
+      case '.zip':
+        return 'application/zip';
+      case '.rar':
+        return 'application/vnd.rar';
+      case '.7z':
+        return 'application/x-7z-compressed';
+      case '.jpg':
+      case '.jpeg':
+        return 'image/jpeg';
+      case '.png':
+        return 'image/png';
+      case '.gif':
+        return 'image/gif';
+      case '.webp':
+        return 'image/webp';
+      case '.heic':
+        return 'image/heic';
+      case '.heif':
+        return 'image/heif';
+      case '.mp4':
+        return 'video/mp4';
+      case '.mov':
+        return 'video/quicktime';
+      case '.mp3':
+        return 'audio/mpeg';
+      case '.wav':
+        return 'audio/wav';
+    }
+    return 'application/octet-stream';
+  }
+
+  List<String>? _extractAllowedMimeTypes(dynamic bucketInfo) {
+    try {
+      final allowed = bucketInfo.allowedMimeTypes;
+      if (allowed == null) return null;
+      return List<String>.from(allowed);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _mimeMatches(String allowed, String mime) {
+    if (allowed == '*/*') return true;
+    if (allowed == mime) return true;
+    if (allowed.endsWith('/*')) {
+      final prefix = allowed.split('/').first;
+      return mime.startsWith('$prefix/');
+    }
+    return false;
+  }
+
+  bool _bucketAllowsForumFiles(List<String>? allowedMimeTypes) {
+    if (allowedMimeTypes == null || allowedMimeTypes.isEmpty) {
+      return true;
+    }
+    for (final allowed in allowedMimeTypes) {
+      if (allowed == '*/*' || allowed.endsWith('/*')) {
+        return true;
+      }
+    }
+    for (final mime in _forumFilesAllowedMimeTypes) {
+      if (allowedMimeTypes.any((allowed) => _mimeMatches(allowed, mime))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<List<String>?> _getForumFilesAllowedMimeTypes(String bucket) async {
+    if (_resolvedForumFilesAllowedMimeTypes != null) {
+      return _resolvedForumFilesAllowedMimeTypes;
+    }
+    try {
+      final bucketInfo = await _client.storage.getBucket(bucket);
+      final allowedMimeTypes = _extractAllowedMimeTypes(bucketInfo);
+      _resolvedForumFilesAllowedMimeTypes = allowedMimeTypes;
+      return allowedMimeTypes;
+    } catch (_) {
+      return null;
+    }
+  }
+
 
   String? _extractStoragePathFromUrl(String url, String bucket) {
     try {
@@ -142,15 +291,48 @@ class ForumService {
     required List<File> imageFiles,
   }) async {
     if (imageFiles.isEmpty) return [];
-    final bucket = await _resolveForumImagesBucket();
+    final bucketsToTry = _resolvedForumImagesBucket != null
+        ? <String>[_resolvedForumImagesBucket!]
+        : _forumImagesBucketCandidates;
+    Object? lastError;
 
+    for (final bucket in bucketsToTry) {
+      try {
+        final uploadedUrls = await _uploadForumImagesToBucket(
+          bucket: bucket,
+          folder: folder,
+          prefix: prefix,
+          id: id,
+          imageFiles: imageFiles,
+        );
+        _resolvedForumImagesBucket ??= bucket;
+        return uploadedUrls;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (lastError != null) {
+      throw lastError;
+    }
+    return [];
+  }
+
+  Future<List<String>> _uploadForumImagesToBucket({
+    required String bucket,
+    required String folder,
+    required String prefix,
+    required int id,
+    required List<File> imageFiles,
+  }) async {
     final uploadedUrls = <String>[];
     for (var i = 0; i < imageFiles.length; i++) {
       final file = imageFiles[i];
       if (!await file.exists()) continue;
-      final extension = _getFileExtension(file);
+      final originalName = _getBaseName(file.path);
+      final safeOriginalName = _sanitizeFileName(originalName);
       final fileName =
-          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_$i$extension';
+          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_${i}__$safeOriginalName';
       final filePath = '$folder/$fileName';
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) continue;
@@ -188,12 +370,40 @@ class ForumService {
     if (_resolvedForumFilesBucket != null) {
       return _resolvedForumFilesBucket!;
     }
+    String? lastMismatch;
     for (final bucket in _forumFilesBucketCandidates) {
       try {
-        await _client.storage.getBucket(bucket);
+        final bucketInfo = await _client.storage.getBucket(bucket);
+        final allowedMimeTypes = _extractAllowedMimeTypes(bucketInfo);
+        if (!_bucketAllowsForumFiles(allowedMimeTypes)) {
+          lastMismatch =
+              'Bucket "$bucket" only allows: ${allowedMimeTypes?.join(', ') ?? 'unknown'}';
+          continue;
+        }
         _resolvedForumFilesBucket = bucket;
+        _resolvedForumFilesAllowedMimeTypes = allowedMimeTypes;
         return bucket;
       } catch (_) {}
+    }
+    for (final bucket in _forumFilesBucketCandidates) {
+      try {
+        await _client.storage.createBucket(
+          bucket,
+          BucketOptions(
+            public: true,
+            allowedMimeTypes: _forumFilesAllowedMimeTypes,
+            fileSizeLimit: (50 * 1024 * 1024).toString(),
+          ),
+        );
+        _resolvedForumFilesBucket = bucket;
+        _resolvedForumFilesAllowedMimeTypes = _forumFilesAllowedMimeTypes;
+        return bucket;
+      } catch (_) {}
+    }
+    if (lastMismatch != null) {
+      throw Exception(
+        'Forum files bucket does not allow document uploads. $lastMismatch',
+      );
     }
     throw Exception(
       'Storage bucket for forum files not found or not accessible.',
@@ -215,20 +425,70 @@ class ForumService {
     required List<File> files,
   }) async {
     if (files.isEmpty) return [];
-    final bucket = await _resolveForumFilesBucket();
+    final bucketsToTry = _resolvedForumFilesBucket != null
+        ? <String>[_resolvedForumFilesBucket!]
+        : _forumFilesBucketCandidates;
+    Object? lastError;
 
+    for (final bucket in bucketsToTry) {
+      try {
+        final uploadedUrls = await _uploadForumFilesToBucket(
+          bucket: bucket,
+          folder: folder,
+          prefix: prefix,
+          id: id,
+          files: files,
+        );
+        _resolvedForumFilesBucket ??= bucket;
+        return uploadedUrls;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+
+    if (lastError != null) {
+      throw lastError;
+    }
+    return [];
+  }
+
+  Future<List<String>> _uploadForumFilesToBucket({
+    required String bucket,
+    required String folder,
+    required String prefix,
+    required int id,
+    required List<File> files,
+  }) async {
     final uploadedUrls = <String>[];
     for (var i = 0; i < files.length; i++) {
       final file = files[i];
       if (!await file.exists()) continue;
-      final extension = _getFileExtension(file);
+      final originalName = _getBaseName(file.path);
+      final safeOriginalName = _sanitizeFileName(originalName);
       final fileName =
-          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_$i$extension';
+          '${prefix}_${id}_${DateTime.now().millisecondsSinceEpoch}_${i}__$safeOriginalName';
       final filePath = '$folder/$fileName';
       final bytes = await file.readAsBytes();
       if (bytes.isEmpty) continue;
+      final contentType = _getContentTypeForFile(file);
+      final allowedMimeTypes = await _getForumFilesAllowedMimeTypes(bucket);
+      if (allowedMimeTypes != null && allowedMimeTypes.isNotEmpty) {
+        final isAllowed = allowedMimeTypes.any(
+          (allowed) => _mimeMatches(allowed, contentType),
+        );
+        if (!isAllowed) {
+          throw Exception(
+            'File type "$contentType" is not allowed by forum files bucket. '
+            'Allowed: ${allowedMimeTypes.join(', ')}',
+          );
+        }
+      }
 
-      await _client.storage.from(bucket).uploadBinary(filePath, bytes);
+      await _client.storage.from(bucket).uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: FileOptions(contentType: contentType),
+          );
       String url;
       try {
         url = await _client.storage
