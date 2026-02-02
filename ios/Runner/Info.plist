@@ -59,10 +59,10 @@
 
 	<!-- Camera and Photo Library permissions -->
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to take photos for your karate content.</string>
+	<string>Deze app heeft toegang tot de camera nodig om foto’s te maken voor je karate‑content.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs photo library access to select images for your karate content.</string>
+	<string>Deze app heeft toegang tot je fotobibliotheek nodig om afbeeldingen te selecteren.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs permission to save photos to your photo library.</string>
+	<string>Deze app heeft toestemming nodig om foto’s op te slaan in je fotobibliotheek.</string>
 </dict>
 </plist>

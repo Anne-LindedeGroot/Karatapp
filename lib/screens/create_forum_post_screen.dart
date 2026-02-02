@@ -154,7 +154,32 @@ class _CreateForumPostScreenState extends ConsumerState<CreateForumPostScreen> {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'txt',
+        'csv',
+        'rtf',
+        'zip',
+        'rar',
+        '7z',
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'heic',
+        'heif',
+        'mp4',
+        'mov',
+        'mp3',
+        'wav',
+      ],
     );
     if (result == null || result.files.isEmpty) return;
     final files = result.files

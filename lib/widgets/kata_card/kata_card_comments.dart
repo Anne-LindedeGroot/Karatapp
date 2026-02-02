@@ -232,15 +232,14 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<KataInteractionState>(
-      kataInteractionProvider(widget.kata.id),
-      (previous, next) {
-        if (!mounted) return;
-        if (next.comments.isEmpty && _comments.isEmpty) return;
-        _syncCommentsIfNeeded(next.comments);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        widget.onCollapse();
       },
+      child: _buildInlineCommentSection(),
     );
-    return _buildInlineCommentSection();
   }
 
   Widget _buildInlineCommentSection() {
@@ -288,6 +287,14 @@ class _KataCardCommentsState extends ConsumerState<KataCardComments> {
           // Comments list
           Consumer(
             builder: (context, ref, child) {
+              ref.listen<KataInteractionState>(
+                kataInteractionProvider(widget.kata.id),
+                (previous, next) {
+                  if (!mounted) return;
+                  if (next.comments.isEmpty && _comments.isEmpty) return;
+                  _syncCommentsIfNeeded(next.comments);
+                },
+              );
               final networkState = ref.watch(networkProvider);
 
               if (widget.isLoading && networkState.isConnected) {

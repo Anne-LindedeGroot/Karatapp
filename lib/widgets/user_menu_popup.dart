@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../config/environment.dart';
+import '../content/privacy_policy_nl.dart';
 import '../providers/accessibility_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/role_provider.dart';
@@ -15,6 +18,59 @@ class UserMenuPopup extends ConsumerWidget {
     super.key,
     this.onLogout,
   });
+
+  void _showPrivacyPolicyDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Privacybeleid'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              privacyPolicyNl,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final uri = Uri.tryParse(Environment.privacyPolicyUrl);
+              if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Privacy‑URL is ongeldig.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+                return;
+              }
+              final success = await launchUrl(
+                uri,
+                mode: LaunchMode.externalApplication,
+              );
+              if (!success && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Kon de privacy‑link niet openen.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Open website'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Sluiten'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -146,6 +202,34 @@ class UserMenuPopup extends ConsumerWidget {
                 });
               },
             ),
+          const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Icon(Icons.privacy_tip, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: EnhancedAccessibleText(
+                    'Privacybeleid',
+                    overflow: TextOverflow.visible,
+                    maxLines: null,
+                    enableTTS: false,
+                  ),
+                ),
+              ],
+            ),
+            onTap: () {
+              Future.microtask(() {
+                if (context.mounted) {
+                  _showPrivacyPolicyDialog(context);
+                }
+              });
+            },
+          ),
           const PopupMenuDivider(),
           // Theme switcher
           PopupMenuItem<String>(

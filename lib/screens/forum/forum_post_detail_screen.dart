@@ -242,7 +242,32 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'txt',
+        'csv',
+        'rtf',
+        'zip',
+        'rar',
+        '7z',
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'heic',
+        'heif',
+        'mp4',
+        'mov',
+        'mp3',
+        'wav',
+      ],
     );
     if (result == null || result.files.isEmpty) return;
     final files = result.files
@@ -324,7 +349,16 @@ class _ForumPostDetailScreenState extends ConsumerState<ForumPostDetailScreen> {
     final uri = isLocalFile
         ? (openUrl.startsWith('file://') ? Uri.parse(openUrl) : Uri.file(openUrl))
         : Uri.parse(openUrl);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final isHttp = uri.scheme == 'http' || uri.scheme == 'https';
+    bool launched;
+    if (isHttp) {
+      launched = await launchUrl(uri, mode: LaunchMode.inAppWebView);
+      if (!launched) {
+        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } else {
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2117,7 +2151,32 @@ class _EditCommentScreenState extends ConsumerState<EditCommentScreen> {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'txt',
+        'csv',
+        'rtf',
+        'zip',
+        'rar',
+        '7z',
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'heic',
+        'heif',
+        'mp4',
+        'mov',
+        'mp3',
+        'wav',
+      ],
     );
     if (result == null || result.files.isEmpty) return;
     final files = result.files
@@ -2561,7 +2620,32 @@ class _EditPostScreenState extends ConsumerState<EditPostScreen> {
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'txt',
+        'csv',
+        'rtf',
+        'zip',
+        'rar',
+        '7z',
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'heic',
+        'heif',
+        'mp4',
+        'mov',
+        'mp3',
+        'wav',
+      ],
     );
     if (result == null || result.files.isEmpty) return;
     final files = result.files
@@ -3031,7 +3115,32 @@ class _ReplyForumCommentScreenState extends ConsumerState<ReplyForumCommentScree
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx'],
+      allowedExtensions: [
+        'pdf',
+        'doc',
+        'docx',
+        'xls',
+        'xlsx',
+        'ppt',
+        'pptx',
+        'txt',
+        'csv',
+        'rtf',
+        'zip',
+        'rar',
+        '7z',
+        'jpg',
+        'jpeg',
+        'png',
+        'gif',
+        'webp',
+        'heic',
+        'heif',
+        'mp4',
+        'mov',
+        'mp3',
+        'wav',
+      ],
     );
     if (result == null || result.files.isEmpty) return;
     final files = result.files

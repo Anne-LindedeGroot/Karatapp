@@ -1,6 +1,12 @@
 # Flutter App with Supabase Integration
 
+Quick note: this repo is public so people can look and learn. Please don’t copy or reuse the code for your own app without asking me first.
+
 This Flutter app demonstrates how to integrate Supabase into a Flutter application, including authentication and database functionality.
+
+## License and usage
+
+This project is public for viewing only. You may not copy, modify, redistribute, or use this code (including for commercial use) without prior written permission.
 
 ## Features
 

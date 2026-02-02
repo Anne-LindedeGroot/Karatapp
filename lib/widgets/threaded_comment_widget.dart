@@ -185,7 +185,16 @@ class _ThreadedCommentWidgetState<T> extends State<ThreadedCommentWidget<T>> {
     final uri = isLocalOpen
         ? (openUrl.startsWith('file://') ? Uri.parse(openUrl) : Uri.file(openUrl))
         : Uri.parse(openUrl);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final isHttp = uri.scheme == 'http' || uri.scheme == 'https';
+    bool launched;
+    if (isHttp) {
+      launched = await launchUrl(uri, mode: LaunchMode.inAppWebView);
+      if (!launched) {
+        launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } else {
+      launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

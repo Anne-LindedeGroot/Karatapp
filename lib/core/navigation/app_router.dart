@@ -42,6 +42,29 @@ class AppRoutes {
   static const String passwordReset = '/reset-password';
 }
 
+class BackToHomeScope extends StatelessWidget {
+  final Widget child;
+
+  const BackToHomeScope({
+    required this.child,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: GoRouter.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (!GoRouter.of(context).canPop()) {
+          context.go(AppRoutes.home);
+        }
+      },
+      child: child,
+    );
+  }
+}
+
 /// Router provider for dependency injection
 final routerProvider = Provider<GoRouter>((ref) {
   // Create a stable router that doesn't recreate on auth state changes
@@ -108,16 +131,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.profile,
         name: 'profile',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: ProfileScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: ProfileScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.forum,
         name: 'forum',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: ForumScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: ForumScreen(),
+          ),
         ),
       ),
       
@@ -126,8 +153,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'forumPostDetail',
         builder: (context, state) {
           final postId = int.parse(state.pathParameters['postId']!);
-          return GlobalErrorBoundary(
-            child: ForumPostDetailScreen(postId: postId),
+          return BackToHomeScope(
+            child: GlobalErrorBoundary(
+              child: ForumPostDetailScreen(postId: postId),
+            ),
           );
         },
       ),
@@ -135,16 +164,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.createForumPost,
         name: 'createForumPost',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: CreateForumPostScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: CreateForumPostScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.favorites,
         name: 'favorites',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: FavoritesScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: FavoritesScreen(),
+          ),
         ),
       ),
       
@@ -153,8 +186,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'editKata',
         builder: (context, state) {
           final kataId = int.parse(state.pathParameters['kataId']!);
-          return GlobalErrorBoundary(
-            child: EditKataWrapper(kataId: kataId),
+          return BackToHomeScope(
+            child: GlobalErrorBoundary(
+              child: EditKataWrapper(kataId: kataId),
+            ),
           );
         },
       ),
@@ -164,8 +199,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'editOhyo',
         builder: (context, state) {
           final ohyoId = int.parse(state.pathParameters['ohyoId']!);
-          return GlobalErrorBoundary(
-            child: EditOhyoWrapper(ohyoId: ohyoId),
+          return BackToHomeScope(
+            child: GlobalErrorBoundary(
+              child: EditOhyoWrapper(ohyoId: ohyoId),
+            ),
           );
         },
       ),
@@ -173,48 +210,60 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.createKata,
         name: 'createKata',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: CreateKataScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: CreateKataScreen(),
+          ),
         ),
       ),
 
       GoRoute(
         path: AppRoutes.createOhyo,
         name: 'createOhyo',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: CreateOhyoScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: CreateOhyoScreen(),
+          ),
         ),
       ),
 
       GoRoute(
         path: AppRoutes.avatarSelection,
         name: 'avatarSelection',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: AvatarSelectionScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: AvatarSelectionScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.userManagement,
         name: 'userManagement',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: UserManagementScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: UserManagementScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.accessibilityDemo,
         name: 'accessibilityDemo',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: AccessibilityDemoScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: AccessibilityDemoScreen(),
+          ),
         ),
       ),
       
       GoRoute(
         path: AppRoutes.ttsTest,
         name: 'ttsTest',
-        builder: (context, state) => const GlobalErrorBoundary(
-          child: TTSTestScreen(),
+        builder: (context, state) => const BackToHomeScope(
+          child: GlobalErrorBoundary(
+            child: TTSTestScreen(),
+          ),
         ),
       ),
       

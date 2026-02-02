@@ -232,25 +232,23 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    ref.listen<OhyoInteractionState>(
-      ohyoInteractionProvider(widget.ohyo.id),
-      (previous, next) {
-        if (!mounted) return;
-        if (next.comments.isEmpty && _comments.isEmpty) return;
-        _syncCommentsIfNeeded(next.comments);
-      },
-    );
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isDark ? theme.colorScheme.surface : Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        widget.onCollapse();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? theme.colorScheme.surface : Colors.grey[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isDark ? theme.colorScheme.outline : Colors.grey.shade300),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Header with collapse button
           Row(
             children: [
@@ -278,6 +276,14 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
           // Comments list
           Consumer(
             builder: (context, ref, child) {
+              ref.listen<OhyoInteractionState>(
+                ohyoInteractionProvider(widget.ohyo.id),
+                (previous, next) {
+                  if (!mounted) return;
+                  if (next.comments.isEmpty && _comments.isEmpty) return;
+                  _syncCommentsIfNeeded(next.comments);
+                },
+              );
               final networkState = ref.watch(networkProvider);
 
               if (widget.isLoading && networkState.isConnected) {
@@ -425,7 +431,8 @@ class _OhyoCardCommentsState extends ConsumerState<OhyoCardComments> {
 
           // Add comment section
           _buildAddCommentSection(),
-        ],
+          ],
+        ),
       ),
     );
   }
