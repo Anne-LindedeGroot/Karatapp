@@ -7,7 +7,9 @@ class Environment {
   static String get appName => dotenv.env['APP_NAME'] ?? 'Karatapp';
   static String get appVersion => dotenv.env['APP_VERSION'] ?? '1.0.0';
   static String get environment => dotenv.env['ENVIRONMENT'] ?? 'development';
-  static String get privacyPolicyUrl => dotenv.env['PRIVACY_POLICY_URL'] ?? 'https://karatapp.com/privacy';
+  static String get privacyPolicyUrl =>
+      dotenv.env['PRIVACY_POLICY_URL'] ??
+      'https://anne-lindedegroot.github.io/Karatapp/privacy_policy.html';
   
   static bool get isDevelopment => environment == 'development';
   static bool get isProduction => environment == 'production';
