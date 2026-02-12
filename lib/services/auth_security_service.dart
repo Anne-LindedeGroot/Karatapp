@@ -2,7 +2,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
-import '../config/environment.dart';
 import '../supabase_client.dart';
 import '../utils/retry_utils.dart';
 
@@ -343,9 +342,8 @@ class AuthSecurityService {
 
   /// Get the email confirmation URL for professional email links
   String _getEmailConfirmationUrl() {
-    // Build from configured Supabase URL to avoid hardcoded project ids.
-    final baseUrl = Environment.supabaseUrl;
-    return '$baseUrl/auth/v1/verify';
+    // Use the Supabase verify URL that's configured in the dashboard for email confirmations
+    return 'https://asvyjiuphcqfmwdpivsr.supabase.co/auth/v1/verify';
   }
 
   /// Handle general auth exceptions
